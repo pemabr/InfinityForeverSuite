@@ -1,0 +1,12 @@
+## Interface: 16001
+## Title: Infinity Loot History
+## Notes: Advanced loot tracking and history with statistics
+## Author: Infinity Suite
+## Version: 1.0.0
+## Depends: InfinityCore
+## SavedVariables: InfinityLootHistoryDB
+## OptionalDeps: InfinityCore
+
+Init.lua
+
+Modules\Tracker.lua

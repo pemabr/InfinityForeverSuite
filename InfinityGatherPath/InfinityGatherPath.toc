@@ -1,0 +1,14 @@
+## Interface: 16001
+## Title: Infinity GatherPath (Gathering Routes)
+## Notes: Optimized gathering routes and node database
+## Author: Infinity Forever Suite
+## Version: 1.0.0
+## RequiredDeps: InfinityCore
+
+Core\Localization.lua
+Core\NodeDatabase.lua
+Modules\Routes.lua
+Modules\Optimization.lua
+Modules\NodeMarkers.lua
+UI\Main.lua
+Init.lua

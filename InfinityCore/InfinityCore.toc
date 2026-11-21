@@ -1,0 +1,40 @@
+## Interface: 16001
+## Title: |cff00ccffInfinity|r Core
+## Notes: Central hub for the InfinityForever suite - provides shared infrastructure, data management, and unified UI framework.
+## Author: Infinity Suite Team
+## Version: 1.1.0
+## SavedVariables: InfinityCoreDB
+## OptionalDeps: Questie, QuestieDB
+## X-Category: Utility
+## X-License: MIT
+
+Localization\Localization.lua
+
+Core\Constants.lua
+Core\Utilities.lua
+Core\DataManager.lua
+Core\Storage.lua
+Core\Messaging.lua
+Core\EventRouter.lua
+Core\CommandRegistry.lua
+Core\CharacterManager.lua
+
+Modules\DataCollector.lua
+Modules\DataSanitizer.lua
+Modules\QuestieDBIntegration.lua
+Modules\PerformanceProfiler.lua
+
+PerformanceOptimizer.lua
+CompatibilityMatrix.lua
+IntegrationTest.lua
+IntegrationTests.lua
+SuiteValidator.lua
+OfficerDashboard.lua
+
+UI\UIFramework.lua
+UI\MainFrame.lua
+UI\SettingsPanel.lua
+UI\AddonManager.lua
+UI\UIIntegration.lua
+
+Init.lua

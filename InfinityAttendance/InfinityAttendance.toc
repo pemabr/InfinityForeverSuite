@@ -1,0 +1,12 @@
+## Interface: 16001
+## Title: Infinity Attendance (Raid Tracking)
+## Notes: Automatic raid attendance logging and statistics
+## Author: Infinity Forever Suite
+## Version: 1.0.0
+## RequiredDeps: InfinityCore, InfinityDKP
+
+Core\Localization.lua
+Modules\Tracker.lua
+Modules\Statistics.lua
+UI\Main.lua
+Init.lua

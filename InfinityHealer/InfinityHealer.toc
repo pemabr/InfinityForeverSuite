@@ -1,0 +1,70 @@
+## Interface: 16001
+## Title: |cff00ccffInfinity|r Healer
+## Notes: Comprehensive raid healing UI with frames, click-casting, and predictions.
+## Author: Infinity Suite Team
+## Version: 1.4.0
+## SavedVariables: InfinityHealerDB
+## Depends: InfinityCore
+## X-Category: Raid
+
+Localization\Localization.lua
+
+Modules\HealerFrames.lua
+Modules\FrameRenderer.lua
+Modules\RaidFrameEngine.lua
+Modules\PartyFrameRenderer.lua
+Modules\UnitFrameInteractionEngine.lua
+Modules\GroupLayoutEngine.lua
+Modules\ScrollableRaidFrameManager.lua
+Modules\AdvancedClickCasting.lua
+Modules\ClickCasting.lua
+Modules\ClickCastingEngine.lua
+Modules\HealingPrediction.lua
+Modules\HealPredictionEngine.lua
+Modules\AuraTracking.lua
+Modules\AuraHighlightEngine.lua
+Modules\AuraFilterEngine.lua
+Modules\RangeChecking.lua
+Modules\RangeCheckerEngine.lua
+Modules\LineOfSightEngine.lua
+Modules\HotTrackerEngine.lua
+Modules\HotDurationEngine.lua
+Modules\ThreatIndicatorEngine.lua
+Modules\DispelEngine.lua
+Modules\HealthBarRenderer.lua
+Modules\StatusTextEngine.lua
+Modules\CooldownOverlayEngine.lua
+Modules\ActionIconEngine.lua
+Modules\RangeIndicatorEngine.lua
+Modules\FrameTransparencyManager.lua
+Modules\FrameColoringEngine.lua
+Modules\TargetIndicatorEngine.lua
+Modules\FocusIndicatorEngine.lua
+Modules\AssistIndicatorEngine.lua
+Modules\SkinEngine.lua
+Modules\LayoutTemplateEngine.lua
+Modules\CustomLayoutManager.lua
+Modules\HealCommunicationEngine.lua
+Modules\IncomingHealDisplayEngine.lua
+Modules\GroupFramingOptionsEngine.lua
+Modules\ClickCastBindingConfigEngine.lua
+Modules\BuffCustomizationEngine.lua
+Modules\SkinImportExportEngine.lua
+Modules\NetworkSkinSyncEngine.lua
+Modules\ExtraSkinPackagesEngine.lua
+Modules\MultiSkinOptionsEngine.lua
+Modules\LibHealCommIntegrationEngine.lua
+Modules\ProximityAuraEngine.lua
+Modules\HealingMetricsCalculatorEngine.lua
+Modules\FrameLayoutConfigUIEngine.lua
+Modules\ObjectiveTrackerIntegrationEngine.lua
+Modules\HealingStatistics.lua
+Modules\CooldownManager.lua
+Modules\BuffDebuffTracker.lua
+Modules\ResourceTracker.lua
+Modules\ThreatTracker.lua
+Modules\DebuffHighlighter.lua
+
+UI\HealerUI.lua
+
+Init.lua

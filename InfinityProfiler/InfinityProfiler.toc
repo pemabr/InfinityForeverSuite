@@ -1,0 +1,12 @@
+## Interface: 16001
+## Title: Infinity Profiler
+## Author: Infinity Suite
+## Version: 1.0
+## Notes: Addon-level performance profiling and monitoring system for Infinity Suite
+## RequiredDeps: InfinityCore
+## SavedVariables: InfinityProfilerDB
+
+Core\ProfilerCore.lua
+Modules\Monitor.lua
+UI\Main.lua
+Init.lua
