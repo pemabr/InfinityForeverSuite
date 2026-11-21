@@ -93,12 +93,33 @@ end
 
 -- Feature enabled/disabled
 function InfinityStorageManager:SetFeatureEnabled(featureName, enabled)
-	self.db.global.enabledFeatures[featureName] = enabled
+	if not self.db then self.db = _G.InfinityCoreDB or {} end
+	if not self.db.global then self.db.global = {} end
+	if not self.db.global.enabledFeatures then self.db.global.enabledFeatures = {} end
+	local state = not not enabled
+	self.db.global.enabledFeatures[featureName] = state
+	if _G.InfinityAddonManager and _G.InfinityAddonManager.addons and _G.InfinityAddonManager.addons[featureName] then
+		_G.InfinityAddonManager.addons[featureName].enabled = state
+	end
 	return true
 end
 
 function InfinityStorageManager:IsFeatureEnabled(featureName)
-	return self.db.global.enabledFeatures[featureName] == true
+	if not self.db or not self.db.global or not self.db.global.enabledFeatures then
+		return false
+	end
+	local val = self.db.global.enabledFeatures[featureName]
+	if val == nil then
+		local loaded = false
+		if C_AddOns and C_AddOns.IsAddOnLoaded then
+			loaded = not not C_AddOns.IsAddOnLoaded(featureName)
+		elseif _G.IsAddOnLoaded then
+			loaded = not not _G.IsAddOnLoaded(featureName)
+		end
+		self.db.global.enabledFeatures[featureName] = loaded
+		return loaded
+	end
+	return val == true
 end
 
 function InfinityStorageManager:GetEnabledFeatures()

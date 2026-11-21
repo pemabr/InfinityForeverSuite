@@ -382,7 +382,7 @@ end
 -- Auto-show dashboard for officers
 if InfinityCore.Events then
     InfinityCore.Events:Subscribe("PLAYER_ENTERING_WORLD", function()
-        local _, rank = GetGuildInfo("player")
+        local _, _, rank = GetGuildInfo("player")
         if rank and rank <= 1 then
             print("|cff00ccffOfficer detected. Use |cffff9900/dashboard|r to open Officer Dashboard.|r")
         end

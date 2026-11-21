@@ -1,0 +1,535 @@
+local ForeverCoreHostChunk = function(...) -- Machine translated (2026-10-22); corrections welcome: https://github.com/cjber/adventure-guide-forever/issues/new?template=translation.yml
+local _, ns = ...
+if GetLocale() ~= "esMX" then
+	return
+end
+local L = ns.L
+L["%s could not start. Reinstall %s to fix this."] = "%s no pudo iniciarse. Reinstala %s para solucionarlo." -- mt
+L["%s needs ForeverCore. Install it from CurseForge, or choose Reinstall on ForeverCore in the CurseForge app."] =
+	"%s necesita ForeverCore. Instálalo desde CurseForge o elige Reinstalar en ForeverCore en la aplicación de CurseForge." -- mt
+L["%s: %s are out of date. Update them to fix this."] =
+	"%s: %s están desactualizados. Actualízalos para solucionarlo." -- mt
+L["%s: %s is out of date. Update it to fix this."] = "%s: %s está desactualizado. Actualízalo para solucionarlo." -- mt
+L["%s: ForeverCore is turned off. Enable it in the AddOns list to fix this."] =
+	"%s: ForeverCore está desactivado. Actívalo en la lista de Accesorios para solucionarlo." -- mt
+L["%s: the installed ForeverCore is another addon (%s). Remove it and install ForeverCore from CurseForge."] =
+	"%s: el ForeverCore instalado es otro complemento (%s). Elimínalo e instala ForeverCore desde CurseForge." -- mt
+L["AFTER_PICK_UP"] = "después de aceptarla"
+L["ALL_SUGGESTIONS"] = "Todas las sugerencias"
+L["AUDIT_BUILD"] = "datos de la versión %s, versión del cliente %s.%s"
+L["AUDIT_COUNTS"] = "%d misiones en los datos, %d disponibles ahora, %d completadas conocidas"
+L["AUDIT_NOT_READY"] =
+	"las misiones completadas aún no han terminado de cargarse; las cifras de arriba pueden ser bajas."
+L["AUDIT_QUESTIE_BUILDING"] = "Las misiones de QuestieDB aún se están cargando."
+L["AUDIT_QUESTIE_UNUSED"] = "QuestieDB no se usa: %s."
+L["AUDIT_SOURCE_BUNDLED"] =
+	"Datos de misiones no disponibles. Activa QuestieDB; activa Questie para recomendaciones de misiones que aceptar."
+L["AUDIT_SOURCE_QUESTIE"] = "misiones de QuestieDB %s"
+L["BACK_STOPS_ROUTE"] = "También detiene la ruta"
+L["BACK_TO_ALL"] = "Haz clic en la flecha de volver para ver todas las sugerencias"
+L["BATTLEGROUND_OPEN"] = "%s está disponible para ti"
+L["BATTLEGROUND_SUBLINE"] = "Un campo de batalla disponible para ti"
+L["BATTLEMASTER_IN"] = "Maestro de batalla en %s"
+L["BATTLEMASTER_QUEUE"] = "Entrar en cola para %s"
+L["BEGINS_STORY"] = "Comienza una nueva historia"
+L["BOOKS_ALLIANCE"] = "Libros en territorio de la Alianza" -- mt
+L["BOOKS_HORDE"] = "Libros en territorio de la Horda" -- mt
+L["BOOKS_SMALLER_FIRST"] = "Zonas más pequeñas primero" -- mt
+L["BOOKS_THEN_LIBRARIAN"] = "%d libros, luego el bibliotecario" -- mt
+L["BOOKS_THEN_LIBRARIAN_ONE"] = "1 libro, luego el bibliotecario" -- mt
+L["BOOKS_HANDIN"] = "Entrega %d libros a %s" -- mt
+L["BOOKS_HANDIN_ONE"] = "Entrega 1 libro a %s" -- mt
+L["BOOKS_UNLOCATED"] = "Ubicación desconocida" -- mt
+L["BOOKS_TERRITORY_ALLIANCE"] = "Territorio de la Alianza" -- mt
+L["BOOKS_TERRITORY_HORDE"] = "Territorio de la Horda" -- mt
+L["CALLING_QUESTS"] = "%d misiones para tu clase"
+L["CALLING_QUESTS_ONE"] = "1 misión para tu clase"
+L["CALLING_TASK"] = "Una tarea para tu clase: %s"
+L["CALLING_TRAINER"] = "Tu instructor de clase tiene una tarea: %s"
+L["CARD_BY_BOAT"] = "%d min en barco"
+L["CARD_BY_ZEPPELIN"] = "%d min en zepelín"
+L["CARD_MINUTES"] = "%d min"
+L["CARRY_ADDED"] = "%d añadidas por ti"
+L["CARRY_AWAY"] = "%d para entregar al otro lado del mar"
+L["CARRY_EXPLANATION"] =
+	"Entregas y objetivos sin terminar de tu registro de misiones, más las misiones que añadiste a la ruta."
+L["CARRY_IN_PROGRESS"] = "%d en curso"
+L["CARRY_READY"] = "%d listas para entregar"
+L["CHAPTER"] = "Capítulo %d"
+L["CHAPTERS_DONE"] = "%d de %d hechos"
+L["CHAPTER_OF"] = "Capítulo %d de %d"
+L["THEN"] = "Después: %s"
+L["CONTINUES_AT_LEVEL"] = "Continúa a nivel %d: %s"
+L["CHAIN_PROGRESS"] = "%s, %d de %d"
+L["CHAPTER_QUEST"] = "%s: %s"
+L["CLEANUP"] = "Limpieza: %s"
+L["CLEANUP_READY"] = "%d para entregar"
+L["CLEANUP_GREY"] = "%d grises"
+L["CLEANUP_ELSEWHERE"] = "%d en otro sitio"
+L["CLEANUP_READY_HEADING"] = "Listas para entregar:"
+L["CLEANUP_GREY_HEADING"] = "Grises:"
+L["CLEANUP_ELSEWHERE_HEADING"] = "No se puede terminar aquí:"
+L["CLEANUP_MENU_TITLE"] = "Limpiar mi registro"
+L["CLEANUP_RIGHT_CLICK"] = "Haz clic derecho para abrir en el mapa una misión gris o de otro sitio."
+L["CHOOSE_JOURNEY"] = "Elegir otro viaje"
+L["CHOOSE_NEXT"] = "Elige tu próximo viaje"
+L["CLICK_TO_CHOOSE"] = "Haz clic para elegir este viaje"
+L["CLICK_TO_RESUME"] = "Haz clic para reanudar la ruta"
+L["CLICK_TRAVEL"] = "Haz clic para viajar con %s"
+L["CLICK_WAYPOINT"] = "Haz clic para poner un punto de ruta"
+L["CLICK_WAYPOINT_STEP"] = "Haz clic para poner un punto de ruta"
+L["CLOSES_WARNING"] = "Aceptar %s cierra %s para siempre."
+L["CONTINUES_STORY"] = "Continúa una historia que empezaste"
+L["DO_THIS_NEXT"] = "Haz esto a continuación"
+L["DUMP_SAVED"] =
+	"diseño guardado. Escribe /reload y envía WTF\\Account\\<account>\\SavedVariables\\AdventureGuideForever.lua"
+L["DUNGEON_BOSSES_LOOT"] = "Jefes y botín"
+L["DUNGEON_INSIDE"] = "%d de tus misiones terminan dentro de %s"
+L["DUNGEON_INSIDE_ONE"] = "1 de tus misiones termina dentro de %s"
+L["DUNGEON_LEFT_BEHIND"] = "%d misiones de mazmorra aún por recoger"
+L["DUNGEON_LEFT_BEHIND_ONE"] = "1 misión de mazmorra aún por recoger"
+L["DUNGEON_LOOT_COMBAT"] = "El botín de los jefes se cargará después del combate."
+L["DUNGEON_LOOT_INSTALL"] = "Instala AtlasLoot Classic y su módulo de calabozos y bandas para ver jefes y botín."
+L["DUNGEON_LOOT_UNKNOWN"] = "AtlasLoot aún no tiene botín de jefes para este calabozo."
+L["DUNGEON_PICKUP"] = "Aceptar"
+L["DUNGEON_QUESTS"] = "%d misiones para este calabozo"
+L["DUNGEON_QUESTS_ONE"] = "1 misión para este calabozo"
+L["END_JOURNEY"] = "Terminar el viaje"
+L["ENTRANCE_UNKNOWN"] = "Se desconoce dónde está la entrada."
+L["FROM_SKILLUP"] = "de SkillUp Forever"
+L["GO"] = "Ir"
+L["GO_TO_ENTRANCE"] = "Ir a la entrada"
+L["GROUP_BATTLEGROUNDS"] = "Campos de batalla"
+L["GROUP_CONTINUE"] = "Continuar"
+L["GROUP_DUNGEONS"] = "Calabozos"
+L["GROUP_LIBRARY"] = "Libros de la biblioteca" -- mt
+L["GROUP_MANY"] = "%d necesitan grupo"
+L["GROUP_NEED_DUNGEON"] = "Calabozo: %s"
+L["GROUP_NEED_ELITE"] = "Élite: se recomienda grupo"
+L["GROUP_NEED_RAID"] = "Banda: %s"
+L["GROUP_NEED_RAID_ANY"] = "Banda: se recomienda grupo"
+L["GROUP_NEED_SIZE"] = "Grupo de %d"
+L["GROUP_ONE"] = "1 necesita grupo"
+L["GROUP_ZONES"] = "Destinos de misión"
+L["MORE_CARDS"] = "%d más: haz clic para mostrar"
+L["GUIDE_BACK"] = "Volver a los viajes"
+L["GUIDE_OPEN"] = "Ver la guía completa"
+L["GUIDE_OUTLINE"] = "Misión posterior · esquema de la guía"
+L["GUIDE_OUTLINE_INSIDE"] = "Se recoge dentro · esquema de la guía"
+L["GUIDE_OUTLINE_TOOLTIP"] =
+	"Misiones de esta zona. La guía comprueba si están disponibles antes de recomendar aceptarlas."
+L["GUIDE_PAGE"] = "%d / %d · %d próximos pasos · %d misiones posteriores"
+L["HAND_IN_WHEN"] = "Entrégala cuando estés en %s"
+L["HAND_IN_WHEN_DONE"] = "cuando esté hecha"
+L["BEFORE_IT_RUNS_OUT"] = "antes de que caduque %s"
+L["BEFORE_ITEM_RUNS_OUT"] = "antes de que caduque un objeto de misión"
+L["BEFORE_TIMER_RUNS_OUT"] = "antes de que se agote el tiempo de la misión"
+L["HELP_AUDIT"] = "/agf audit - comprobar los datos de misiones con el juego"
+L["HELP_DUMP"] = "/agf dump - guardar el diseño de la guía para un informe de error"
+L["HELP_OPEN"] = "/agf - abrir la guía en el mapa del mundo."
+L["HELP_REPORT"] = "/agf report - mostrar un informe para copiar en un informe de error"
+L["HELP_TRACKER"] = "/agf tracker - mostrar los anclajes del rastreador (si se solapa en combate)"
+L["HELP_WHERE"] = "/agf where - mostrar la parada actual de la guía, para copiarla en un informe de parada errónea"
+L["HUB_HAND_IN"] = "%d para entregar"
+L["HUB_MORE"] = "%s y %d paradas más"
+L["HUB_MORE_ONE"] = "%s y 1 parada más"
+L["HUB_MORE_QUESTS"] = "Y %d más"
+L["HUB_NPCS_MORE"] = "%s y %d más"
+L["HUB_PICK_UP"] = "%d para aceptar"
+L["ITEM_LOADING"] = "Cargando objeto..."
+L["JOURNEY_CALLING"] = "Tu vocación"
+L["JOURNEY_CARRY"] = "Limpiar mi registro"
+L["JOURNEY_TURNINS"] = "Solo entregas" -- mt
+L["TURNINS_REASON"] = "Entrega misiones completadas sin aceptar más" -- mt
+L["JOURNEY_TRACKED"] = "Mis misiones seguidas" -- mt
+L["TRACKED_QUESTS"] = "%d misiones seguidas" -- mt
+L["TRACKED_QUESTS_ONE"] = "1 misión seguida" -- mt
+L["TRACKED_REASON"] = "Las misiones que sigues, en el mejor orden" -- mt
+L["JOURNEY_CHOICES"] = "Elige una aventura"
+L["JOURNEY_CHOOSE"] = "Elige un viaje en Actividades para empezar."
+L["JOURNEY_COMPLETE"] = "Viaje completado"
+L["JOURNEY_INTO"] = "El camino a %s"
+L["JOURNEY_NEXT_ZONE"] = "Dirígete a %s"
+L["PROVIDER_CARD_HINT"] =
+	"Pasos de tus guías %s instaladas. Las historias de zona y «Limpiar mi registro» son de Adventure Guide."
+L["JOURNEY_PAGE"] = "%d / %d"
+L["JOURNEY_PROGRESS_EMPTY"] = "Tus historias completadas aparecerán aquí."
+L["JOURNEY_QUESTS"] = "Misiones de este viaje"
+L["JOURNEY_STORY"] = "Historia: %s"
+L["LATER_LAPS"] = "%d de ellas en vueltas posteriores"
+L["LEGACY_PROGRESS_LINK"] = "Abrir el mapa para el progreso de legado"
+L["LEGACY_PROGRESS_NOTE"] = "Legacy Forever sigue las colecciones, la exploración y la finalización de zonas."
+L["LEVELS"] = "%d-%d"
+L["LEVELS_FROM"] = "%d+"
+L["LIST_SEPARATOR"] = ", "
+L["LOADING"] = "Cargando tus misiones completadas..."
+L["LOG_FULL"] = "Registro casi lleno: podrías abandonar %d"
+L["LOG_FULL_LIST"] = "Para hacer sitio en tu registro, podrías abandonar:"
+L["LOG_FULL_ONE"] = "Registro casi lleno: podrías abandonar 1"
+L["MENU_BACK"] = "Volver"
+L["MENU_BATTLEGROUNDS"] = "Campos de batalla"
+L["MENU_CHECKED"] = "[x] %s"
+L["MENU_DUNGEONS"] = "Calabozos"
+L["MENU_GIVERS"] = "Mostrar asignadores de misiones"
+L["MENU_MAP_PINS"] = "Mostrar marcas en el mapa"
+L["MENU_MORE_SETTINGS"] = "Más opciones"
+L["MENU_QUESTS"] = "Misiones"
+L["MENU_SUBMENU"] = "%s >"
+L["MENU_TRACKER"] = "Mostrar en el rastreador de objetivos"
+L["MENU_UNCHECKED"] = "[ ] %s"
+L["MOMENT"] = "%s ya es de tu nivel"
+L["MOMENT_OPEN"] = "%s está disponible para ti"
+L["NEAR_YOUR_LEVEL"] = "cerca de tu nivel"
+L["NEW_LAND"] = "%s · Niveles %d-%d"
+L["NEXT"] = "Siguiente: %s"
+L["NEXT_CAMP"] = "Siguiente lugar"
+L["NEXT_PAGE"] = "Siguiente"
+L["NEXT_REASON_ASIDE"] = "Algo útil que tener en cuenta junto a tu aventura."
+L["NEXT_REASON_JOURNEY"] = "El siguiente paso de %s."
+L["NEXT_REASON_PROFESSIONS"] = "Cumples los requisitos para este aprendizaje de profesión."
+L["NEXT_REASON_TALENTS"] = "Gastar tus puntos de talento hace más fuerte a tu personaje."
+L["NEXT_REASON_TRAINING"] = "Tu instructor de clase tiene hechizos que puedes aprender."
+L["NEXT_RECIPES"] = "Próximas recetas"
+L["NEXT_STEPS"] = "Próximos pasos"
+L["NOT_INTERESTED"] = "No me interesa"
+L["NOT_OFFERED"] = "%s omitida: el asignador no la ofreció."
+L["NOT_THIS_QUEST"] = "Esta misión no"
+L["NO_JOURNEY"] = "La guía no tiene un viaje para ti aquí; busca el «!» sobre los asignadores de misiones."
+L["NPC_JOURNEY"] = "Adventure Guide: %s"
+L["OBJECTIVE_LINE"] = "- %s"
+L["OBJECTIVE_PROGRESS"] = "%d/%d"
+L["OPENS_CHAPTER_HERE"] = "Abre aquí el siguiente capítulo"
+L["OPEN_RECIPES"] = "Abrir recetas"
+L["OPTIONAL"] = "opcional"
+L["ORDER_CUSTOM"] = "Tu orden"
+L["ORDER_DRAG"] = "Arrastra para cambiar el orden"
+L["ORDER_LATER"] = "Hacer esto después"
+L["ORDER_NEXT"] = "Hacer esto a continuación"
+L["ORDER_RESET"] = "Volver al orden sugerido"
+L["ORDER_SOONER"] = "Hacer esto antes"
+L["OTHER_ADVENTURES"] = "Otras aventuras"
+L["OVERVIEW_WHERE"] = "%s · nivel %d"
+L["PARTY_HAS"] = "alguien de tu grupo la tiene"
+L["PICK_UP"] = "Aceptar misiones: %s"
+L["PIN_RETURN_STORY"] = "Clic derecho para trazar la ruta desde el inicio de la historia"
+L["PLACE"] = "%s, %s"
+L["POLESTAR_GUIDING"] = "Polestar te está guiando"
+L["POLESTAR_TAKE_OVER"] = "Haz clic para tomar el control"
+L["PREVIOUS_PAGE"] = "Anterior"
+L["PROFESSION_BAR"] = "%d/%d"
+L["PROFESSION_CAP"] = "%s ha llegado a %d de %d"
+L["PROFESSION_LEARN"] = "Puedes aprender %s"
+L["PROFESSION_LEARN_IN"] = "Puedes aprender %s en %s"
+L["PROFESSION_LINE"] = "%s · %s"
+L["PROFESSION_RANGE"] = "%d a %d"
+L["PROFESSION_RANGE_TITLE"] = "%d a %d · %s"
+L["PROFESSION_RANK"] = "Aprendizaje de %s disponible"
+L["PROFESSION_RANK_1"] = "Aprendiz"
+L["PROFESSION_RANK_2"] = "Oficial"
+L["PROFESSION_RANK_3"] = "Experto"
+L["PROFESSION_RANK_4"] = "Artesano"
+L["PROFESSION_RANK_IN"] = "Aprendizaje de %s en %s"
+L["PROFESSION_SLOT"] = "Tienes un hueco de profesión libre"
+L["PROFESSION_SLOT_IN"] = "instructores en %s"
+L["PVP_BATTLEGROUND_LEVEL"] = "Desde el nivel %d"
+L["PVP_CAPPED"] = "Rango máximo alcanzado"
+L["PVP_GO_BATTLEMASTER"] = "Ir al maestro de batalla"
+L["PVP_NEXT_REWARD"] = "Siguiente recompensa: rango %d · %s"
+L["PVP_NO_BATTLEGROUNDS"] = "No hay campos de batalla disponibles a tu nivel."
+L["PVP_NO_BATTLEMASTER"] = "No se conoce la ubicación de ningún maestro de batalla"
+L["PVP_RANK"] = "Rango %d"
+L["PVP_RANK_POINTS"] = "%d/%d puntos de rango"
+L["PVP_RANK_REWARD"] = "Rango %d · %s"
+L["PVP_UNAVAILABLE"] = "El progreso de rango no está disponible."
+L["PVP_UNRANKED"] = "Sin rango"
+L["QUESTIE_ABSENT"] = "no está cargado"
+L["QUESTIE_CONTRACT"] = "la guía no puede leer su versión"
+L["QUESTIE_ENABLE"] = "Activa QuestieDB para cargar los datos de misiones."
+L["QUESTIE_FAILED"] = "no se pudo leer (%s)"
+L["QUESTIE_FIELD"] = "le falta %s"
+L["QUESTIE_FLAVOUR"] = "no es la edición de WoW: Forever"
+L["QUESTIE_INSTALL"] = "Instala QuestieDB para cargar los datos de misiones."
+L["QUESTIE_POLICY"] = "Activa Questie para recomendaciones de misiones disponibles."
+L["QUESTIE_ZONES"] = "le faltan sus tablas de zonas"
+L["QUESTS_HERE"] = "%d misiones aquí"
+L["QUESTS_IN_PROGRESS"] = "misiones en curso"
+L["QUESTS_NEAR"] = "%d misiones cerca de tu nivel"
+L["QUESTS_NEAR_ONE"] = "1 misión cerca de tu nivel"
+L["QUEST_LEVEL"] = "[%d] %s"
+L["QUEST_VISIT_WARNING"] = "Visita de misión: %s. Esta zona se recomienda para niveles %d-%d."
+L["READY_OF"] = "%d de %d listas"
+L["READY_TO_HAND_IN"] = "lista para entregar"
+L["REAGENTS"] = "Componentes"
+L["REAGENT_AUCTION"] = "Casa de subastas"
+L["REAGENT_CRAFT"] = "Fabricarlo"
+L["REAGENT_GATHER"] = "Recolectarlo"
+L["REAGENT_HAVE"] = "Tienes %d"
+L["REAGENT_NEED"] = "%d %s"
+L["REAGENT_VENDOR"] = "Comprarlo a un vendedor"
+L["REASON_CHAIN_GIVER"] = "Una cadena empieza con %s"
+L["REASON_GREY"] = "%d misiones se volverán grises pronto"
+L["REASON_HANDS"] = "%s necesita ayuda"
+L["RECIPE_COUNT"] = "%s  ×%d"
+L["RECIPE_LEARNED"] = "aprendida"
+L["RECIPE_TRAIN_AT"] = "se aprende a %d"
+L["RECOMMENDED"] = "Recomendado"
+L["REPLACES_JOURNEY"] = "Sustituye tu viaje actual."
+L["REPORT_TITLE"] = "Informe de Adventure Guide"
+L["REST_HERE"] = "Descansa en la posada de aquí"
+L["RESUME"] = "Donde lo dejaste: %s"
+L["RESUME_ADVENTURE"] = "Reanudar"
+L["RIGHT_CLICK_NOT_INTERESTED"] = "Clic derecho si no te interesa"
+L["ROUTE_PAUSED"] = "Ruta en pausa. Haz clic en el viaje para reanudarla."
+L["RXP_IMPORT"] = "Importar"
+L["RXP_NEXT"] = "Siguiente"
+L["RXP_NO_GUIDE"] = "Elige una guía para empezar."
+L["RXP_ORIGINAL"] = "Abrir la ventana original de RestedXP"
+L["RXP_PREVIOUS"] = "Anterior"
+L["RXP_PROGRESS"] = "Paso %d de %d"
+L["RXP_RECOMMENDATIONS"] = "Recomendaciones de Adventure Guide"
+L["RXP_SELECT"] = "Elegir guía"
+L["RXP_SETTINGS"] = "Configuración"
+L["RXP_SETUP_AGF"] = "Mostrar los pasos de RestedXP en Adventure Guide."
+L["RXP_SETUP_HIDDEN"] = "Ocultar la ventana de guía y las marcas de mapa de RestedXP."
+L["RXP_SETUP_HIDDEN_SPF"] = "Ocultar la ventana de guía, la flecha y las marcas de mapa de RestedXP."
+L["RXP_SETUP_NATIVE"] = "Mantener su ventana de guía, flecha, objetivos y marcas de mapa."
+L["RXP_SETUP_NATIVE_TITLE"] = "RestedXP"
+L["RXP_SETUP_PROMPT"] = "RestedXP está instalado. Elige dónde mostrar sus guías."
+L["RXP_SETUP_SETTINGS"] = "Puedes cambiarlo luego en la configuración de addons."
+L["RXP_SETUP_SKILLUP"] = "SkillUp: hay viajes de equipo y compras disponibles."
+L["RXP_SETUP_SKILLUP_SPF"] = "SkillUp: las rutas de equipo y compras usan Shortest Path."
+L["RXP_SETUP_SPF"] = "Usar Shortest Path para rutas y guía con brújula."
+L["RXP_SETUP_TITLE"] = "Mostrar guías"
+L["RXP_SKIP"] = "Saltar: %s"
+L["RXP_SKIP_STEP"] = "Saltar paso"
+L["RXP_STEP"] = "Paso %d"
+L["RXP_STICKY"] = "%s (en curso)"
+L["RXP_ONGOING"] = "En curso" -- mt
+L["RXP_MORE_STEP"] = "+1 paso más" -- mt
+L["RXP_MORE_STEPS"] = "+%d pasos más" -- mt
+L["RXP_TITLE"] = "Guías de RestedXP"
+L["SEARCH_NONE"] = "Ninguna misión coincide con tu búsqueda."
+L["SEARCH_QUESTS"] = "Buscar misiones"
+L["SEPARATOR"] = " · "
+L["SETTINGS_GROUP_INTERFACE"] = "Interfaz"
+L["SETTINGS_GROUP_MAP"] = "Mapa"
+L["SETTINGS_GROUP_ROUTE"] = "Ruta"
+L["SETTINGS_GROUP_TRACKER"] = "Rastreador de objetivos"
+L["SETTINGS_OPEN"] = "Abrir"
+L["SETTING_AUTO_START"] = "Iniciar la ruta automáticamente"
+L["SETTING_AUTO_START_TOOLTIP"] =
+	"La guía envía la ruta del viaje elegido a Shortest Path en cuanto está lista, así que la línea del mapa aparece al conectarte y tras un /reload sin pulsar Ir. Pulsar Detener la sigue borrando hasta que vuelvas a elegir un viaje."
+L["SETTING_DUNGEONS_DEFAULT"] = "Incluir calabozos por defecto"
+L["SETTING_DUNGEONS_DEFAULT_TOOLTIP"] =
+	"Sugiere misiones de calabozo a un personaje desde la primera vez que te conectas con él con la guía instalada. Cámbialo cuando quieras desde el menú de opciones de la guía."
+L["SETTING_FOLLOW_QUEST"] = "Seguir tu misión actual"
+L["SETTING_FOLLOW_QUEST_TOOLTIP"] =
+	"Cuando entras en la zona de la misión a la que lleva la ruta, la guía selecciona esa misión para que el mapa muestre su zona. Nunca cambia una misión que hayas seleccionado tú."
+L["SETTING_GIVERS"] = "Mostrar asignadores de misiones en el mapa"
+L["SETTING_GIVERS_TOOLTIP"] =
+	"Un «!» en el mapa del mundo sobre todos los que tienen una misión que puedes aceptar ya. Necesita también las marcas de ruta en el mapa."
+L["SETTING_GUIDE_TRACKS"] = "Seguir las misiones de la guía de RestedXP" -- mt
+L["SETTING_GUIDE_TRACKS_TOOLTIP"] =
+	"Mientras sigues una guía de RestedXP, el rastreador de objetivos también muestra las misiones que nombran sus pasos actuales y en curso. Las misiones que sigues tú mismo siempre siguen rastreadas." -- mt
+L["SETTING_JOURNEY_WATCH"] = "Seguir las misiones del viaje" -- mt
+L["SETTING_JOURNEY_WATCH_TOOLTIP"] =
+	"Mientras un viaje guía, el rastreador de objetivos también muestra las misiones de tu registro en las que trabaja y las suelta cuando avanza. Las misiones que sigues tú mismo siempre siguen rastreadas." -- mt
+L["SETTING_LOCK_TRACKER"] = "Bloquear el rastreador"
+L["SETTING_LOCK_TRACKER_TOOLTIP"] = "Mantiene el rastreador compartido Forever donde lo pones."
+L["SETTING_MAP_PINS"] = "Mostrar marcas de ruta en el mapa"
+L["SETTING_MAP_PINS_TOOLTIP"] =
+	"Los pasos numerados de la ruta en el mapa del mundo mientras se muestra su zona, y los asignadores de misiones cuando también estén activados. La guía abierta muestra su ruta de todos modos."
+L["SETTING_PARTY_QUESTS"] = "Preferir misiones de tu grupo"
+L["SETTING_PARTY_QUESTS_TOOLTIP"] =
+	"En grupo, los pasos de misiones que también tiene alguien de tu grupo cuentan como algo más cercanos, para que tiendas a hacerlas juntos."
+L["SETTING_POLESTAR_ASIDE"] = "Hacerse a un lado mientras Polestar guía"
+L["SETTING_POLESTAR_ASIDE_TOOLTIP"] =
+	"Mientras Polestar tenga una guía en curso, la guía no inicia ninguna ruta propia ni dibuja marcas en el mapa. El rastreador indica que Polestar te está guiando; haz clic en él para volver a tomar el control."
+L["SETTING_QUEST_LEVEL"] = "Nivel máximo de misión por encima del tuyo"
+L["SETTING_QUEST_LEVEL_ONE"] = "%s nivel"
+L["SETTING_QUEST_LEVEL_TOOLTIP"] =
+	"Elige el nivel de misión más alto que la guía recomienda respecto a tu nivel. El valor por defecto, +2, evita las misiones naranjas y rojas. Una misión de tu registro por encima queda fuera de la ruta hasta que tu nivel la alcance o esté lista para entregar."
+L["SETTING_QUEST_LEVEL_VALUE"] = "%s niveles"
+L["SETTING_ROUTE_ORDER"] = "Ruta optimizada (beta)"
+L["SETTING_ROUTE_ORDER_TOOLTIP"] =
+	"Desactivado: la ruta es lo más cercano que hacer, paso a paso, sencilla y previsible. Activado: un orden experimental que empieza por el capítulo de la historia, agrupa el trabajo de cada pueblo y mantiene estables sus sugerencias anteriores."
+L["SETTING_OUTGROWN"] = "Mostrar zonas y mazmorras superadas"
+L["SETTING_OUTGROWN_TOOLTIP"] = "Mantener en las opciones las zonas y mazmorras cuyas misiones sean grises."
+L["SETTING_RXP"] = "Usar guías de RestedXP"
+L["SETTING_RXP_TOOLTIP"] =
+	"Añade la guía actual de RestedXP a tus tarjetas de viaje, el mapa y el rastreador. RestedXP avanza los pasos de la guía; Shortest Path Forever se encarga de los desplazamientos. RestedXP sigue instalado y controla el progreso de la guía."
+L["SETTING_STEP_SOUND"] = "Sonido al completar un paso"
+L["SETTING_STEP_SOUND_TOOLTIP"] = "Reproduce un sonido corto una vez al terminar un paso de la ruta."
+L["SETTING_TITLE_ROUTE"] = "Los viajes inician la ruta"
+L["SETTING_TITLE_ROUTE_TOOLTIP"] =
+	"Elegir un viaje en la guía, o hacer clic en el título del paso actual en el rastreador de objetivos, inicia la ruta, con Shortest Path Forever si está cargado y si no con un punto de ruta en el mapa. Volver a hacer clic en el viaje elegido lo detiene."
+L["SETTING_TRACKER"] = "Mostrar sección en el rastreador"
+L["SETTING_TRACKER_BACKGROUND"] = "Fondo del rastreador"
+L["SETTING_TRACKER_TOOLTIP"] =
+	"Una sección corta «Adventure Guide» sobre tus misiones en el rastreador de objetivos, para el paso actual."
+L["SETTING_TRACK_ROUTE"] = "El título del rastreador sigue misiones"
+L["SETTING_TRACK_ROUTE_TOOLTIP"] =
+	"Hacer clic en el título de la guía en el rastreador de objetivos sigue cada misión de la ruta que esté en tu registro, hasta el límite del rastreador."
+L["SETTING_TRAINING_REMINDERS"] = "Recordarme aprender hechizos de clase"
+L["SETTING_TRAINING_REMINDERS_TOOLTIP"] =
+	"Sugiere visitas al instructor de clase y añade el aprendizaje de hechizos a los viajes. Puedes elegir qué hechizos aprender; comprarlos todos es opcional."
+L["SETTING_UPGRADES"] = "Marcar mejoras de recompensa" -- mt
+L["SETTING_UPGRADES_TOOLTIP"] =
+	"Cuando una misión ofrece recompensas a elegir, una flecha verde marca cada una que supera lo que llevas en esa ranura: tu tipo de armadura, un atributo principal que usa tu clase y un nivel de objeto mayor. No se elige nada por ti. Con Pawn instalado, Pawn las marca en su lugar." -- mt
+L["SETTING_WANDERER"] = "Trotamundos: solo nombrar lugares"
+L["SETTING_WANDERER_TOOLTIP"] =
+	"La guía dice adónde ir y te deja el camino a ti: sin punto de ruta, sin ruta con Shortest Path Forever y sin marcas en el mapa."
+L["SETTING_WARN_CLOSING"] = "Avisar antes de que una misión cierre otra"
+L["SETTING_WARN_CLOSING_TOOLTIP"] =
+	"Cuando un asignador ofrece una misión que cerraría otra para siempre, indica en el chat qué misiones perderías antes de aceptarla."
+L["SETTING_WHATS_NEW"] = "Novedades tras una actualización"
+L["SETTING_WHATS_NEW_TOOLTIP"] = "Una línea en el chat la primera vez que te conectas tras actualizarse la guía."
+L["SET_HEARTH"] = "Vincula tu piedra de hogar en %s"
+L["SHIFT_ADD"] = "Mayús-clic para añadirla a tu ruta"
+L["SHIFT_ADD_START"] = "Mayús-clic para añadir esa misión a tu ruta"
+L["SHIFT_REMOVE"] = "Mayús-clic para quitarla de tu ruta"
+L["SHIFT_REMOVE_START"] = "Mayús-clic para quitar esa misión de tu ruta"
+L["SHORTEST_PATH"] = "Shortest Path"
+L["SHOW_AGAIN"] = "Volver a mostrar: %s"
+L["SHOW_ON_MAP"] = "Ver en el mapa"
+L["SHOW_QUEST"] = "Mostrar misión"
+L["SIDEBAR_COLLAPSED"] =
+	"La guía se abre en el registro de misiones junto al mapa del mundo. Haz clic en la flecha de la esquina inferior derecha del mapa para mostrar el registro de misiones."
+L["SIDEBAR_MAXIMIZED"] =
+	"La guía se abre en el registro de misiones junto al mapa del mundo. Haz clic en el botón junto a la cruz de cerrar del mapa para reducirlo y mostrar el registro de misiones."
+L["SKILLUP_NONE"] = "No tienes profesiones de fabricación que subir. Aprende una con un instructor y aparecerá aquí."
+L["SKILLUP_OUTDATED"] =
+	"Tus próximas subidas de habilidad vienen de SkillUp Forever. Actualízalo y aparecerán aquí."
+L["SKIP"] = "Saltar por ahora"
+L["SKIPPED"] = "Saltadas (%d)"
+L["SKIP_STEP"] = "Saltar este paso por ahora"
+L["STARTS_AFTER_COMBAT"] = "La ruta empieza cuando acabe el combate"
+L["STARTS_WITH"] = "Empieza con %s"
+L["START_ADVENTURE"] = "Empezar"
+L["STEP_BATTLEMASTER"] = "Visita al maestro de batalla en %s"
+L["STEP_COLLECT"] = "Recoger %s · %s"
+L["STEP_DEFEAT"] = "Derrotar %s · %s"
+L["STEP_NUMBERED"] = "%d. %s"
+L["STEP_OBJECTIVE"] = "Completar objetivos · %s"
+L["STEP_PICKUP"] = "Aceptar: %s"
+L["STEP_SHARED_OBJECTIVES"] = "Completar %d objetivos · %s"
+L["STEP_TOWN"] = "Visitar %s: %s"
+L["STEP_WORK"] = "Completar %s · %s"
+L["STOP"] = "Detener"
+L["STOPS"] = "%d paradas"
+L["STOPS_ONE"] = "1 parada"
+L["STOP_VISIT"] = "Parada %d: %s"
+L["STORY_COMPLETE"] = "Historia completada"
+L["SUGGESTED"] = "Sugerido"
+L["TAB_ACTIVITIES"] = "Actividades"
+L["TAB_JOURNEYS"] = "Viaje"
+L["TAB_PROFESSIONS"] = "Profesiones"
+L["TAB_PROGRESS"] = "Progreso"
+L["TAB_PVP"] = "JcJ"
+L["TALENT_POINT"] = "Tienes 1 punto de talento por gastar"
+L["TALENT_POINTS"] = "Tienes %d puntos de talento por gastar"
+L["TITLE"] = "Adventure Guide"
+L["TODAY_MORE"] = "+%d más"
+L["TOWN_COUNTS"] = "Aceptar %d, entregar %d"
+L["TOWN_GIVER"] = "%s: %s"
+L["TOWN_HANDINS"] = "Entregar %d"
+L["TOWN_PICKUPS"] = "Aceptar %d"
+L["TOWN_SKIP_GIVER"] = "Saltar este asignador"
+L["TRACKER_DRAG_TITLE"] = "Rastreador Forever"
+L["TRACKER_DRAG_TOOLTIP"] = "Arrastra para mover"
+L["TRACKER_LOADING"] = "Cargando datos de misiones..."
+L["TRACKER_LOCKED_TOOLTIP"] = "El rastreador está bloqueado. Desactiva Bloquear el rastreador para moverlo."
+L["TRACKER_PAUSED"] = "Ruta en pausa. Haz clic en el título para reanudarla." -- mt
+L["TRACKER_SHOW_WHERE"] = "Vuelve a activarlo en Opciones > AddOns > Adventure Guide, en Rastreador de objetivos." -- mt
+L["TRACKER_UNATTACHED"] = "no se pudo añadir una sección al rastreador de objetivos; infórmalo con /agf audit."
+L["TRAINER"] = "Visita a tu instructor de clase"
+L["TRAINER_IN"] = "Visita a tu instructor de clase en %s"
+L["TRAINER_LINE"] = "%s · %s"
+L["TRAINER_SPELL"] = "1 hechizo nuevo"
+L["TRAINER_SPELLS"] = "%d hechizos nuevos"
+L["TRAIN_IN"] = "Entrenar en %s"
+L["TRAVEL"] = "%s · %d min"
+L["TRAVEL_ABOUT"] = "A unos %d min"
+L["TRAVEL_BOAT"] = "Barco a %s"
+L["TRAVEL_FLIGHT"] = "Volar a %s"
+L["TRAVEL_LIFT"] = "Ascensor a %s"
+L["TRAVEL_NEW_FLIGHT_PATH"] = " · nueva ruta de vuelo"
+L["TRAVEL_PASSAGE"] = "Atravesar hacia %s"
+L["TRAVEL_PORTAL"] = "Portal a %s"
+L["TRAVEL_TRAM"] = "Tranvía a %s"
+L["TRAVEL_WAIT"] = " · %d min de espera"
+L["TRAVEL_WALK"] = "Caminar hasta %s"
+L["TRAVEL_ZEPPELIN"] = "Zepelín a %s"
+L["TURN_IN"] = "Entregar: %s"
+L["TWEAKS_OUTDATED"] = "Actualiza Tweaks Forever para encontrar entradas de calabozos."
+L["UNLISTED"] =
+	"Esta tierra tiene historias que la guía aún no conoce; busca el «!» sobre los asignadores de misiones."
+L["UPDATED_TO"] = "actualizado a %s. %s"
+L["WHATS_NEW"] = "Un viaje que empiezas en Shortest Path sobrevive a un /reload." -- mt
+L["WHY_ALLIANCE"] = "Solo Alianza"
+L["WHY_BREADCRUMB"] = "Solo hasta que aceptes %s"
+L["WHY_CHOSE"] = "Elegiste %s en su lugar"
+L["WHY_COMPLETED"] = "Completada: %s"
+L["WHY_DONE"] = "Ya la has hecho"
+L["WHY_EARLIER_QUEST"] = "una misión anterior"
+L["WHY_HORDE"] = "Solo Horda"
+L["WHY_IN_LOG"] = "En tu registro de misiones"
+L["WHY_LEVEL"] = "Requiere nivel %d"
+L["WHY_NOT_OFFERED"] = "El asignador no la ofreció"
+L["WHY_NO_START"] = "La guía no sabe dónde empieza"
+L["WHY_ONE_OF"] = "Requiere una de: %s"
+L["WHY_PROVIDER"] = "Questie debe estar listo y confirmar que esta misión está disponible."
+L["WHY_REPEATABLE"] = "No se sugieren misiones repetibles"
+L["WHY_REPUTATION"] = "Depende de tu reputación con %s"
+L["WHY_REP_BELOW"] = "Solo mientras estés por debajo de %s con %s"
+L["WHY_REP_MIN"] = "Requiere %s con %s"
+L["WHY_SKILL"] = "Requiere %s %d"
+L["YOUR_CHOICE"] = "Tu elección"
+-- mt: Minimap button settings.
+-- mt: Issue composer and report window.
+L["HELP_ISSUE"] = "/agf issue - informar de un error o pedir una función con un enlace listo para GitHub" -- mt
+L["SETTING_HIDE_QUESTIE_TRACKER"] = "Desactivar el rastreador de Questie" -- mt
+L["SETTING_HIDE_QUESTIE_TRACKER_TOOLTIP"] =
+	"Mientras se muestra esta sección, el rastreador de misiones de Questie está desactivado, para que tus misiones no aparezcan dos veces. Desactiva esta opción para devolverle a Questie su rastreador." -- mt
+L["QUESTIE_TRACKER_RELOAD"] = "El rastreador de Questie vuelve tras un /reload." -- mt
+L["QUEST_AREAS_OFF"] = "Las zonas de misión están ocultas" -- mt
+L["QUEST_AREAS_SHOW"] = "Haz clic para mostrar en el mapa las zonas de misión azules del juego" -- mt
+L["QUEST_AREAS_TOOLTIP"] =
+	"Las zonas de misión azules del mapa muestran dónde se cumple cada objetivo. Los tipos de objetivo Questie y pfQuest de Questie las desactivan." -- mt
+L["JOURNEY_NEXT"] = "Seguir hacia %s"
+L["SETTING_AUTO_NEXT_ZONE"] = "Empezar la siguiente zona al terminar una"
+L["SETTING_AUTO_NEXT_ZONE_TOOLTIP"] =
+	"Cuando un viaje de zona termina tras entregar una misión, la guía elige la siguiente zona para tu nivel de la misma lista. Si ese viaje ya te estaba guiando, su ruta también empieza. Desactívalo para parar en Viaje completado y elegir tú el siguiente viaje."
+L["SETTING_NPC_HIGHLIGHT"] = "Resaltar el próximo PNJ de misión"
+L["SETTING_NPC_HIGHLIGHT_TOOLTIP"] =
+	"Cuando un paso habla con un PNJ que da o recibe una misión, una flecha pequeña bota sobre su placa de nombre y un botón de objetivo aparece bajo el rastreador. Desactívalo para ocultar ambos. La guía nunca cambia la configuración de tus placas de nombre."
+L["NPC_HIGHLIGHT_HINT"] =
+	"Las placas de nombre amistosas están desactivadas: actívalas en las opciones de interfaz para ver adónde ir."
+
+-- mt: Information only (#715).
+L["SETTING_INFORMATION_ONLY"] = "Solo información: sin rutas" -- mt
+L["SETTING_INFORMATION_ONLY_TOOLTIP"] =
+	"Conserva los viajes y la información de misiones sin iniciar rutas ni cambiar las misiones que sigues. Al hacer clic en una parada, sus misiones se muestran en el mapa. Desactiva esta opción para volver a usar el planificador." -- mt
+L["CLICK_SHOW_MAP"] = "Haz clic para mostrar esta parada en el mapa" -- mt
+
+L["MENU_HIDE_QUEST_MARKERS"] = "Ocultar marcadores de misión del juego" -- mt
+L["SETTING_HIDE_QUEST_MARKERS_TOOLTIP"] =
+	"Desactiva esta opción para que los marcadores de misión y las zonas de misión azules del juego sigan visibles en el mapa junto a los marcadores de tu ruta." -- mt
+
+L["TRAINER_STOPS"] = "Paradas en instructores" -- mt
+L["VISIT_TRAINER"] = "Visita a %s" -- mt
+
+L["CHOSEN_TRAINER"] = "Instructor elegido" -- mt
+
+L["TRACKER_QUEST_AREAS_SHOW"] = "Mostrar zonas de misión" -- mt
+L["TRACKER_NOTE_HIDE"] = "Ocultar esta nota" -- mt
+L["TRACKER_NOTE_OPTIONS"] = "Clic derecho para ver opciones" -- mt
+L["TRACKER_TAKE_OVER"] = "Tomar el control de la ruta" -- mt
+
+L["TRACKER_HINT_SHOW_QUEST"] = "mostrar la misión" -- mt
+L["TRACKER_HINT_OPEN_GUIDE"] = "abrir la guía" -- mt
+L["TRACKER_HINT_GO"] = "ir allí" -- mt
+L["TRACKER_HINT_QUEST_AREAS"] = "mostrar zonas de misión" -- mt
+L["TRACKER_HINT_TAKE_OVER"] = "tomar el control de la ruta" -- mt
+
+end local _, ForeverCoreHostNs = ... if type(ForeverCoreHostNs) == "table" and type(ForeverCoreHostNs.ForeverCoreHostChunks) == "table" then local chunks = ForeverCoreHostNs.ForeverCoreHostChunks chunks[#chunks + 1] = ForeverCoreHostChunk else return ForeverCoreHostChunk(...) end

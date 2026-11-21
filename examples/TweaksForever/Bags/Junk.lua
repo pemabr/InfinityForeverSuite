@@ -1,0 +1,505 @@
+local ForeverCoreHostChunk = function(...) ---@type string, TFNamespace
+local _, ns = ...
+
+if ns.broken then
+	return
+end
+local L = ns.L
+
+-- Marked stacks per merchant visit and per confirmed sale. Blizzard sells all grey junk.
+local BATCH_SIZE = 12
+
+local conflicts = {
+	{ addon = "Peddler" },
+	{ addon = "Scrap" },
+	{ addon = "Dejunk" },
+	{ addon = "Vendor" },
+}
+
+-- Bag replacements hide Blizzard's bag frames, so the marks and coins drawn on those buttons never show. Selling
+-- at a merchant is unaffected, which is why this list is not the one above.
+local bagConflicts = {
+	{ addon = "AdiBags" },
+	{ addon = "ArkInventory" },
+	{ addon = "Baganator" },
+	{ addon = "Bagnon" },
+	{ addon = "BetterBags" },
+}
+
+ns.Feature({
+	key = "markJunk",
+	category = "Bags and vendors",
+	section = "Bags",
+	name = "Mark items as junk",
+	tooltip = "Alt+Right-click a bag item, or pick Mark junk from a bag's portrait menu, to toggle its account-wide"
+		.. " junk mark."
+		.. " The merchant's Sell All Junk also sells marked items.",
+	default = false,
+	conflicts = bagConflicts,
+})
+
+ns.Feature({
+	key = "sellJunk",
+	category = "Bags and vendors",
+	section = "Vendors",
+	name = "Sell junk automatically",
+	tooltip = L["Sell grey junk through the game when available, plus up to %d marked non-grey stacks per visit."]:format(
+		BATCH_SIZE
+	)
+		.. " "
+		.. L["With another addon selling junk, only marked non-grey items are sold here."]
+		.. " "
+		.. L["Hold Shift while a merchant opens to skip automatic selling there."],
+	default = true,
+	-- Leatrix, Polestar and Naowh Forever sell only greys; disabling this feature entirely would strand our marks.
+	conflicts = conflicts,
+})
+
+ns.Feature({
+	key = "greyCoins",
+	category = "Bags and vendors",
+	section = "Bags",
+	name = "Junk coin on grey items",
+	tooltip = "Grey items show the game's gold junk coin in your bags all the time, not only while a merchant is open.",
+	default = true,
+	conflicts = bagConflicts,
+})
+
+local POOR = 0
+
+---@param info ContainerItemInfo?
+---@param marks TFMarks
+---@return boolean
+local function IsJunk(info, marks)
+	if not info or not info.itemID or info.quality == nil then
+		return false
+	end
+	if info.quality == POOR then
+		return false
+	end
+	return marks[info.itemID] == true
+end
+
+---@param info ContainerItemInfo
+---@param price number?
+---@param marks TFMarks
+---@return number?
+local function SaleValue(info, price, marks)
+	if
+		not IsJunk(info, marks)
+		or info.isLocked
+		or info.hasNoValue
+		or not price
+		or price <= 0
+		or not info.stackCount
+		or info.stackCount <= 0
+	then
+		return nil
+	end
+	return price * info.stackCount
+end
+
+---@param before ContainerItemInfo
+---@param after ContainerItemInfo?
+---@return boolean?
+local function SameStack(before, after)
+	return after
+		and before.itemID == after.itemID
+		and before.hyperlink == after.hyperlink
+		and before.stackCount == after.stackCount
+		and not after.isLocked
+end
+
+local emptyMarks = {}
+local function Marks()
+	return ns.Active("markJunk") and ns.db.junk or emptyMarks
+end
+
+-- Another addon selling the greys at each merchant, so the game's Sell All Junk would race it.
+local function OtherSellsGreys()
+	if C_AddOns.IsAddOnLoaded("Leatrix_Plus") and LeaPlusDB and LeaPlusDB.AutoSellJunk == "On" then
+		return true
+	end
+	if C_AddOns.IsAddOnLoaded("TitanRepair") and TitanGetVar and TitanGetVar("Repair", "SellAllGray") == 1 then
+		return true
+	end
+	return ns.PolestarOn("qol.sellJunk") or ns.NaowhOn("sellJunk")
+end
+
+local icons = {}
+local merchant, batch, confirmationVisit
+local UpdateMerchantButton, Start
+local extendedButton = false
+
+---@param button ContainerFrameItemButtonTemplate
+local function Info(button)
+	return C_Container.GetContainerItemInfo(button:GetBagID(), button:GetID())
+end
+
+-- Our own coin over each button, where the game draws its junk coin, never the game's JunkIcon itself: its redraw
+-- would undo ours, and redrawing after it takes a hook on the button's methods. `icons` holds them by button.
+---@param button ContainerFrameItemButtonTemplate
+---@return Texture
+local function Coin(button)
+	if not icons[button] then
+		local native = button.JunkIcon
+		local layer, sublevel = native:GetDrawLayer()
+		local coin = button:CreateTexture(nil, layer, nil, sublevel)
+		coin:SetAtlas(native:GetAtlas()) -- art-ok: the game's own coin atlas over the game's own coin, point for point
+		coin:SetAllPoints(native)
+		icons[button] = coin
+	end
+	return icons[button]
+end
+
+---@param button ContainerFrameItemButtonTemplate
+local function UpdateIcon(button)
+	local greys = ns.Active("greyCoins")
+	if not ns.Active("markJunk") and not greys and not icons[button] then
+		return
+	end
+	local info = Info(button)
+	local marked = info and info.quality ~= POOR and Marks()[info.itemID]
+	local grey = info and info.quality == POOR and not info.hasNoValue
+	Coin(button):SetShown(not not (marked or grey and greys))
+end
+
+local function RefreshBags()
+	ns.ForEachBagButton(UpdateIcon)
+end
+
+---@param bag integer
+---@param slot integer
+local function Toggle(bag, slot)
+	local info = C_Container.GetContainerItemInfo(bag, slot)
+	if not info or info.isLocked then
+		return false
+	end
+	local marks = ns.db.junk
+	marks[info.itemID] = not marks[info.itemID] or nil
+	-- Tell API.Subscribe's `junk` channel, for bag addons that redraw a mark with the bags.
+	ns.APIChanged("junk")
+	RefreshBags()
+	UpdateMerchantButton()
+	return true
+end
+
+---@param button ContainerFrameItemButtonTemplate
+---@param mouseButton string
+local function Mark(button, mouseButton)
+	if
+		mouseButton ~= "RightButton"
+		or not ns.Active("markJunk")
+		or not IsAltKeyDown()
+		or IsControlKeyDown()
+		or IsShiftKeyDown()
+		or CursorHasItem()
+	then
+		return
+	end
+	-- Mainline has no Alt+Right-click bag action; leave user-remapped gestures alone.
+	if ns.IsBagActionClick() then
+		return
+	end
+	if Toggle(button:GetBagID(), button:GetID()) and GameTooltip:GetOwner() == button then
+		button:OnUpdate()
+	end
+end
+
+-- Refundable purchases belong to Blizzard's confirmation flow.
+---@param bag integer
+---@param slot integer
+local function Refundable(bag, slot)
+	local purchase = C_Container.GetContainerItemPurchaseInfo(bag, slot, false)
+	return purchase and purchase.refundSeconds and purchase.refundSeconds > 0
+end
+
+-- Bag items whose data was still loading; set below, run once per frame when one of them arrives.
+local OnItemInfo
+
+---@param limit integer
+local function Scan(limit)
+	local result, pending = {}, false
+	local marks = Marks()
+	for bag = 0, NUM_TOTAL_EQUIPPED_BAG_SLOTS do
+		for slot = 1, C_Container.GetContainerNumSlots(bag) do
+			local info = C_Container.GetContainerItemInfo(bag, slot)
+			if info and info.quality == nil then
+				C_Item.GetItemInfo(info.hyperlink)
+				ns.AwaitItem(info.itemID, OnItemInfo)
+				pending = true
+			end
+			if info and IsJunk(info, marks) and not info.hasNoValue and not info.isLocked then
+				local price = select(11, C_Item.GetItemInfo(info.hyperlink))
+				if price == nil then
+					ns.AwaitItem(info.itemID, OnItemInfo)
+					pending = true
+				end
+				local value = SaleValue(info, price, marks)
+				if value and not Refundable(bag, slot) then
+					result[#result + 1] = { bag = bag, slot = slot, info = info, value = value }
+					if #result == limit then
+						return result, pending
+					end
+				end
+			end
+		end
+	end
+	return result, pending
+end
+
+local function ManualEnabled()
+	return ns.Active("markJunk") and not ns.ConflictOf("sellJunk")
+end
+
+UpdateMerchantButton = function()
+	if not MerchantFrame:IsShown() then
+		return
+	end
+	local marked = ManualEnabled() and #Scan(1) > 0
+	if not marked and not extendedButton then
+		return
+	end
+	extendedButton = marked
+	local hasJunk = marked or C_MerchantFrame.GetNumJunkItems() > 0
+	MerchantSellAllJunkButton:SetEnabled(hasJunk)
+	MerchantSellAllJunkButton.Icon:SetDesaturated(not hasJunk)
+end
+
+local function Finish(run)
+	if batch ~= run then
+		return
+	end
+	batch = nil
+	local waiting = run.waiting
+	if waiting and not C_Container.GetContainerItemInfo(waiting.bag, waiting.slot) then
+		run.sold, run.money = run.sold + 1, run.money + waiting.value
+	end
+	if run.sold > 0 then
+		local money = C_CurrencyInfo.GetCoinTextureString(run.money)
+		if run.sold == 1 then
+			ns.Print(L["Sold 1 junk stack for %s."]:format(money))
+		else
+			ns.Print(L["Sold %d junk stacks for %s."]:format(run.sold, money))
+		end
+	end
+	UpdateMerchantButton()
+	if run.manualPending and merchant == run.merchant then
+		Start(true)
+	elseif merchant == run.merchant and merchant.retry then
+		merchant.retry = nil
+		Start(false)
+	end
+end
+
+local function Allowed(run)
+	return merchant == run.merchant
+		and MerchantFrame:IsShown()
+		and MerchantFrame.selectedTab == 1
+		and not InCombatLockdown()
+		and not CursorHasItem()
+		and not InRepairMode()
+		and ((run.manual and ManualEnabled()) or (not run.manual and ns.Active("sellJunk")))
+end
+
+local Step
+Step = function(run)
+	if batch ~= run then
+		return
+	end
+	if not Allowed(run) then
+		Finish(run)
+		return
+	end
+	if run.drain then
+		local count = C_MerchantFrame.GetNumJunkItems()
+		if count < run.junk then
+			run.polls = 0
+		end
+		run.junk = count
+		if count > 0 and run.polls < 10 then
+			run.polls = run.polls + 1
+			C_Timer.After(0.2, function()
+				Step(run)
+			end)
+			return
+		end
+		run.drain = nil
+	end
+	if not run.items then
+		local pending
+		run.items, pending = Scan(run.manual and BATCH_SIZE or merchant.remaining)
+		if not run.manual then
+			merchant.pending, merchant.deferred = pending, nil
+		end
+	end
+	if run.waiting then
+		local item = run.waiting
+		local info = C_Container.GetContainerItemInfo(item.bag, item.slot)
+		if not info then
+			run.sold, run.money = run.sold + 1, run.money + item.value
+			run.waiting = nil
+		elseif run.polls < 10 then
+			run.polls = run.polls + 1
+			C_Timer.After(0.2, function()
+				Step(run)
+			end)
+			return
+		else
+			-- A rejected or unacknowledged sale must not turn into an endless retry loop.
+			Finish(run)
+			return
+		end
+	end
+	while run.index <= #run.items do
+		local item = run.items[run.index]
+		run.index = run.index + 1
+		local info = C_Container.GetContainerItemInfo(item.bag, item.slot)
+		local price = item.value / item.info.stackCount
+		if SameStack(item.info, info) and SaleValue(info, price, Marks()) and not Refundable(item.bag, item.slot) then
+			run.waiting, run.polls = item, 0
+			if not run.manual then
+				merchant.remaining = merchant.remaining - 1
+			end
+			C_Container.UseContainerItem(item.bag, item.slot)
+			C_Timer.After(0.2, function()
+				Step(run)
+			end)
+			return
+		end
+	end
+	Finish(run)
+end
+
+Start = function(manual)
+	if manual and batch then
+		batch.manualPending = true
+	end
+	if
+		not merchant
+		or batch
+		or (not manual and (merchant.skipped or merchant.remaining == 0 or not ns.Active("sellJunk")))
+	then
+		return
+	end
+	local run = { merchant = merchant, manual = manual, index = 1, sold = 0, money = 0 }
+	if not Allowed(run) then
+		return
+	end
+	local count = C_MerchantFrame.GetNumJunkItems()
+	if
+		not manual
+		and not merchant.native
+		and not OtherSellsGreys()
+		and C_MerchantFrame.IsSellAllJunkEnabled()
+		and count > 0
+	then
+		merchant.native = true
+		C_MerchantFrame.SellAllJunkItems()
+		run.drain = true
+	elseif manual then
+		-- Blizzard has just submitted its native sale through the confirmation button.
+		run.drain = true
+	end
+	run.junk, run.polls = count, 0
+	batch = run
+	Step(run)
+end
+
+ns.Init(function()
+	ns.ClickMode({
+		feature = "markJunk",
+		label = "Mark junk",
+		tooltip = "Click bag items to mark or unmark them as junk. Right-click or close your bags to stop.",
+		cursor = "Interface\\MoneyFrame\\UI-GoldIcon",
+		Apply = function(_, bag, slot)
+			Toggle(bag, slot)
+		end,
+	})
+
+	ns.HookBagButtons(UpdateIcon, Mark)
+	ns.OnTooltip(Enum.TooltipDataType.Item, { GetBagItem = true }, function(tooltip, _, bag, slot)
+		local itemID = C_Container.GetContainerItemID(bag, slot)
+		if itemID and Marks()[itemID] then
+			tooltip:AddLine(L["Marked as junk. Alt+Right-click to unmark."], 1, 0.82, 0, true)
+			tooltip:Show()
+		end
+	end)
+	hooksecurefunc("MerchantFrame_Update", function()
+		UpdateMerchantButton()
+		-- Item info that arrived while the merchant could not sell (the Buyback tab) runs once the vendor tab is back.
+		if merchant and merchant.deferred and not batch and MerchantFrame.selectedTab == 1 then
+			Start(false)
+		end
+	end)
+	MerchantSellAllJunkButton:HookScript("OnClick", function()
+		confirmationVisit = merchant
+	end)
+	MerchantSellAllJunkButton:HookScript("OnEnter", function()
+		if ManualEnabled() then
+			GameTooltip:AddLine(L["Also sells up to %d marked non-grey stacks."]:format(BATCH_SIZE), 1, 0.82, 0, true)
+			GameTooltip:Show()
+		end
+	end)
+	-- The native popup captures its callback, so its accept button tells us the sale was confirmed, after Blizzard
+	-- has sold the greys. Not a hook on the GENERIC_CONFIRMATION dialog: that put addon code in the accept of every
+	-- confirmation Blizzard shows. Enter does not accept this dialog, so the button is the only way.
+	local index = 1
+	while _G["StaticPopup" .. index] do
+		local dialog = _G["StaticPopup" .. index] --[[@as StaticPopupTemplate]]
+		dialog:GetButton1():HookScript("OnClick", function()
+			local data = dialog.data
+			if
+				dialog.which == "GENERIC_CONFIRMATION"
+				and type(data) == "table"
+				and data.text == SELL_ALL_JUNK_ITEMS_POPUP
+				and confirmationVisit == merchant
+				and ManualEnabled()
+			then
+				confirmationVisit = nil
+				Start(true)
+			end
+		end)
+		index = index + 1
+	end
+	ns.On("MERCHANT_SHOW", function()
+		-- Shift held as the merchant opens skips automatic selling for this visit; Sell All Junk still works.
+		merchant = { remaining = BATCH_SIZE, skipped = IsShiftKeyDown() }
+		local visit = merchant
+		C_Timer.After(0.2, function()
+			if merchant == visit then
+				Start(false)
+				UpdateMerchantButton()
+			end
+		end)
+	end)
+	ns.On("MERCHANT_CLOSED", function()
+		merchant, confirmationVisit = nil, nil
+		ns.ForgetItems(OnItemInfo)
+		if batch then
+			Finish(batch)
+		end
+		RefreshBags()
+	end)
+	ns.On("BAG_UPDATE_DELAYED", function()
+		RefreshBags()
+		UpdateMerchantButton()
+	end)
+	-- Only a bag item this file is waiting on counts, once per frame: the event fires for every addon's item requests.
+	OnItemInfo = function()
+		UpdateMerchantButton()
+		if merchant and merchant.pending then
+			if batch then
+				merchant.retry = true
+			else
+				-- Cleared once a run scans; left set when the merchant cannot sell now (the Buyback tab), so returning
+				-- to the vendor tab runs it.
+				merchant.deferred = true
+				Start(false)
+			end
+		end
+	end
+	RefreshBags()
+end)
+
+end local _, ForeverCoreHostNs = ... if type(ForeverCoreHostNs) == "table" and type(ForeverCoreHostNs.ForeverCoreHostChunks) == "table" then local chunks = ForeverCoreHostNs.ForeverCoreHostChunks chunks[#chunks + 1] = ForeverCoreHostChunk else return ForeverCoreHostChunk(...) end

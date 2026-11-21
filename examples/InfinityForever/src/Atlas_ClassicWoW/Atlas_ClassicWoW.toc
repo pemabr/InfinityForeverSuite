@@ -1,0 +1,49 @@
+## Interface: 11509, 16001, 20506, 50504, 120105
+## Title: Atlas Kalimdor & Eastern Kingdoms
+## Notes: Kalimdor and Eastern Kingdoms instance maps for Atlas
+## Title-deDE: Atlas Kalimdor & Östliche Königreiche
+## Notes-deDE: Instanzkarten für Kalimdor und die Östlichen Königreiche für Atlas
+## Title-esES: Atlas Kalimdor y los Reinos del Este
+## Notes-esES: Mapas de mazmorras de Kalimdor y los Reinos del Este para Atlas
+## Title-esMX: Atlas Kalimdor y los Reinos del Este
+## Notes-esMX: Mapas de instancias de Kalimdor y los Reinos del Este para Atlas
+## Title-frFR: Atlas Kalimdor et royaumes de l’Est
+## Notes-frFR: Cartes d’instances de Kalimdor et des royaumes de l’Est pour Atlas
+## Title-itIT: Atlas Kalimdor e Regni Orientali
+## Notes-itIT: Mappe delle istanze di Kalimdor e dei Regni Orientali per Atlas
+## Title-koKR: 아틀라스 칼림도어 및 동부 왕국
+## Notes-koKR: Atlas용 칼림도어 및 동부 왕국 던전 지도
+## Title-ptBR: Atlas Kalimdor e Reinos do Leste
+## Notes-ptBR: Mapas de masmorras de Kalimdor e dos Reinos do Leste para o Atlas
+## Title-ruRU: Атлас: Калимдор и Восточные королевства
+## Notes-ruRU: Карты подземелий Калимдора и Восточных королевств для Atlas
+## Title-zhCN: Atlas 卡利姆多与东部王国
+## Notes-zhCN: 适用于 Atlas 的卡利姆多与东部王国副本地图
+## Title-zhTW: Atlas 卡林多與東部王國
+## Notes-zhTW: 適用於 Atlas 的卡林多與東部王國副本地圖
+## Version: v1.54.05
+## Author: arith, nanderson11
+## IconTexture: Interface\WorldMap\WorldMap-Icon
+## RequiredDeps: Atlas
+## Category: Map
+## Category-deDE: Karte
+## Category-esES: Mapa
+## Category-esMX: Mapa
+## Category-frFR: Carte
+## Category-itIT: Mappa
+## Category-koKR: 지도
+## Category-ptBR: Mapa
+## Category-ruRU: Карта
+## Category-zhCN: 地图
+## Category-zhTW: 地圖
+## X-Category: Map
+## X-Credits: Dan Gilbert, Lothaer, Dynaletik, dubcat
+## X-Date: 2026-11-12T10:06:42Z
+## X-Website: https://www.curseforge.com/wow/addons/atlas-classicwow
+## X-Curse-Project-ID: 33667
+## X-WoWI-ID: 20513
+
+Locale\Locales.xml
+Core\Constants.lua
+Core\Core.lua
+Data\Data.xml

@@ -36,24 +36,21 @@ local function InitializeGather()
 		action = function() InfinityGatherUI:Toggle() end,
 	})
 	
-	InfinityUtils:Info("InfinityGather initialized successfully", "InfinityGather")
-	InfinityMessaging:Publish("gather_addon_loaded", { addon = "InfinityGather" })
-end
-
-
-local function RegisterAddonWithInfinityManager()
 	if _G.InfinityAddonManager then
-		_G.InfinityAddonManager:RegisterAddon(ADDON_NAME, ADDON_VERSION, {
+		_G.InfinityAddonManager:RegisterAddon("InfinityGather", "1.0.0", {
 			description = "Track gathering",
 			author = "Infinity Suite Team",
 			category = "Gathering",
 			enabled = true,
-			settings = {{}}
+			settings = {}
 		})
 	end
+	
+	InfinityUtils:Info("InfinityGather initialized successfully", "InfinityGather")
+	InfinityMessaging:Publish("gather_addon_loaded", { addon = "InfinityGather" })
 end
 
-	local frame = CreateFrame("Frame")
+local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:SetScript("OnEvent", function(self, event, addonName)
 	if addonName == "InfinityCore" then

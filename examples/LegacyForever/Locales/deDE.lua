@@ -1,0 +1,133 @@
+local ForeverCoreHostChunk = function(...) -- Machine translated (2026-10-16); corrections welcome: https://github.com/cjber/legacy-forever/issues/new?template=translation.yml
+local _, ns = ...
+if GetLocale() ~= "deDE" then
+	return
+end
+local L = ns.L
+
+L["%d Legacy objective left"] = "Noch %d Vermächtnisziel"
+L["%d Legacy objectives left"] = "Noch %d Vermächtnisziele"
+L["%d not known yet."] = "%d noch unbekannt."
+L["%d unfinished Legacy objective on this map."] = "%d offenes Vermächtnisziel auf dieser Karte."
+L["%d unfinished Legacy objectives on this map."] = "%d offene Vermächtnisziele auf dieser Karte."
+L["%d yards away"] = "Noch %d Meter entfernt"
+L["%s %d Legacy |4point:points;"] = "%s %d |4Vermächtnispunkt:Vermächtnispunkte;"
+L["%s complete. %s"] = "%s abgeschlossen. %s"
+L["%s could not start. Reinstall %s to fix this."] = "%s konnte nicht starten. Installiere %s neu, um das zu beheben."
+L["%s is at %s in %s."] = "%s befindet sich bei %s in %s."
+L["%s is at %s."] = "%s befindet sich bei %s."
+L["%s needs ForeverCore. Install it from CurseForge, or choose Reinstall on ForeverCore in the CurseForge app."] =
+	"%s benötigt ForeverCore. Installiere es von CurseForge oder wähle in der CurseForge-App bei ForeverCore „Neu installieren“."
+L["%s: %d left"] = "%s: noch %d"
+L["%s: %d of %d areas left"] = "%s: noch %d von %d Gebieten"
+L["%s: %d of %d zones complete (%d%%)"] = "%s: %d von %d Zonen abgeschlossen (%d%%)"
+L["%s: %s are out of date. Update them to fix this."] = "%s: %s sind veraltet. Aktualisiere sie, um das zu beheben."
+L["%s: %s is out of date. Update it to fix this."] = "%s: %s ist veraltet. Aktualisiere es, um das zu beheben."
+L["%s: ForeverCore is turned off. Enable it in the AddOns list to fix this."] =
+	"%s: ForeverCore ist deaktiviert. Aktiviere es in der AddOn-Liste, um das zu beheben."
+L["%s: the installed ForeverCore is another addon (%s). Remove it and install ForeverCore from CurseForge."] =
+	"%s: Das installierte ForeverCore ist ein anderes Addon (%s). Entferne es und installiere ForeverCore von CurseForge."
+L["/lf - open the world map and its Legacy menu"] = "/lf - öffnet die Weltkarte mit ihrem Vermächtnismenü"
+L["/lf audit - check the bundled data against the game"] =
+	"/lf audit - gleicht die mitgelieferten Daten mit dem Spiel ab"
+L["/lf criteria 684 - list what the game reports for one achievement"] =
+	"/lf criteria 684 - listet, was das Spiel für einen Erfolg meldet"
+L["/lf issue - report a bug or request a feature with a ready-made GitHub issue link"] =
+	"/lf issue - erstellt einen fertigen GitHub-Issue-Link für Fehlermeldungen und Funktionswünsche"
+L["/lf report - show a report to copy into a bug report"] =
+	"/lf report - zeigt einen Bericht zum Kopieren in eine Fehlermeldung"
+L["Already complete"] = "Bereits abgeschlossen"
+L["Areas explored"] = "Erkundete Gebiete"
+L["Click the zone to see where."] = "Klickt auf die Zone, um zu sehen, wo."
+L["Click to collapse."] = "Klicken zum Einklappen."
+L["Click to expand."] = "Klicken zum Ausklappen."
+L["Click to set a waypoint here."] = "Klicken setzt hier eine Kartenmarkierung."
+L["Click to track, with live progress."] = "Klicken zum Verfolgen, mit aktuellem Fortschritt."
+L["Click to travel here with Shortest Path Forever."] = "Klicken, um mit Shortest Path Forever hierher zu reisen."
+L["Defeat"] = "Besiegen"
+L["Dungeon or raid"] = "Dungeon oder Schlachtzug"
+L["Dungeons, raids and Legacy objectives count your progress on any character."] =
+	"Dungeons, Schlachtzüge und Vermächtnisziele zählen Euren Fortschritt auf jedem Charakter."
+L["Every quest this character can take in the zone, from Questie."] =
+	"Jede Quest dieser Zone, die dieser Charakter annehmen kann, laut Questie."
+L["Flight paths"] = "Flugrouten"
+L["Shades each undiscovered area's real ground, with a pin at its edge. Areas without terrain data keep the shading."] =
+	"Schattiert den echten Boden jedes unentdeckten Gebiets, mit einer Markierung am Rand. Gebiete ohne Geländedaten behalten die Schattierung."
+L["Legacy Forever carries ForeverCore inside itself."] = "Legacy Forever bringt ForeverCore jetzt selbst mit." -- mt
+L["In the objective tracker"] = "In der Questzielverfolgung"
+L["Install AtlasLoot for recommended levels."] = "Installiert AtlasLoot für empfohlene Stufen."
+L["Keeps the shared Forever tracker where you put it. The grip at its top no longer drags it."] =
+	"Hält die gemeinsame Forever-Verfolgung dort, wo Ihr sie hingelegt habt. Der Griff oben zieht sie nicht mehr."
+L["Legacy"] = "Vermächtnis"
+L["Legacy Forever report"] = "Legacy Forever-Bericht"
+L["Legacy objectives"] = "Vermächtnisziele"
+L["Levels, skills, ranks and anything without a fixed place."] =
+	"Stufen, Fertigkeiten, Ränge und alles ohne festen Ort."
+L["Lock the tracker"] = "Verfolgung sperren"
+L["Needs QuestieDB, which lists each zone's quests."] = "Benötigt QuestieDB, das die Quests jeder Zone auflistet."
+L["No fixed location"] = "Kein fester Ort"
+L["No unfinished Legacy objectives with a place on this map."] =
+	"Keine offenen Vermächtnisziele mit festem Ort auf dieser Karte."
+L["Nothing left to do here"] = "Hier gibt es nichts mehr zu tun"
+L["Objective tracker"] = "Questzielverfolgung"
+L["On the world map"] = "Auf der Weltkarte"
+L["Open"] = "Öffnen"
+L["Open a flight master on this continent to check these."] =
+	"Sprecht mit einem Flugmeister dieses Kontinents, um sie zu prüfen."
+L["Open in the Legacy panel"] = "Im Vermächtnisfenster öffnen"
+L["Open the Legacy panel"] = "Vermächtnisfenster öffnen"
+L["Open the map"] = "Karte öffnen"
+L["Part of %s"] = "Teil von %s"
+L["Part of %s: %s for exploring every zone"] = "Teil von %s: %s für das Erkunden aller Zonen"
+L["Part of %s: %s for the whole challenge"] = "Teil von %s: %s für die gesamte Herausforderung"
+L["Quest"] = "Quest"
+L["Recommended levels: %s (AtlasLoot)"] = "Empfohlene Stufen: %s (AtlasLoot)"
+L["Repeatable, holiday and profession quests are left out."] =
+	"Wiederholbare, Feiertags- und Berufsquests zählen nicht."
+L["Reputations (Friendly)"] = "Ruf (Freundlich)"
+L["Show dungeon and raid entrances"] = "Dungeon- und Schlachtzugseingänge anzeigen"
+L["Show undiscovered areas"] = "Unentdeckte Gebiete anzeigen"
+L["Show where to discover areas"] = "Zeige, wo Gebiete zu entdecken sind"
+L["Stop tracking"] = "Nicht mehr verfolgen"
+L["Stop tracking all"] = "Alle nicht mehr verfolgen"
+L["The zone you're in and what is left to do there. Challenges you track keep their own Legacy section."] =
+	"Eure aktuelle Zone und was dort noch zu tun ist. Verfolgte Herausforderungen behalten ihren eigenen Vermächtnisbereich."
+L["The zone you're viewing in the map's corner, and a badge on each zone of a continent map."] =
+	"Die angezeigte Zone in der Kartenecke und eine Plakette auf jeder Zone einer Kontinentkarte."
+L["This menu needs mouse and keyboard."] = "Dieses Menü braucht Maus und Tastatur."
+L["This version of QuestieDB isn't supported."] = "Diese Version von QuestieDB wird nicht unterstützt."
+L["Turn this off to hide Legacy's pins on dungeon and raid entrances. The Legacy map menu still lists them."] =
+	"Schaltet dies aus, um die Legacy-Markierungen an Dungeon- und Schlachtzugseingängen auszublenden. Das Vermächtnismenü der Karte listet sie weiterhin auf."
+L["Undiscovered area"] = "Unentdecktes Gebiet"
+L["Waiting for Questie and your quest log."] = "Warte auf Questie und Euer Questlog."
+L["Waiting for Questie to finish loading."] = "Warte, bis Questie fertig geladen ist."
+L["What counts"] = "Was zählt"
+L["What's new after an update"] = "Neuerungen nach einem Update"
+L["World map"] = "Weltkarte"
+L["Zone complete"] = "Zone abgeschlossen"
+L["Zone completion"] = "Zonenfortschritt"
+L["Zone completion in the tracker"] = "Zonenfortschritt in der Verfolgung"
+L["Zone completion on the map"] = "Zonenfortschritt auf der Karte"
+L["and %d more"] = "und %d weitere"
+L["couldn't add a section to the objective tracker; please report /lf audit."] =
+	"konnte der Questzielverfolgung keinen Bereich hinzufügen; bitte meldet /lf audit."
+L["the objective tracker isn't available, so tracked challenges can't be shown."] =
+	"die Questzielverfolgung ist nicht verfügbar, verfolgte Herausforderungen können nicht angezeigt werden."
+L["updated to %s. %s"] = "auf %s aktualisiert. %s"
+
+L["Count account quests"] = "Accountweite Quests zählen" -- mt
+
+L["Count quests completed by any character. The quests counted still match this character's race and class."] =
+	"Zählt Quests, die ein beliebiger Charakter abgeschlossen hat. Die gezählten Quests entsprechen weiterhin dem Volk und der Klasse dieses Charakters." -- mt
+
+L["Account quest completion is unavailable on this client. Only this character's quests count."] =
+	"Accountweiter Questabschluss ist auf diesem Client nicht verfügbar. Nur die Quests dieses Charakters zählen." -- mt
+
+L["Tracked Legacy challenges"] = "Verfolgte Legacy-Herausforderungen" -- mt
+L["Turn it back on in Settings > AddOns > Legacy Forever > Objective tracker."] =
+	"Unter Einstellungen > AddOns > Legacy Forever > Zielverfolgung wieder einschalten." -- mt
+L["open the Legacy panel"] = "das Legacy-Fenster öffnen" -- mt
+L["open the map"] = "die Karte öffnen" -- mt
+L["The current zone is not known yet."] = "Die aktuelle Zone ist noch nicht bekannt." -- mt
+
+end local _, ForeverCoreHostNs = ... if type(ForeverCoreHostNs) == "table" and type(ForeverCoreHostNs.ForeverCoreHostChunks) == "table" then local chunks = ForeverCoreHostNs.ForeverCoreHostChunks chunks[#chunks + 1] = ForeverCoreHostChunk else return ForeverCoreHostChunk(...) end

@@ -286,8 +286,8 @@ end
 
 -- Register admin commands
 if not IsTestingLua then
-    SLASH_QUESTREWARD1 = "/questreward"
-    SlashCmdList["QUESTREWARD"] = function(msg)
+    SLASH_QUESTREWARDPREVIEW1 = "/questrewardpreview"
+    SlashCmdList["QUESTREWARDPREVIEW"] = function(msg)
         local cmd, args = msg:match("^(%S*)%s*(.*)$")
         cmd = cmd or ""
         

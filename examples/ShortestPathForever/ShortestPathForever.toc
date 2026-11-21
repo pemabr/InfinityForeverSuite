@@ -1,0 +1,182 @@
+## Interface: 16001
+## Title: Shortest Path Forever
+## Notes: The fastest way anywhere: walking paths, flight points, boats, zeppelins, lifts, the tram and portals, with live departure times.
+## Author: cjber
+## Version: 1.43.10
+## Category: Map
+## OptionalDeps: QuestieDB, TweaksForever, RXPGuides, Guidelime, !KalielsTracker, GatherMate2, DugisGuideViewerZ, ForeverCore
+## X-License: GPL-3.0-or-later
+## X-Website: https://github.com/cjber/shortest-path-forever
+## X-Donate: https://github.com/sponsors/cjber
+## X-Curse-Project-ID: 1708599
+## X-Forever-Core: v1.15.6
+## SavedVariables: ShortestPathForeverDB
+## SavedVariablesPerCharacter: ShortestPathForeverCharDB
+## X-Forever-Core-Embed: 1
+## IconTexture: Interface\AddOns\ShortestPathForever\media\Icon
+## X-Forever-Icon: Interface\Icons\INV_Misc_Spyglass_03
+## AddonCompartmentFunc: ShortestPathForever_OnAddonCompartmentClick
+
+Libs\ForeverCore\Core\Loader.lua
+Libs\ForeverCore\Begin.lua
+Libs\ForeverCore\Core.lua
+Libs\ForeverCore\Locales\enUS.lua
+Libs\ForeverCore\Locales\deDE.lua
+Libs\ForeverCore\Locales\esES.lua
+Libs\ForeverCore\Locales\esMX.lua
+Libs\ForeverCore\Locales\frFR.lua
+Libs\ForeverCore\Locales\koKR.lua
+Libs\ForeverCore\Locales\ptBR.lua
+Libs\ForeverCore\Locales\ruRU.lua
+Libs\ForeverCore\Locales\zhCN.lua
+Libs\ForeverCore\Locales\zhTW.lua
+Libs\ForeverCore\Data\Credits.lua
+Libs\ForeverCore\Core\SafeCall.lua
+Libs\ForeverCore\Core\Open.lua
+Libs\ForeverCore\Core\OpenMap.lua
+Libs\ForeverCore\Core\OpenSettings.lua
+Libs\ForeverCore\Core\Log.lua
+Libs\ForeverCore\Core\Capture.lua
+Libs\ForeverCore\Core\Performance.lua
+Libs\ForeverCore\Core\Text.lua
+Libs\ForeverCore\UI\Art.lua
+Libs\ForeverCore\UI\Report.lua
+Libs\ForeverCore\UI\Credits.lua
+Libs\ForeverCore\UI\SettingsPage.lua
+Libs\ForeverCore\UI\SettingsSections.lua
+Libs\ForeverCore\UI\TrackerLock.lua
+Libs\ForeverCore\UI\TrackerOrder.lua
+Libs\ForeverCore\UI\ContextMenu.lua
+Libs\ForeverCore\UI\TrackerHost.lua
+Libs\ForeverCore\UI\TrackerSection.xml
+Libs\ForeverCore\UI\TrackerSection.lua
+Libs\ForeverCore\UI\MapCanvas.lua
+Libs\ForeverCore\Core\APIKit.lua
+Libs\ForeverCore\Core\API.lua
+Libs\ForeverCore\UI\QuestLogTabs.lua
+Libs\ForeverCore\UI\ProfessionTabs.lua
+Libs\ForeverCore\Expose.lua
+Libs\ForeverCore\End.lua
+ForeverCoreHost.lua
+Core\ForeverRequire.lua
+Core\Require.lua
+Locales\enUS.lua
+Locales\deDE.lua
+Locales\esES.lua
+Locales\esMX.lua
+Locales\frFR.lua
+Locales\koKR.lua
+Locales\ptBR.lua
+Locales\ruRU.lua
+Locales\zhCN.lua
+Locales\zhTW.lua
+Core\Objectives.lua
+Data\Routes.lua
+Data\Transports.lua
+Data\Taxi.lua
+Data\Portals.lua
+Data\Teleports.lua
+Data\Zones.lua
+Data\TownAreas.lua
+Data\ZoneCells.lua
+Data\Services.lua
+Data\Walks.lua
+Data\WalkZones.lua
+Data\RoadCells.lua
+Data\RoadEdges.lua
+Data\Heights.lua
+Data\IdleSpawns.lua
+Data\SpellTargets.lua
+Data\Credits.lua
+Transport\Model.lua
+Routing\Savings.lua
+Routing\Planner.lua
+Routing\LegPoints.lua
+Routing\QuestDestination.lua
+Core\Core.lua
+Core\Distance.lua
+Transport\Timetable.lua
+Transport\TaxiTimes.lua
+Core\PlanContext.lua
+UI\MenuModifier.lua
+UI\NearbyGroups.lua
+UI\NearbyQuestie.lua
+UI\NearbyEntrances.lua
+UI\NearbyRoles.lua
+UI\NearbyProfessions.lua
+UI\NearbyRank.lua
+UI\Nearby.lua
+Transport\Observer.lua
+UI\Map.xml
+Transport\Taxi.lua
+Core\Progress.lua
+Transport\Teleports.lua
+Transport\PartyPortals.lua
+UI\Art.lua
+UI\ServicesPanel.lua
+UI\AdventureSuggestions.lua
+UI\OpenMap.lua
+UI\CompanionMaps.lua
+UI\Canvas.lua
+UI\Map.lua
+UI\TownServices.lua
+UI\FlightPins.lua
+UI\Looks.lua
+UI\MinimapPins.lua
+UI\Tracker.xml
+UI\Tracker.lua
+UI\Mover.lua
+UI\TurnAround.lua
+UI\Arrow.lua
+UI\Compass.lua
+Nav\Nav.xml
+Routing\PathGrid.lua
+Routing\Path.lua
+Routing\PathJobs.lua
+Routing\Floor.lua
+Routing\Band.lua
+Journey\JourneySteps.lua
+Journey\Hazards.lua
+Journey\JourneySearch.lua
+Journey\JourneyWalks.lua
+Journey\JourneyGuide.lua
+Journey\Journey.lua
+Journey\JourneyInput.lua
+Journey\Follow.lua
+Journey\Corpse.lua
+Journey\FactionHint.lua
+UI\StopPin.lua
+UI\FlightLines.lua
+UI\Strokes.lua
+UI\QuestPins.lua
+UI\Route.lua
+UI\RouteTransports.lua
+UI\Alert.lua
+UI\SettingsMapMarks.lua
+UI\Settings.lua
+UI\WhatsNew.lua
+Core\APIInput.lua
+Core\APIWalks.lua
+Core\API.lua
+Journey\Resume.lua
+Core\Report.lua
+Journey\Itinerary.lua
+Core\GatherMate.lua
+Journey\FarmingCursor.lua
+Journey\Farming.lua
+Journey\FarmingOrder.lua
+UI\Farming.lua
+Journey\StopOrder.lua
+UI\JourneyStops.lua
+Core\Zygor.lua
+Core\TomTom.lua
+Core\Way.lua
+Core\RestedXP.lua
+Core\Guidelime.lua
+Core\Dugi.lua
+Core\KalielsTracker.lua
+UI\DestinationPin.lua
+UI\NpcArrows.lua
+UI\HearthPin.lua
+ForeverCoreRun.lua
+ForeverCoreReady.lua

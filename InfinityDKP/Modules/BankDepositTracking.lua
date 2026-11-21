@@ -355,7 +355,7 @@ if not IsTestingLua then
                 local history = BankDepositTracking:GetDepositHistory(args, 20)
                 print("Deposit history for " .. args .. " (" .. #history .. " items):")
                 for _, dep in ipairs(history) do
-                    local dateStr = os.date("%Y-%m-%d", dep.timestamp)
+                    local dateStr = date("%Y-%m-%d", dep.timestamp)
                     print("  " .. dateStr .. " | " .. dep.item .. " | Tax: " .. math.floor(dep.tax_dkp) .. " DKP")
                 end
             else

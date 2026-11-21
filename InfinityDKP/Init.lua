@@ -28,6 +28,9 @@ local function InitializeDKP()
     if UI and UI.Initialize then
         UI:Initialize()
     end
+    if _G.InfinityDKPTooltipPriceInfo and _G.InfinityDKPTooltipPriceInfo.Initialize then
+        pcall(function() _G.InfinityDKPTooltipPriceInfo:Initialize() end)
+    end
     
     -- Register with InfinityCore
     InfinityCore:RegisterAddon(addonName, {
@@ -288,20 +291,7 @@ local function InitializeDKP()
     print("New Features: /dkp auction create, /dkp auction list, /dkp tax stats, /dkp donations, /dkp trade")
 end
 
-
-local function RegisterAddonWithInfinityManager()
-	if _G.InfinityAddonManager then
-		_G.InfinityAddonManager:RegisterAddon(ADDON_NAME, ADDON_VERSION, {
-			description = "Manage DKP for loot",
-			author = "Infinity Suite Team",
-			category = "Loot",
-			enabled = true,
-			settings = {{}}
-		})
-	end
-end
-
-	local frame = CreateFrame("Frame")
+local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 
 -- Flag to track if our addon has loaded

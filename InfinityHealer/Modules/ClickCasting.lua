@@ -226,7 +226,7 @@ function InfinityClickCast:CastSpellOnUnit(spellName, unitToken)
 	end
 	
 	-- Target the unit temporarily
-	local originalTarget = GetUnitTarget("player")
+	local originalTarget = UnitExists("target") and UnitName("target") or nil
 	TargetUnit(unitToken)
 	
 	-- Cast spell
@@ -234,11 +234,11 @@ function InfinityClickCast:CastSpellOnUnit(spellName, unitToken)
 	
 	-- Restore original target after a brief delay
 	if originalTarget then
-		after(0.1, function()
+		C_Timer.After(0.1, function()
 			TargetUnit(originalTarget)
 		end)
 	else
-		after(0.1, function()
+		C_Timer.After(0.1, function()
 			ClearTarget()
 		end)
 	end

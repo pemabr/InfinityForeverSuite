@@ -29,20 +29,4 @@ function InfinityUIIntegration:Initialize()
 	InfinityUtils:Info("UI Integration initialized", "UIIntegration")
 end
 
--- Add Toggle helper to AddonManager
-if InfinityAddonManager then
-	function InfinityAddonManager:Toggle()
-		if _G.InfinityAddonManagerWindow then
-			if _G.InfinityAddonManagerWindow:IsVisible() then
-				_G.InfinityAddonManagerWindow:Hide()
-			else
-				_G.InfinityAddonManagerWindow:Show()
-			end
-		else
-			local window = self:CreateManagerWindow()
-			window:Show()
-		end
-	end
-end
-
 return InfinityUIIntegration

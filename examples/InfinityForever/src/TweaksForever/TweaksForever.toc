@@ -1,0 +1,154 @@
+## Interface: 16001
+## Title: Tweaks Forever
+## Notes: Options to accept and turn in quests (standing down for Polestar), name rares near you, and repair and sell junk at merchants.
+## Author: cjber
+## Version: v2.9.4
+## Category: Quality of Life
+## IconTexture: Interface\AddOns\TweaksForever\media\Icon
+## X-Forever-Icon: Interface\Icons\Trade_Engineering
+## OptionalDeps: ShortestPathForever, QuestieDB, Questie, Titan, Mapster, ForeverCore
+## AddonCompartmentFunc: TweaksForever_OnAddonCompartmentClick
+## X-License: GPL-3.0-or-later
+## X-Website: https://github.com/cjber/tweaks-forever
+## X-Donate: https://github.com/sponsors/cjber
+## X-Curse-Project-ID: 1708506
+## X-Forever-Core: v1.15.4
+## SavedVariables: TweaksForeverDB
+## X-Forever-Core-Embed: 1
+## SavedVariablesPerCharacter: TweaksForeverCharDB
+
+Libs\ForeverCore\Core\Loader.lua
+Libs\ForeverCore\Begin.lua
+Libs\ForeverCore\Core.lua
+Libs\ForeverCore\Locales\enUS.lua
+Libs\ForeverCore\Locales\deDE.lua
+Libs\ForeverCore\Locales\esES.lua
+Libs\ForeverCore\Locales\esMX.lua
+Libs\ForeverCore\Locales\frFR.lua
+Libs\ForeverCore\Locales\koKR.lua
+Libs\ForeverCore\Locales\ptBR.lua
+Libs\ForeverCore\Locales\ruRU.lua
+Libs\ForeverCore\Locales\zhCN.lua
+Libs\ForeverCore\Locales\zhTW.lua
+Libs\ForeverCore\Data\Credits.lua
+Libs\ForeverCore\Core\SafeCall.lua
+Libs\ForeverCore\Core\Open.lua
+Libs\ForeverCore\Core\OpenMap.lua
+Libs\ForeverCore\Core\OpenSettings.lua
+Libs\ForeverCore\Core\Log.lua
+Libs\ForeverCore\Core\Capture.lua
+Libs\ForeverCore\Core\Performance.lua
+Libs\ForeverCore\Core\Text.lua
+Libs\ForeverCore\UI\Art.lua
+Libs\ForeverCore\UI\Report.lua
+Libs\ForeverCore\UI\Credits.lua
+Libs\ForeverCore\UI\SettingsPage.lua
+Libs\ForeverCore\UI\SettingsSections.lua
+Libs\ForeverCore\UI\TrackerLock.lua
+Libs\ForeverCore\UI\TrackerOrder.lua
+Libs\ForeverCore\UI\ContextMenu.lua
+Libs\ForeverCore\UI\TrackerHost.lua
+Libs\ForeverCore\UI\TrackerSection.xml
+Libs\ForeverCore\UI\TrackerSection.lua
+Libs\ForeverCore\UI\MapCanvas.lua
+Libs\ForeverCore\Core\APIKit.lua
+Libs\ForeverCore\Core\Journey.lua
+Libs\ForeverCore\UI\QuestLogTabs.lua
+Libs\ForeverCore\UI\ProfessionTabs.lua
+Libs\ForeverCore\Expose.lua
+Libs\ForeverCore\End.lua
+ForeverCoreHost.lua
+Locales\enUS.lua
+Locales\deDE.lua
+Locales\esES.lua
+Locales\esMX.lua
+Locales\frFR.lua
+Locales\koKR.lua
+Locales\ptBR.lua
+Locales\ruRU.lua
+Locales\zhCN.lua
+Locales\zhTW.lua
+Core\ForeverRequire.lua
+Core\Require.lua
+Data\Overlays.lua
+Data\CampBenefits.lua
+Data\ZoneLevels.lua
+Data\DungeonEntrances.lua
+Data\ClassSpells.lua
+Data\ForeverQuests.lua
+Data\DungeonMapArt.lua
+Data\Credits.lua
+Core\Secret.lua
+Core\Core.lua
+Core\ItemInfo.lua
+UI\Art.lua
+UI\Keys.lua
+Features\Automation.lua
+Features\WhisperInvite.lua
+Features\LootConfirm.lua
+Features\RareAlerts.lua
+Features\PullWarning.lua
+Features\TalentReminder.lua
+Bags\Vendor.lua
+Core\Modes.lua
+Bags\Junk.lua
+Bags\Gear.lua
+Bags\CombinedBag.lua
+Bags\Sections.lua
+Bags\Reagents.lua
+Map\Campsites.lua
+Integrations\QuestieSource.lua
+Quests\QuestLevels.lua
+Quests\QuestiePins.lua
+Quests\QuestDistance.lua
+Quests\QuestGivers.lua
+Quests\QuestProgress.lua
+Quests\QuestButtons.lua
+Quests\QuestLog.lua
+Quests\BestReward.lua
+UI\Tooltips.lua
+UI\CursorTooltip.lua
+UI\Nameplates.lua
+Map\MapDraw.lua
+Map\Exploration.lua
+Map\ZoneLevels.lua
+Map\Coordinates.lua
+Integrations\Navigate.lua
+Map\DungeonMaps.lua
+UI\Frames.lua
+UI\Errors.lua
+UI\CameraZoom.lua
+UI\ScreenGlow.lua
+UI\XPRate.lua
+UI\QuestXPBar.lua
+UI\RangeStrip.lua
+UI\CraftingBar.lua
+UI\LootSparkles.lua
+UI\TrainAll.lua
+UI\MacroNames.lua
+UI\Spellbook.lua
+UI\PetTrainer.lua
+UI\BeastTraining.lua
+Features\Fishing.lua
+UI\Reload.lua
+UI\WhatsNew.lua
+Chat\Shared.lua
+Chat\ShortNames.lua
+Chat\ClassLevels.lua
+Chat\Timestamps.lua
+Chat\FoldRepeats.lua
+Chat\ItemIcons.lua
+Chat\Mentions.lua
+Chat\WebLinks.lua
+Chat\History.lua
+Chat\PlayerRecord.lua
+Chat\WhisperTabs.lua
+Chat\UnreadCount.lua
+Chat\LastGrouped.lua
+Chat\PlayerCard.lua
+Chat\BagLinks.lua
+Core\Report.lua
+UI\Settings.lua
+Core\API.lua
+ForeverCoreRun.lua
+ForeverCoreReady.lua

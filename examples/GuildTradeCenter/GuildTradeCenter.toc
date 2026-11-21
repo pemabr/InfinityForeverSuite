@@ -1,0 +1,18 @@
+## Interface: 16001
+## Title: GuildTradeCenter
+## Notes: Guild trading board and guild recipes for WoW: Forever - offers, requests, item catalog, auction house scan and recipe overview with materials.
+## Notes-deDE: Gilden-Handelsbrett und Gilden-Rezepte für WoW: Forever - Angebote, Gesuche, Item-Katalog, Auktionshaus-Scan und Rezeptübersicht mit Materialien.
+## Notes-enUS: Guild trading board and guild recipes for WoW: Forever - offers, requests, item catalog, auction house scan and recipe overview with materials.
+## Author: GuildTradeCenter
+## Version: 1.1.7
+## SavedVariables: GuildTradeCenterDB
+
+Locale.lua
+Professions.lua
+Core.lua
+Scanner.lua
+Comm.lua
+Watchlist.lua
+UI.lua
+Recipes.lua
+AHScan.lua

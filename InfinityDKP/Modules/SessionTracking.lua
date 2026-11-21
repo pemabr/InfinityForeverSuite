@@ -60,7 +60,7 @@ end
 function Sessions:OnRaidStart()
     if not self.config.auto_detect_raids then return end
     
-    local raid_name = GetRaidName() or "Unknown Raid"
+    local raid_name = GetRealZoneText() or "Unknown Raid"
     
     self.current_session = {
         id = "SESSION_" .. tostring(time()),
@@ -71,6 +71,7 @@ function Sessions:OnRaidStart()
         members = {},
         member_count = 0,
         loot_count = 0,
+        loot_items = {},
         boss_kills = {},
         total_gp_awarded = 0,
         total_ep_awarded = 0,
@@ -161,7 +162,7 @@ function Sessions:RecordSessionMembers()
         end
     elseif IsInGroup() then
         for i = 1, GetNumGroupMembers() do
-            local name = GetGroupMemberName(i)
+            local name = UnitName("party" .. i)
             if name then
                 table.insert(members, {
                     name = name,
@@ -180,13 +181,17 @@ end
 function Sessions:RecordLoot(player, item, award_type, gp_cost)
     if not self.current_session then return end
     
-    table.insert(self.current_session.loot_count, {
+    if not self.current_session.loot_items then
+        self.current_session.loot_items = {}
+    end
+    table.insert(self.current_session.loot_items, {
         player = player,
         item = item,
         award_type = award_type,
         gp_cost = gp_cost,
         timestamp = time()
     })
+    self.current_session.loot_count = (self.current_session.loot_count or 0) + 1
     
     self.current_session.total_gp_awarded = (self.current_session.total_gp_awarded or 0) + (gp_cost or 0)
     

@@ -62,7 +62,7 @@ function InfinityHealerFrames:CreateUnitFrame(unit, name)
 	local healthText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	healthText:SetPoint("CENTER", healthBar, "CENTER", 0, 0)
 	healthText:SetFontObject(GameFontNormal)
-	healthText:SetFont("Fonts/FRIZQT__.TTF", 8)
+	healthText:SetFont("Fonts/FRIZQT__.TTF", 8, "")
 	healthText:SetText("100%")
 	frame.healthText = healthText
 	

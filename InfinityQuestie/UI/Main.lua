@@ -2,9 +2,10 @@
 -- Quest tracker window
 
 local InfinityQuestieUI = {}
+_G.InfinityQuestieUI = InfinityQuestieUI
 
 function InfinityQuestieUI:Initialize()
-    self.frame = CreateFrame("Frame", "InfinityQuestieMainFrame", UIParent)
+    self.frame = CreateFrame("Frame", "InfinityQuestieMainFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
     self.frame:SetSize(400, 500)
     self.frame:SetPoint("CENTER", UIParent, "CENTER", -300, 0)
     self.frame:SetBackdrop({
@@ -17,7 +18,7 @@ function InfinityQuestieUI:Initialize()
     self.frame:SetBackdropBorderColor(0.8, 0.8, 0.8, 1)
     
     -- Title
-    local title = self.frame:CreateFontString(nil, "ARTWORK", "GameFontBold")
+    local title = self.frame:CreateFontString(nil, "ARTWORK", (GameFontBold and "GameFontBold" or "GameFontNormalLarge"))
     title:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 10, -10)
     title:SetText("Infinity Questie")
     

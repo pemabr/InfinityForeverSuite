@@ -1,0 +1,37 @@
+## Interface: 16001
+## Title: Finanzamt
+## Notes: Guild tax system modelled on German tax law – income, sales and trade tax, guild bank accounts, synced with the whole guild.
+## Notes-deDE: Gildensteuer nach deutschem Vorbild – Einkommen-, Umsatz- und Gewerbesteuer, Gildenbank-Konten, Sync mit der ganzen Gilde.
+## Author: Victor
+## Version: 1.0.14
+## IconTexture: Interface\Icons\INV_Misc_Coin_01
+## X-Category: Guild
+## SavedVariables: FinanzamtDB
+## OptionalDeps: Auctionator
+
+Core.lua
+Locale.lua
+Locale_en_Core.lua
+Locale_en_Config.lua
+Locale_en_Tax.lua
+Locale_en_Income.lua
+Locale_en_Sync.lua
+Locale_en_UI.lua
+Locale_en_UI2.lua
+Locale_en_Notice.lua
+Locale_en_Misc.lua
+Locale_en_Changes.lua
+Locale_en_Achievements.lua
+Serializer.lua
+Config.lua
+Pricing.lua
+Ledger.lua
+Tax.lua
+Income.lua
+Sync.lua
+UI.lua
+Notice.lua
+Tooltip.lua
+Minimap.lua
+Changes.lua
+Achievements.lua

@@ -1,0 +1,172 @@
+<p align="center"><img src="https://raw.githubusercontent.com/cjber/shortest-path-forever/main/media/icon-400.png" width="96" alt=""></p>
+
+<h1 align="center">Shortest Path Forever</h1>
+
+<p align="center">
+Plan journeys in WoW: Forever, on foot, by air, by sea and through portals.<br>
+<a href="https://github.com/cjber/shortest-path-forever/actions/workflows/ci.yml"><img src="https://github.com/cjber/shortest-path-forever/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+<a href="https://github.com/cjber/shortest-path-forever/releases/latest"><img src="https://img.shields.io/github/v/release/cjber/shortest-path-forever" alt="Latest release"></a>
+<a href="https://www.curseforge.com/wow/addons/shortest-path-forever"><img src="https://img.shields.io/curseforge/dt/1708599?label=CurseForge%20downloads" alt="CurseForge downloads"></a>
+<br><br><a href="https://github.com/sponsors/cjber"><img src="docs/github-sponsors-button.png" alt="Sponsor me on GitHub"></a> <a href="https://ko-fi.com/cjber"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support me on Ko-fi"></a>
+</p>
+
+Click the world map or minimap with your journey key held (Shift by default), or choose a quest, to plan a journey. Shortest Path Forever gives directions in the objective tracker and on both maps.
+
+Need a vendor, a trainer or an inn? The **Nearby services** tab on the world map finds the closest one, tells you how long it takes to get there, and takes you there in one click. Search for any item to see who sells it.
+
+## Known limitations
+
+- Walking maps are built ahead of time, so patched terrain can route wrongly until an update.
+- The game names your bind point but not where it is, so the Hearthstone counts once you bind or hearth with the addon on.
+- A boat, lift or tram shows "no sighting yet" until you have ridden that route once, because the game holds no timetables.
+- The game gives no player height, so standing still at a lift's landing right after a ride, the tracker can name the landing you rode from until you step off it.
+- The game cannot show another player's spells, so you list a party mage's portals yourself in the settings (Party mage portals).
+
+![Eight-second demo of a route settling, the countdown and the compass](docs/screenshots/demo.gif)
+
+Planning a journey from the map: the route settles, the next boat counts down in the tracker and the compass turns
+with you.
+
+## Features
+
+- **Find nearby services.** A tab in the world map's quest log lists vendors by what they sell, your own class trainer, profession trainers, battlemasters, portal trainers for mages, inns, banks, auction houses, flight masters, stables and repairs, and every dungeon and raid door on your continent. Each row shows the nearest one and how long it takes to get there, and the dungeon and raid rows are ordered by that time. Arrows, shot, food and drink are the best for your level, and a row under them offers better ones farther away. Search for a group, an NPC, an item or an instance, then click a row to start the journey; a dungeon row takes you to the door and ends when you go in. Arrows mark that NPC's nameplate when you get there. Pick a level under *Town services* in the map's filter menu and zone and city maps show the same services where they stand, each kind in its own map icon, with a market stall only where different kinds truly share a spot; click one to go there, or hide any one kind from that menu. Requires installed QuestieDB; class trainers also use Tweaks Forever.
+  ![The Nearby services tab in the world map's quest log](docs/screenshots/services.png)
+  The tracking menus and `/spfnear` open the same tab.
+
+- **Keep a private travel journal.** `/path stats` reports this character's approximate walking distance, completed journeys and transport use.
+
+- **Plan a journey.** Click the world map or minimap with your journey key held, or choose *Plan journey* on a quest. *Key to plan a journey* in Guidance chooses Shift or Alt so a key another addon wants can be left to it. Routes combine walking, flights, boats, zeppelins, lifts, the tram, portals and teleports, and replan as you move. A spot inside a dungeon or raid leads to its entrance. Walks go round zones whose lowest level is 4 or more above yours and round the other faction's towns, and say so in the tracker when they can't. *Keep journeys after a reload* in Guidance restarts your own journey after a `/reload`.
+  ![Journey steps from Auberdine to Silithus](docs/screenshots/tracker.png)
+  The tracker shows each step, with time and distance remaining. Hover the destination's pin on the world map for the same steps, and, with the other faction's routes hidden, whether their boats would be at least two minutes faster.
+- **Follow your guide.** Journeys follow RestedXP's or Guidelime's current step by default, without TomTom or a bridge addon; *Resume guide* returns to it after another journey, unless Adventure Guide's RestedXP display leads instead. With Dugi Guides installed, *Follow Dugi guides* in Guidance follows its current step too, leaving Dugi's own arrow in place. With TomTom absent, other guides' TomTom waypoints start journeys here.
+- **Type a waypoint.** `/way [zone] x y [title]` plans a journey there, written as for TomTom, while TomTom and other addons leave `/way` free; `/path way` always works. With TomTom installed, *Follow TomTom's arrow* in Guidance follows its arrow.
+  ![A guide route through Thelsamar](docs/screenshots/stops.png)
+  The current stop lights up like a tracked quest.
+- **Choose your guidance.** Keep the route on both maps while hiding the Journey tracker or direction arrow. *Show the journey tracker* is in Guidance and the arrow switch is in Interface. The arrow eases round to each new bearing; move and scale it in Interface, and choose whether its label shows the distance, the time left or both, and whether the stop's objectives show under it. Click the current step to complete it manually; skipping a Hearthstone leaves it out for that journey.
+  ![Route and native waypoint on the minimap](docs/screenshots/minimap.png)
+  Breadcrumbs show the walking route; the waypoint leads to the next step. A goal off the minimap waits on its rim.
+- **Set how close counts as arrived.** *Arrival distance* in Guidance sets how close counts as reaching your destination, from 5 to 50 yards. A map pin you set as that destination is cleared when you get there instead of left behind.
+- **See flights and departures.** Flight maps highlight your next flight, and a flight master's world map tooltip lists its flights and their times. Dock tooltips show destinations and departure times; nearby services count down in the tracker. Ride times improve estimates, from your own sightings kept across sessions and characters on your account.
+  ![A smooth flight line leaving Stormwind](docs/screenshots/flight.png)
+  Flight lines follow the route between flight points.
+
+- **Travel prompts and alerts.** Hearthstone and teleport steps show the item or spell to use. A banner, transport sound and taskbar flash warn before your boat arrives. *Play a sound when you reach the goal* in Alerts plays the map's ping on arrival.
+  ![The current Hearthstone action](docs/screenshots/cast_prompt.png)
+  The prompt clears as the journey continues.
+- **Compass and corpse routes.** The compass marks turns, stops and your destination, and can show the time left under it. As a ghost, a red route leads to your body; your journey resumes when you are alive.
+  ![The compass with turns and destination](docs/screenshots/compass.png)
+  When the next turn is behind you, the compass and the arrow dim until you turn back.
+  ![The compass dimmed with the next turn behind](docs/screenshots/compass_behind.png)
+  In a quest's area the arrow becomes the same gold pin that marks your destination, with the quest's objectives under it, and the compass turns quietly green.
+  ![The gold goal pin with a quest's objectives, and the compass tinted green](docs/screenshots/arrival.png)
+  The strip can be moved and resized separately from the tracker. While moving it or the arrow, Shift-drag, or rest the pointer on it and use the arrow keys, to place it to the pixel.
+
+More detail: [features](docs/features.md) and [API](docs/api.md).
+
+## Install
+
+Install it from [CurseForge](https://www.curseforge.com/wow/addons/shortest-path-forever), or download the zip from
+[Releases](https://github.com/cjber/shortest-path-forever/releases). Everything it needs comes inside the download. To install the zip by hand, extract it into
+the WoW: Forever client's `Interface/AddOns/` folder (`_forever_` on the live client, `_classic_beta_` on the beta) so you end up with `AddOns/ShortestPathForever/ShortestPathForever.toc`.
+
+## Usage
+
+Alt-click a Questie icon on the world map to choose its spot as the destination. Shift-click works on empty map space and Shortest Path icons, and Alt-click elsewhere is left to other addons, such as OpenMap's marker delete. Choose Alt as *Key to plan a journey* in Guidance, and that one key works everywhere, Questie icons included. With the gamepad interface on, Shortest Path never opens or turns the world map, or opens a menu, itself; it asks you to.
+
+The settings have five pages. **Guidance** holds journey behaviour: the tracker (*Show the journey tracker*, *Show boat, lift and tram departures in the tracker*), *Key to plan a journey*, *Show the journey key hint in tooltips*, *Route to the focused quest*, *Arrival distance*, the guide addons, and route choices such as *Use Hearthstone* and *Use class teleports*. **Map marks** holds the icons on the world map and minimap (including *Town service icons* and *Show the Nearby services tab*), their sizes from 25% to 200%, the route lines, and the other faction's boats and zeppelins (off by default). **Party mage portals** lists the capitals a mage in your group can open. **Alerts** covers the boat warning and the arrival sound. **Interface** shows or hides the arrow and compass, sizes them, and labels distances in metres. [docs/features.md](docs/features.md) has the detail.
+
+Right-click a flight master icon to mark its flight path as known if a flight map missed it. Open a flight master's map once after installing to sync the flight points you know.
+
+| Command | What it does |
+|---|---|
+| `/path` | Open the settings (also in Settings → AddOns and the addon compartment) |
+| `/path report` | Show a report to paste into a bug report: versions, your journey, your ride, errors from earlier sessions, recent log lines |
+| `/forever debug` | Keep a detailed log for this session, and show it to copy with `/forever debug show` |
+| `/path issue` | Show a filled-in GitHub issue link, selected for copying, to report a bug or request a feature |
+| `/path perf` | Print this addon's CPU and memory use |
+| `/path debug` | Keep a trace of your ride matching, for a ride that was not recorded |
+| `/spfnear` | Open the Nearby services tab; add a service such as `repair`, `trainer` or `flight` to route to the nearest one |
+
+The world map's filter menu and the minimap's tracking menu hide each kind of mark. Searches and tracker updates wait until combat ends.
+
+## Move the tracker
+
+The Forever column sits to the left of the game's quest tracker and follows it when you move that tracker in Edit Mode. Drag a section's heading to put the column anywhere; it stays there after `/reload`. Right-click a heading for **Lock the tracker**, which stops dragging. The column hides while nothing is tracked.
+
+![The Forever column dragged away from the quest tracker](docs/screenshots/detached.png)
+
+Moving it moves only the Forever sections; the game's quest tracker keeps its own position.
+
+## Works alongside
+
+Other addons can plan and guide journeys through `ShortestPathForever.API`, ask for travel times, and subscribe
+to journey changes. [docs/api.md](docs/api.md) has the calls and what they return.
+
+With *Follow RestedXP guides* on (the default), leave RestedXP's TomTom option off so only one addon follows the guide.
+
+Your journey key plans a journey on the world map even with TomTom installed. TomTom keeps its modified right-click waypoint gesture.
+
+With OpenMap on, the route and its stops draw across its stitched world map and carry on into the zones either side, over OpenMap's own art.
+
+<!-- forever-family:start -->
+
+## The Forever addons
+
+Each one works on its own, and they work together when you install more than one.
+
+| Addon | What it does | Issues |
+|---|---|---|
+| [Shortest Path Forever](https://www.curseforge.com/wow/addons/shortest-path-forever) | Plans journeys on foot, by air, by sea and through portals, with directions in the tracker. | [Issues](https://github.com/cjber/shortest-path-forever/issues) |
+| [Adventure Guide Forever](https://www.curseforge.com/wow/addons/adventure-guide-forever) | Suggests quests for your level and routes you from one to the next. | [Issues](https://github.com/cjber/adventure-guide-forever/issues) |
+| [SkillUp Forever](https://www.curseforge.com/wow/addons/skillup-forever) | Shows skill-up chances, recipe costs and levelling routes in the Professions window. | [Issues](https://github.com/cjber/skillup-forever/issues) |
+| [Legacy Forever](https://www.curseforge.com/wow/addons/legacy-forever) | Shows your unfinished Legacy challenges on the world map and tracks the ones you choose. | [Issues](https://github.com/cjber/legacy-forever/issues) |
+| [Tweaks Forever](https://www.curseforge.com/wow/addons/tweaks-forever) | Adds quest automation, rare alerts and merchant options to the game's settings. | [Issues](https://github.com/cjber/tweaks-forever/issues) |
+| [Field Guide Forever](https://www.curseforge.com/wow/addons/field-guide-forever) | Keeps a cosmetic journal of the creatures you kill, zone by zone. | [Issues](https://github.com/cjber/field-guide-forever/issues) |
+| [Commissions Forever](https://www.curseforge.com/wow/addons/commissions-forever) | Lists your commission turn-ins, the materials in your bags and the next NPC to visit. | [Issues](https://github.com/cjber/commissions-forever/issues) |
+| [Macro Assist Forever](https://www.curseforge.com/wow/addons/macro-assist-forever) | Adds a macro window with every macro in one list, a mono editor with live checks, and history. | [Issues](https://github.com/cjber/macro-assist-forever/issues) |
+
+Bug reports, feature requests and pull requests are welcome on each addon's GitHub. Everyone whose report or idea ships is thanked by name on the Thanks page in game, in the store page and in the changelog, unless they ask not to be.
+
+For help, ideas and each day's release notes, join [cjber's Workshop on Discord](https://discord.gg/FpHugGxRJY).
+
+<!-- forever-family:end -->
+
+Installed together, the others send Shortest Path their destinations: an Adventure Guide journey or quest-menu suggestion, a RestedXP, Guidelime or Dugi Guides step, a trainer or vendor in a SkillUp route, a Legacy dungeon or raid pin, or a dungeon or raid entrance Tweaks adds to the map.
+
+Journey steps share one tracker column with the Adventure Guide, SkillUp and Legacy sections, beside the game's quest tracker.
+
+## Ways to help
+
+No code needed:
+
+- **A wrong route:** type `/path report` while the journey is on screen and paste it into a [Wrong route issue](https://github.com/cjber/shortest-path-forever/issues/new?template=wrong_route.yml).
+- **An error:** open a [bug report](https://github.com/cjber/shortest-path-forever/issues/new?template=bug_report.yml) with the error's text, and paste `/path report` under its steps.
+- **A translation:** Translated into German, French, Spanish, Brazilian Portuguese, Russian, Korean and Chinese (machine translated; corrections welcome). Paste a fix into a [translation issue](https://github.com/cjber/shortest-path-forever/issues/new?template=translation.yml).
+
+## Development
+
+Run `tools/typecheck.sh` for LuaLS and static checks, and `luajit tests/<name>_spec.lua` for a focused check. CI runs the full suite. [tests/README.md](tests/README.md) describes the test layers; [performance notes](tests/search_performance.md) and [type declarations](types/README.md) describe the rest. Releases follow [.agents/skills/release/SKILL.md](.agents/skills/release/SKILL.md).
+
+[Contributing](https://github.com/cjber/.github/blob/main/CONTRIBUTING.md), [AGENTS.md](AGENTS.md) and [security reports](https://github.com/cjber/.github/blob/main/SECURITY.md).
+
+## Support
+
+The addon is free and stays GPL-3.0. If it saves you time, you can [sponsor me on GitHub](https://github.com/sponsors/cjber), which takes no fees, or [buy me a coffee on Ko-fi](https://ko-fi.com/cjber); nothing is locked behind it and there is no paid version.
+
+## Credits
+
+Travel data comes from [wago.tools](https://wago.tools), [CMaNGOS](https://github.com/cmangos/classic-db) (GPL-3.0) and [InFlight](https://github.com/LudiusMaximus/InFlight) (MIT). Some features were inspired by [Polestar](https://github.com/fitzforge/polestar) by Fitz; no code was copied. Fitz is welcome to use our code.
+
+<!-- forever-credits:start -->
+
+Thanks to Alex21xx, Maggew, MacieGx, Stiandresius, user_lsqt69ps7bgb5p7e, The___Fast, Joster91, GenericP, cotijelucie, vladsnz, user_sggieekz05hc7uxt, kindguydev, ubrider, Drusangus, user_u3k9hweaatfhnjs0, treadpool, user_g496wu46adiwjuc5, emmiehbun, VolomonBeddarm, zhega, catubba, Hatemost, JaidyEU, Chulf58, embiem, InfamousMunky, A player, kaelr1, Enel3008, azure463, AsimRamay, nookie909, Zerhathos, jakerist, cobalt_44, Xeteskian, DaFrozenMage, user_zbqhuuoypkkr46x1, Fitz, TRDeadbeat, tallsmartman, Sol_Deus, Zavian, Osipanda, Nightwind416, wfournier, cidolfus27, o0saw0o, Merlinqt, team_Brigade, phear, Testvonfarkle, rydoc, deathmvp1, saikoso, Ragnarok11B, Brainc3ll, Mouchoir, z1ck, Oxds, sean16981, aryaxo, Exo_NA, legortiz, JohnChrin, wheelbarrel00, lkshrk, HeartOfD2, rml9ty, hwalflor, chris-chrysos, Quantity-4, Bolton_wow, Aldericdevir, joaocjesus, jakerist (Grayburn), borick7318, sampconrad, jixxor, Gaafah, _spada, macwire, scraak, overspark, TeeRKee, Speaker1264, SuubzTV, Fel7, Kragmars, spidersylar, Acem, tgkGate, user_efwsfml273dlvfm5, IronmanBG, vcatalin, sdtom, Bervath, Blast22, hervad, caghanpekin-prog, Zwaffelmagic, CptShooter, user_10oietw0rdrgk4le, cwebbx, lone_viking1921, Nivlemoth_Nathrezim, Lůca [Luutsa], esc_return, MrOxiMoron, Zhiroc, Crypa7, ghuff07, nimri82, cmartin303 and everyone who reported a bug or asked for a feature.
+
+<!-- forever-credits:end -->
+
+## Licence
+
+GPL-3.0-or-later. Inputs: [THIRD_PARTY.md](THIRD_PARTY.md).
+
+Made by Cillian Berragan · [cillian.dev](https://cillian.dev) · [GitHub](https://github.com/cjber) · [Twitter](https://twitter.com/cjberragan)
+
+Built with AI assistance.

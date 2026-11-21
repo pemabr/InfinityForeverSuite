@@ -1,0 +1,515 @@
+local ForeverCoreHostChunk = function(...) ---@type string, SkillUpNamespace
+local _, ns = ...
+
+if ns.broken then
+	return
+end
+
+-- What goes stale when something changes. A writer says what changed with ns.Changed; the game's own
+-- changes arrive as the events below. Only this file knows which caches that drops and which views it
+-- redraws: each once per change, caches before views, in ORDER.
+
+-- The route page only arms its redraw timer, so its place among the views is free. So is the hovered
+-- tooltip's: it only marks the row for its next update, which the game asks for on its own.
+---@type SkillUpStale[]
+local ORDER = {
+	"schematics",
+	"prices",
+	"craftCosts",
+	"sourceEvidence",
+	"recipeEvidence",
+	"plans",
+	"replan",
+	"bags",
+	"trackedNeeds",
+	"tooltipRoute",
+	"tooltipRouteTools",
+	"api",
+	"route",
+	"recipeList",
+	"tracker",
+	"trainer",
+	"routeTab",
+	"pages",
+	"supplyPage",
+	"gear",
+	"buffs",
+	"tooltipCache",
+	"tooltip",
+	"auctionSearch",
+	"detailsBar",
+	"recipePreview",
+	"shoppingList",
+}
+
+---@type table<SkillUpChange, table<SkillUpStale, true>>
+-- The item, node and corpse tooltip lines read recipes, skill and settings; the route index reads the tracked
+-- routes and the tools the bags lack. The two are dropped separately, so a bag or item change that moves no
+-- answer does not rebuild the lines a hover redraws.
+local STALE = {
+	-- Publishing a supply certificate changes its consumers, not its input plan.
+	supply = {
+		trackedNeeds = true,
+		tooltipRoute = true,
+		api = true,
+		route = true,
+		tracker = true,
+		auctionSearch = true,
+		detailsBar = true,
+		shoppingList = true,
+		supplyPage = true,
+	},
+	sourceEvidence = { sourceEvidence = true, api = true, supplyPage = true },
+	recipeEvidence = { recipeEvidence = true, api = true, supplyPage = true },
+	-- What a profession's recipes are or need: a recipe learned, or the open window's scan finding a learned
+	-- flag, a live grey, skill points or a schematic the plans were built without. The plan is built from all
+	-- of it.
+	recipes = {
+		recipePreview = true,
+		tooltipCache = true,
+		tooltipRoute = true,
+		schematics = true,
+		plans = true,
+		supplyPage = true,
+		trackedNeeds = true,
+		api = true,
+		route = true,
+		tracker = true,
+		gear = true,
+		buffs = true,
+		auctionSearch = true,
+		detailsBar = true,
+		shoppingList = true,
+	},
+	-- The profession window opened or moved to another profession: what shows it follows, from plans kept as
+	-- they are. A list update while it is open is qualified by Core/Live.lua's scan, which marks this only
+	-- when the open profession, its skill or the known recipes actually moved.
+	window = {
+		recipeList = true,
+		supplyPage = true,
+		recipePreview = true,
+		tooltipCache = true,
+		tooltipRoute = true,
+		api = true,
+		route = true,
+		tracker = true,
+		gear = true,
+		buffs = true,
+		auctionSearch = true,
+		detailsBar = true,
+		shoppingList = true,
+	},
+	-- A skill line moved: often a weapon or defense skill-up in combat, nothing a plan reads. A plan is keyed by
+	-- its profession's skill, bonus and cap, so a profession's own skill-up rebuilds that one plan on its next ask.
+	-- `trackedNeeds` is left to that plan key too: a weapon skill-up must not rebuild every tracked route.
+	skill = {
+		recipeList = true,
+		supplyPage = true,
+		recipePreview = true,
+		tooltipCache = true,
+		tooltipRoute = true,
+		api = true,
+		route = true,
+		tracker = true,
+		detailsBar = true,
+		buffs = true,
+		shoppingList = true,
+	},
+	-- A Legacy talent changed what a skill-up is worth: every chance shown, planned or priced moves.
+	talents = {
+		recipePreview = true,
+		tooltipCache = true,
+		tooltipRoute = true,
+		plans = true,
+		supplyPage = true,
+		trackedNeeds = true,
+		api = true,
+		route = true,
+		recipeList = true,
+		tracker = true,
+		trainer = true,
+		detailsBar = true,
+		tooltip = true,
+		shoppingList = true,
+	},
+	-- A profession learned or dropped changes what counts as gathered, so what things cost.
+	professions = {
+		supplyPage = true,
+		tooltipCache = true,
+		tooltipRoute = true,
+		prices = true,
+		plans = true,
+		trackedNeeds = true,
+		api = true,
+		route = true,
+		recipeList = true,
+		tracker = true,
+		gear = true,
+		buffs = true,
+		shoppingList = true,
+	},
+	prices = {
+		recipePreview = true,
+		tooltipCache = true,
+		tooltipRoute = true,
+		prices = true,
+		plans = true,
+		supplyPage = true,
+		trackedNeeds = true,
+		api = true,
+		route = true,
+		recipeList = true,
+		tracker = true,
+		shoppingList = true,
+	},
+	-- A bag change does not drop `trackedNeeds`: UI/Shopping.lua's plan and missing-tool key tells a tool
+	-- that came or went from a bag of unrelated loot. The tooltip's item lines do not read the bags at all;
+	-- only the route index does, and only when the tools a route lacks actually moved. `bags` is Plan.lua's own
+	-- check, made when something next asks for the plan: a route a step can no longer afford to craft is planned
+	-- afresh there, and any other bag change keeps it (#621).
+	bags = {
+		supplyPage = true,
+		recipePreview = true,
+		bags = true,
+		tooltipRouteTools = true,
+		api = true,
+		route = true,
+		tracker = true,
+		shoppingList = true,
+	},
+	-- Item data arrived; `names` when the public list was waiting on it. An item tooltip's lines hold no item
+	-- name, and a route's tooltip lines hold no shopping source, so `tooltipCache` and `tooltipRoute` stay.
+	-- `trackedNeeds` stays too: the one item-data input its list reads, a vendor sell price
+	-- (Integrations/Prices.lua's SellPrice), reports `prices` when it arrives. Item data arrives for any item,
+	-- from any addon, so dropping the list here rebuilt every tracked route on every hover. `tracker` stays for
+	-- the same reason: UI/Shopping.lua keeps the names its section is waiting on and reports the tracker only
+	-- when one of them arrives, so a tooltip hover draws no section (#526).
+	recipeFilter = { recipeList = true },
+	items = {
+		supplyPage = true,
+		recipePreview = true,
+		route = true,
+		gear = true,
+		buffs = true,
+		shoppingList = true,
+	},
+	-- The name the tracker was waiting on arrived. Only that section draws item names, so only it redraws
+	-- (UI/Shopping.lua); the item data event itself drops nothing for it (#526).
+	trackerNames = { tracker = true },
+	names = { api = true },
+	level = {
+		supplyPage = true,
+		tooltipCache = true,
+		tooltipRoute = true,
+		api = true,
+		route = true,
+		recipeList = true,
+		tracker = true,
+		gear = true,
+		buffs = true,
+		shoppingList = true,
+	},
+	zone = { api = true },
+	-- A merchant opened, restocked or closed: the tracker's buy button. A price it records reports `prices`.
+	merchant = { tracker = true, shoppingList = true, supplyPage = true },
+	-- Fees and requirements recorded at a trainer.
+	fees = {
+		recipePreview = true,
+		tooltipCache = true,
+		tooltipRoute = true,
+		plans = true,
+		supplyPage = true,
+		trackedNeeds = true,
+		api = true,
+		route = true,
+		tracker = true,
+		shoppingList = true,
+	},
+	-- Where scrolls, vendors and trainers are, read from Questie and AtlasLoot or seen at a merchant's window.
+	-- A vendor-sold recipe's scroll price is a plan input too (#358).
+	sources = {
+		craftCosts = true,
+		recipePreview = true,
+		recipeList = true,
+		tooltipCache = true,
+		tooltipRoute = true,
+		plans = true,
+		supplyPage = true,
+		trackedNeeds = true,
+		api = true,
+		route = true,
+		tracker = true,
+		tooltip = true,
+		gear = true,
+		buffs = true,
+		shoppingList = true,
+	},
+	target = {
+		tooltipCache = true,
+		tooltipRoute = true,
+		plans = true,
+		supplyPage = true,
+		trackedNeeds = true,
+		api = true,
+		route = true,
+		tracker = true,
+		shoppingList = true,
+	},
+	tracking = {
+		tooltipCache = true,
+		tooltipRoute = true,
+		trackedNeeds = true,
+		api = true,
+		route = true,
+		tracker = true,
+		shoppingList = true,
+	},
+	settings = {
+		recipePreview = true,
+		tooltipCache = true,
+		tooltipRoute = true,
+		prices = true,
+		plans = true,
+		supplyPage = true,
+		-- A setting is the player's own choice: the route they were following is planned again from it.
+		replan = true,
+		trackedNeeds = true,
+		api = true,
+		route = true,
+		recipeList = true,
+		tracker = true,
+		trainer = true,
+		routeTab = true,
+		pages = true,
+		gear = true,
+		buffs = true,
+		auctionSearch = true,
+		detailsBar = true,
+		shoppingList = true,
+	},
+	-- The preview covers the recipe pane and temporarily hides the auction action for the selected learned recipe.
+	preview = { auctionSearch = true },
+	-- The page's Replan button: the player asked for this route afresh, so the one they were following is
+	-- forgotten (`replan`) and every view that draws a plan goes with the plans. Nothing else moved.
+	replan = {
+		tooltipCache = true,
+		tooltipRoute = true,
+		plans = true,
+		supplyPage = true,
+		replan = true,
+		trackedNeeds = true,
+		api = true,
+		route = true,
+		recipeList = true,
+		tracker = true,
+		trainer = true,
+		auctionSearch = true,
+		shoppingList = true,
+	},
+}
+
+---@type table<string, SkillUpChange>
+local EVENTS = {
+	TRADE_SKILL_DATA_SOURCE_CHANGED = "window",
+	NEW_RECIPE_LEARNED = "recipes",
+	TRADE_SKILL_SHOW = "window",
+	SKILL_LINES_CHANGED = "skill",
+	ITEM_DATA_LOAD_RESULT = "items",
+	PLAYER_LEVEL_UP = "level",
+	ZONE_CHANGED_NEW_AREA = "zone",
+	MERCHANT_SHOW = "merchant",
+	MERCHANT_UPDATE = "merchant",
+	MERCHANT_CLOSED = "merchant",
+}
+
+-- The name each stale handler's failure is kept under for /skillup report, made once.
+---@type table<SkillUpStale, string>
+local LABELS = {}
+for _, name in ipairs(ORDER) do
+	LABELS[name] = "stale " .. name
+end
+
+---@type table<SkillUpStale, fun()>
+local handlers = {}
+---@type table<SkillUpStale, fun()[]>
+local observers = {}
+---@type table<string, (fun(): SkillUpChange?)[]>
+local watchers = {}
+
+---@param kinds table<SkillUpChange, true>
+local function Apply(kinds)
+	local stale = {}
+	for kind in pairs(kinds) do
+		for name in pairs(STALE[kind]) do
+			stale[name] = true
+		end
+	end
+	for _, name in ipairs(ORDER) do
+		local handler = stale[name] and handlers[name]
+		if handler then
+			-- One failing cache or view doesn't stop the rest; the error is kept for /skillup report.
+			ns.core.SafeCall(LABELS[name], handler)
+		end
+		local notified = stale[name] and observers[name]
+		if notified then
+			for _, observer in ipairs(notified) do
+				ns.core.SafeCall(LABELS[name], observer)
+			end
+		end
+	end
+end
+
+-- Something changed that no event below reports: a setting, a target, a price.
+---@param kind SkillUpChange
+function ns.Changed(kind)
+	assert(STALE[kind], kind)
+	Apply({ [kind] = true })
+end
+
+-- How the owner of a cache drops it, or of a view redraws it. A view registers once its frames exist;
+-- until then it has nothing to redraw. A hidden view registers nil, so changes run no handler for it.
+---@param name SkillUpStale
+---@param handler fun()?
+function ns.WhenStale(name, handler)
+	handlers[name] = handler
+end
+
+---@param name SkillUpStale
+---@param observer fun()
+function ns.WhenStaleObserver(name, observer)
+	observers[name] = observers[name] or {}
+	observers[name][#observers[name] + 1] = observer
+end
+
+-- Item data SkillUp asked for and has not had yet. Item data arrives for any item any addon or the game asked
+-- for, on every bag open, merchant page and player coming into view; only SkillUp's own requests change what it
+-- shows, so the rest is ignored at the door (#846). An answer clears its request, loaded or not.
+---@type table<integer, true>
+local requestedItems = {}
+
+-- Ask the client for an item's data; its arrival is then a change SkillUp hears.
+---@param itemID integer
+function ns.RequestItemData(itemID)
+	requestedItems[itemID] = true
+	C_Item.RequestLoadItemDataByID(itemID)
+end
+
+-- Item data SkillUp asked for arrives in bursts, a route page's names at once. The first of a frame applies at
+-- once; the rest of that frame's burst joins one pass on the next frame, so a burst costs at most one pass a
+-- frame however long it runs (#846). Bag and merchant bursts are already one pass: the game batches bag slots
+-- into BAG_UPDATE_DELAYED, which changes something only when a count SkillUp read moved (ReadCountsMoved below),
+-- and what they drop rebuilds lazily (tests/idle_cpu_spec.lua).
+local BURSTS = { ITEM_DATA_LOAD_RESULT = true }
+---@type number?
+local burstFrame
+---@type table<SkillUpChange, true>?
+local deferred
+
+local function ApplyDeferred()
+	local kinds = deferred
+	deferred = nil
+	if kinds then
+		Apply(kinds)
+	end
+end
+
+local frame = CreateFrame("Frame")
+for event in pairs(EVENTS) do
+	frame:RegisterEvent(event)
+end
+frame:SetScript("OnEvent", function(_, event, ...)
+	if event == "ITEM_DATA_LOAD_RESULT" then
+		local itemID = ...
+		if not requestedItems[itemID] then
+			return
+		end
+		requestedItems[itemID] = nil
+	end
+	local kinds = {}
+	if EVENTS[event] then
+		kinds[EVENTS[event]] = true
+	end
+	for _, watcher in ipairs(watchers[event] or {}) do
+		local ok, kind = ns.core.SafeCall(event, watcher, ...)
+		if ok and kind then
+			kinds[kind] = true
+		end
+	end
+	if BURSTS[event] then
+		local now = GetTime()
+		if burstFrame == now then
+			if not deferred then
+				deferred = {}
+				C_Timer.After(0, ApplyDeferred)
+			end
+			for kind in pairs(kinds) do
+				deferred[kind] = true
+			end
+			return
+		end
+		burstFrame = now
+	end
+	Apply(kinds)
+end)
+
+-- The item counts SkillUp has read, by item: in the bags alone and with the bank. Every plan, list and solver
+-- reads the bags through ns.Have or RouteDemand.Count, which note each item here, so these are the only counts
+-- anything SkillUp shows depends on. BAG_UPDATE_DELAYED fires on every slot the game touches, many times a minute
+-- with nothing SkillUp reads moving (a bag sorted, a quest item, loot of other items); it is a bag change only
+-- when one of these counts moved, so a cached plan is not rebuilt for nothing (#850).
+-- Each bag event reads these items' counts again: the reagents and results of the plans SkillUp has made, far
+-- cheaper than the plan rebuild it saves.
+---@type table<integer, { bags: integer?, all: integer? }>
+local readCounts = {}
+
+---@param itemID integer
+---@param includeBank boolean
+---@return integer?
+local function CountNow(itemID, includeBank)
+	local ok, count = pcall(C_Item.GetItemCount, itemID, includeBank)
+	return ok and ns.Readable(count) or nil
+end
+
+-- Called by every reader of a bag count, so the next bag event checks this item.
+---@param itemID integer
+function ns.NoteItemCount(itemID)
+	if not readCounts[itemID] then
+		readCounts[itemID] = { bags = CountNow(itemID, false), all = CountNow(itemID, true) }
+	end
+end
+
+-- Whether a count SkillUp read moved since the last bag event; it takes the new counts as seen. A count the
+-- client won't hand over is unknown, not unchanged: it counts as a move, as every bag event did before #850, and
+-- stays unknown so the first count it hands over afterwards moves too.
+---@return boolean
+local function ReadCountsMoved()
+	local moved = false
+	for itemID, seen in pairs(readCounts) do
+		local bags, all = CountNow(itemID, false), CountNow(itemID, true)
+		if bags == nil or all == nil or bags ~= seen.bags or all ~= seen.all then
+			moved = true
+		end
+		seen.bags, seen.all = bags, all
+	end
+	return moved
+end
+
+-- A file's own work on a game event, run before anything is dropped or redrawn for it. It returns
+-- what else it found changed, which joins the event's own change in one pass. It is given the event's arguments.
+---@param event WowEvent
+---@param watcher fun(...): SkillUpChange?
+function ns.WhenEvent(event, watcher)
+	watchers[event] = watchers[event] or {}
+	table.insert(watchers[event], watcher)
+	frame:RegisterEvent(event)
+end
+
+ns.WhenEvent("BAG_UPDATE_DELAYED", function()
+	return ReadCountsMoved() and "bags" or nil
+end)
+
+ns.WhenEvent("BANKFRAME_OPENED", function()
+	return ReadCountsMoved() and "bags" or nil
+end)
+
+end local _, ForeverCoreHostNs = ... if type(ForeverCoreHostNs) == "table" and type(ForeverCoreHostNs.ForeverCoreHostChunks) == "table" then local chunks = ForeverCoreHostNs.ForeverCoreHostChunks chunks[#chunks + 1] = ForeverCoreHostChunk else return ForeverCoreHostChunk(...) end

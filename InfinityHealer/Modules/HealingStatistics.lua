@@ -29,9 +29,11 @@ _G.InfinityHealingStats = HealingStats
 function HealingStats:Initialize()
 	InfinityUtils:Info("Healing stats tracker initialized", "Healer")
 	
-	-- Register for combat log events
+	-- Register for combat log events (only if legacy CLEU is allowed)
 	local frame = CreateFrame("Frame")
-	frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+	if InfinityUtils:CanUseCombatLogEvent() then
+		pcall(frame.RegisterEvent, frame, "COMBAT_LOG_EVENT_UNFILTERED")
+	end
 	frame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 	frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 	

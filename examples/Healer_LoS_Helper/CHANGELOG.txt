@@ -1,0 +1,16 @@
+Healer LoS Helper 1.9
+
+- Added WoW Forever support alongside the previously declared interface 20505.
+- Preserved line-of-sight and range indicators, error-count settings,
+  health threshold, whisper options and notification cooldown.
+- The default maximum gap between repeated errors is now 0.5 seconds for
+  both X and O. Indicators also work outside a group.
+- Target whispers for both error types are disabled by default.
+- On first upgrade, whispers are disabled once and the previous default
+  interval of 0.2 seconds becomes 0.5 seconds. Other custom intervals remain.
+  Subsequent user changes are preserved.
+- Protected values and restricted chat APIs are handled safely; client
+  restrictions still determine whether automatic notifications are available.
+- Fixed overlapping indicator hide timers and reset transient session timing.
+
+Command: /hlosh

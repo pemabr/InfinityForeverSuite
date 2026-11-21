@@ -33,6 +33,7 @@ OfficerDashboard.lua
 
 UI\UIFramework.lua
 UI\MainFrame.lua
+UI\CharacterPanel.lua
 UI\SettingsPanel.lua
 UI\AddonManager.lua
 UI\UIIntegration.lua

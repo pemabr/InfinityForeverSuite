@@ -222,7 +222,7 @@ end
 
 function QuestieIntegration:ShareSyncedData()
 	-- Share all synced quest data with guild
-	if DataSharing then
+	if InfinityDataSharing then
 		InfinityUtils:Info("Sharing synced quest data with guild...", "Questie")
 		
 		local allQuests = InfinityData:GetAllQuests()
@@ -230,7 +230,7 @@ function QuestieIntegration:ShareSyncedData()
 		
 		for questID, questData in pairs(allQuests) do
 			if questData.source == "questie" and not questData.shared then
-				DataSharing:ShareQuestData(questID, questData.name)
+				InfinityDataSharing:ShareQuestData(questID, questData.name)
 				questData.shared = true
 				sharedCount = sharedCount + 1
 				

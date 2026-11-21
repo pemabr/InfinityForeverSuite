@@ -3,6 +3,7 @@
 -- Supports loading HealBot_ExtraSkins and other external skin packages
 
 local ExtraSkinPackagesEngine = {}
+_G.ExtraSkinPackagesEngine = ExtraSkinPackagesEngine
 ExtraSkinPackagesEngine.enabled = false
 ExtraSkinPackagesEngine.db = nil
 ExtraSkinPackagesEngine.external_packages = {}

@@ -3,6 +3,7 @@
 -- Manages frame skins, colors, borders, and textures
 
 local SkinEngine = {}
+_G.SkinEngine = SkinEngine
 SkinEngine.enabled = false
 SkinEngine.db = nil
 SkinEngine.current_skin = "default"

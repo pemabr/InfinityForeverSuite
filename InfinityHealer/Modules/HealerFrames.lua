@@ -18,7 +18,7 @@ InfinityHealer.config = {
 
 -- Core state
 InfinityHealer.frames = {} -- {unitToken = frame}
-InformityHealer.activeHeals = {} -- {unitToken = {spell, amount, duration}}
+InfinityHealer.activeHeals = {} -- {unitToken = {spell, amount, duration}}
 InfinityHealer.hotData = {} -- {unitToken = {buffName = {duration, caster}}}
 InfinityHealer.playerSpells = {} -- {spellName = {spellId, cooldown, range}}
 InfinityHealer.settings = {
@@ -404,7 +404,7 @@ function InfinityHealer:OnFrameClick(frame, spellType)
 	if UnitCanAssist("player", unitToken) then
 		CastSpellByName(spellName)
 		-- Wait a moment then cast on target
-		after(0.1, function()
+		C_Timer.After(0.1, function()
 			if unitToken ~= "player" then
 				SetCursorSpell(spellName)
 				-- Target unit and cast

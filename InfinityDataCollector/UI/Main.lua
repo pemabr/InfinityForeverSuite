@@ -16,7 +16,11 @@ function InfinityDataCollectorUI:Initialize()
 	local frame = CreateFrame("Frame", "InfinityDataCollectorFrame", UIParent, "BasicFrameTemplate")
 	frame:SetSize(500, 400)
 	frame:SetPoint("CENTER", UIParent, "CENTER")
-	frame:SetTitle("Infinity Data Collector")
+	if frame.SetTitle then
+		frame:SetTitle("Infinity Data Collector")
+	elseif frame.TitleText then
+		frame.TitleText:SetText("Infinity Data Collector")
+	end
 	
 	-- Close button already in BasicFrameTemplate
 	

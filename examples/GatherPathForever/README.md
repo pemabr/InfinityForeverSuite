@@ -1,0 +1,103 @@
+<p align="center"><img src="https://raw.githubusercontent.com/severd8/gatherpathforever/main/art/logo.png" width="160" alt="GatherPath Forever logo"></p>
+
+# GatherPath Forever
+
+**Gathering routes for World of Warcraft: Forever.**
+
+GatherPath Forever takes the herb and ore nodes GatherMate2 has recorded, works out the shortest loop through them, and draws it on your world map and minimap. Pick Peacebloom and Silverleaf in Elwynn Forest, or every vein in a zone, and follow the line.
+
+Needs **GatherMate2** (on CurseForge), which records where you find nodes. **TomTom** is optional: install it to have its arrow lead you from stop to stop.
+
+Recommended: **[GatherMate2 Data (Wowhead Classic)](https://www.curseforge.com/wow/addons/gathermate2-data-wowhead-classic)**. It lets you import Wowhead's herb and ore nodes into GatherMate2, so you can make a full route through a zone before you've gathered it yourself. After installing it, open GatherMate2's options, go to **Import Data** and import the nodes you want.
+
+---
+
+## Features
+
+- **Routes from your GatherMate2 nodes.** Pick a zone and the kinds of node you gather (herbs, ore, fishing pools, treasure), and GatherPath finds the shortest loop through all of them.
+- **On the world map**, on the zone's map and thinner on the continent's, and **on the minimap**, round you, turning with it if your minimap turns.
+- **As many routes as you like**, several per zone, each with its own color. Show or hide each one, rename it, edit it, or delete it.
+- **Timed runs**: short on time? Pick a **Lap time** (5 to 60 minutes) on New route, and the route goes round the busiest part of the zone with as many of your nodes as fit in that time at your mount's speed, instead of a loop through the whole zone.
+- **Skip list** for nodes you never want, like Poor Copper Ore or Wilted Peacebloom: right-click one on the New route tab and no route uses it, in any zone.
+- **Taboo areas**: draw an area on the world map, like the mountains in Eastern Plaguelands, and your routes stay out of it. Nodes inside it are left out, and the line goes round it instead of over it.
+- **Routes that grow.** When GatherMate2 records a node you just found, it joins the routes in that zone that have its kind, where it adds the least walking. **Rebuild** reads every node again and finds the loop again.
+- **Route passes within** a distance of each node instead of right up to it (185 yards to start, up to 200): with Find Herbs or Find Minerals on you see nodes on the minimap from there, so the route cuts corners and is shorter, and nodes close together become one stop.
+- **Direction arrows** along the lines on both maps show which way round to ride each loop. Reverse them or turn them off on the Display tab.
+- **Line to the route** on the minimap: when you are off your route, a dashed line points from you to its nearest point, so you know where to join it.
+- **TomTom waypoint** (optional, needs **TomTom**): TomTom's arrow points to the nearest stop of your route, and when you get within 20 yards it moves on to the next stop round the loop, so you can follow the arrow instead of the line. Switch it on with **TomTom waypoint** on the Display tab, or `/gpf tomtom`.
+- **HUD in the middle of the screen** (off to start): a see-through round map round your character with your route, its arrows and your herb and ore nodes as dots. It turns with you, so the line ahead of you is the way to go, and you can keep your eyes on the game instead of the minimap. Set its size, zoom, opacity and height on the HUD tab, or type `/gpf hud`. It hides in combat and on flights.
+- **Time for a lap**: each route shows about how long one lap takes at your mount's speed (remembered from the last time you rode).
+- **Range circle** on the minimap (off to start): a ring round you, 100 yards to start, as far as Find Herbs and Find Minerals show nodes. Pick its color, opacity and size.
+- **Your look**: line width, opacity and color, set apart for the world map and the minimap. Lines use each route's own color, or one color you pick for every route.
+- The same look as TauntMaster Forever, ToppedOff Forever, BattleText Forever, AuctionHouse Forever, Outfitter Forever and ARS Forever.
+
+## Installation
+
+1. Download the latest release.
+2. Unzip it into your WoW: Forever `Interface\AddOns` folder so you end up with an `AddOns\GatherPathForever\` folder.
+3. Install **GatherMate2** too.
+4. Restart the game, or type `/reload` if it's already running.
+
+## Using it
+
+1. **Open GatherPath**: type `/gpf`, or left-click the minimap button.
+2. **New route**: click **New route** on the **Routes** tab to start in the zone shown there, or pick the zone (or click **My zone**). Switch on the nodes you want, or click **Select all** beside a kind (herbs, ore, treasure). The number beside each is how many GatherMate2 knows there.
+3. The name starts with the zone ("The Barrens - "). Type the rest, or leave it to have it made from what you picked. Click **Make route**.
+4. The route shows on the **Routes** tab and on your maps. Follow the line.
+
+- **Edit** a route to change its zone, nodes, name or pass distance; it finds the loop again when you save.
+- **Skip a node everywhere**: right-click it on the **New route** tab (Poor Copper Ore, Wilted Peacebloom...). It stays off, **Select all** leaves it out, new ones don't join your routes, and routes that had it drop it when you **Rebuild** them. Right-click it again (or click it) to stop skipping it. `/gpf skipped` lists them.
+- **Keep routes out of an area**: on the **Taboo areas** tab, pick the zone and click **Draw a taboo area**. The world map opens on that zone: left-click for each corner, right-click to take the last one back (scroll to zoom, drag to move the map), then click **Finish** at the top of the map. The routes in that zone are worked out again to go round it. Delete an area from the same tab.
+- **A shorter run**: set **Lap time** on the **New route** tab (or Edit a route) to how long you want one lap to take, like 10 minutes. The route goes round the busiest part of the zone and takes in as many nodes as fit. **Whole zone** (all the way left) uses every node. Lap times are riding time at your mount's speed, not counting stops to gather.
+- **Rebuild** a route after gathering more of a zone, so it takes in every node GatherMate2 knows now.
+- **Follow a route without watching the minimap**: switch on **Show the HUD** on the **HUD** tab (or type `/gpf hud`). Up on it is the way you face.
+- **Hide every line for a while**: right-click the minimap button, or type `/gpf hide` (and `/gpf show`).
+
+### Window
+
+| Tab | What's there |
+|---|---|
+| **Routes** | The routes in a zone: color, name (click to rename), Edit, Rebuild, Delete, nodes, length in yards, time for a lap, show |
+| **New route** | Zone, the nodes GatherMate2 knows there (with Select all for each kind; right-click one to skip it), name, route passes within, lap time, Make route. Starts blank each time; Edit fills it in from a route |
+| **Taboo areas** | Zone, Draw a taboo area, show them on the world map (red, hatched), and each area in the zone with its size, Show and Delete |
+| **Display** | Lines on the world map and the minimap: width, opacity, and each route's own color or one you pick, for each map; direction arrows (on or off, reversed), line to the route, TomTom waypoint; the range circle (on or off, color, radius, opacity); add new nodes to routes, minimap button; Restore defaults puts them all back |
+| **HUD** | The HUD in the middle of the screen: on or off, turn with you or north up, show nodes, size, zoom, opacity, height |
+
+### Commands
+
+| Command | Does |
+|---|---|
+| `/gpf` | Open or close the window |
+| `/gpf new` | Open the New route tab |
+| `/gpf hide`, `/gpf show` | Hide or show every line |
+| `/gpf skipped` | List the nodes on your skip list |
+| `/gpf tomtom` | Turn the TomTom waypoint on or off |
+| `/gpf hud` | Turn the HUD in the middle of the screen on or off |
+
+## Good to know
+
+- A route goes where your nodes are. The more of a zone you've gathered (or imported into GatherMate2), the better the route.
+- The loop is as short as GatherPath can find quickly. A big route (hundreds of nodes) takes a few seconds to work out; the game keeps running meanwhile.
+- Lengths are in yards, round the whole loop.
+
+## All addons by me
+
+- **TauntMaster Forever**: one-click taunts off your healers and DPS, for tanks.
+- **ToppedOff Forever**: reminds you when buffs, food, reagents, ammo or gear need topping off.
+- **Outfitter Forever**: save your gear as outfits and switch between them with one click, or let them change by themselves.
+- **BattleText Forever**: scrolling combat text for your hits, heals and the damage you take.
+- **AuctionHouse Forever**: a bigger Auction House window, so long item names stop getting cut off.
+- **GatherPath Forever**: the shortest gathering route through your GatherMate2 herb and ore nodes, on the world map and minimap.
+- **ARS Forever** (Azeroth Revenue Service): see how much gold a player has made and the most they've ever held, for you and anyone you inspect.
+
+## Feedback
+
+Found a bug or have an idea? [Open an issue](https://github.com/severd8/gatherpathforever/issues/new/choose).
+
+## Support
+
+GatherPath Forever is free and always will be. If it saves you time, you can leave a tip on [Ko-fi](https://ko-fi.com/tauntmasterforever).
+
+## License
+
+MIT. See [LICENSE](LICENSE).

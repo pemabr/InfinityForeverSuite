@@ -3,11 +3,14 @@
 
 local addonName = "InfinityDataCollector"
 local addonVersion = "1.0.0"
+local isInitialized = false
+local autoSyncEnabled = true
 
 local function InitializeDataCollector()
-	if not _G.InfinityCore then
-		return  -- Will retry when INFINITY_DATA_LOADED fires
+	if isInitialized or not _G.InfinityCore then
+		return  -- Already initialized or waiting for INFINITY_DATA_LOADED
 	end
+	isInitialized = true
 
 	-- Initialize all modules
 	if InfinityDataCollectorHooks then pcall(function() InfinityDataCollectorHooks:Initialize() end) end
@@ -63,25 +66,24 @@ local function InitializeDataCollector()
 		end)
 		
 		InfinityCore:RegisterCommand("/datacollector autosync", "Toggle auto-sync", function()
-			-- Enable auto-sync via timer
-			local timerFrame = CreateFrame("Frame")
-			local function OnUpdate()
-				InfinityDataCollectorDBIntegration:AutoSync()
-				InfinityDataCollectorNetwork:AutoShareData()
-				InfinityDataCollectorNetwork:CleanupRequests()
-			end
-			timerFrame:SetScript("OnUpdate", function()
-				OnUpdate()
-			end)
-			print("Auto-sync enabled - databases will sync every 30 minutes")
+			autoSyncEnabled = not autoSyncEnabled
+			print("Auto-sync " .. (autoSyncEnabled and "enabled" or "disabled"))
 		end)
 	end
 	
-	-- Setup periodic data gathering and sharing
+	-- Setup periodic data gathering and sharing (throttled every 10 seconds)
 	local updateFrame = CreateFrame("Frame")
+	local syncElapsed = 0
 	updateFrame:SetScript("OnUpdate", function(self, elapsed)
-		-- Auto-sync databases every 30 minutes
-		InfinityDataCollectorDBIntegration:AutoSync()
+		syncElapsed = syncElapsed + (elapsed or 0)
+		if syncElapsed < 10 then
+			return
+		end
+		syncElapsed = 0
+		
+		if autoSyncEnabled then
+			InfinityDataCollectorDBIntegration:AutoSync()
+		end
 		
 		-- Auto-share data to peers
 		InfinityDataCollectorNetwork:AutoShareData()
@@ -124,20 +126,7 @@ local function InitializeDataCollector()
 		InfinityDataCollectorCore:GetStatistics().nodeCount .. " nodes")
 end
 
-
-local function RegisterAddonWithInfinityManager()
-	if _G.InfinityAddonManager then
-		_G.InfinityAddonManager:RegisterAddon(ADDON_NAME, ADDON_VERSION, {
-			description = "Collect game data",
-			author = "Infinity Suite Team",
-			category = "Core",
-			enabled = true,
-			settings = {{}}
-		})
-	end
-end
-
-	local frame = CreateFrame("Frame")
+local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 
 -- Flag to track if our addon has loaded

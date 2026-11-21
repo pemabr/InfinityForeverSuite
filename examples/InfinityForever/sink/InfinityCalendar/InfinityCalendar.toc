@@ -1,0 +1,12 @@
+## Interface: 110000
+## Title: Infinity Calendar
+## Author: Infinity Suite
+## Version: 1.0
+## Notes: Guild event scheduling, raid calendar integration, and automatic reminders
+## RequiredDeps: InfinityCore
+## SavedVariables: InfinityCalendarDB
+
+Core\CalendarCore.lua
+Modules\Notifications.lua
+UI\Main.lua
+Init.lua

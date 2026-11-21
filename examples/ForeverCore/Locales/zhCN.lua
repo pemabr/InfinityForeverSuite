@@ -1,0 +1,130 @@
+local _, host = ...
+host.ForeverCoreCopy:Define(function(...)
+-- Translated by moshoutegong; lines ending -- mt are machine translated. Corrections welcome: https://github.com/cjber/forever-core/issues/new?template=translation.yml
+local _, ns = ...
+if GetLocale() ~= "zhCN" then
+	return
+end
+local L = ns.L
+
+L["%s (%s)"] = "%s（%s）"
+L["%s and %s"] = "%s 和 %s"
+L["%s, %s and %s"] = "%s、%s 和 %s"
+L["%s, %s, %s and %d more"] = "%s、%s、%s 以及另外 %d 位"
+L["+%d more"] = "还有 %d 个"
+L[", "] = "、"
+L["%d contributions"] = "%d 项贡献"
+L["%s (last %d):"] = "%s（最近 %d 条）："
+L["%s: no lines yet."] = "%s：暂无日志。"
+L["All addons"] = "所有插件"
+L["Bug"] = "错误报告"
+L["Bug: "] = "错误报告："
+L["Close"] = "关闭"
+L["Copy issue link"] = "复制反馈链接"
+L["Copy report"] = "复制报告"
+L["Debug log is already on and pinned for this character."] = "该角色的调试日志已经开启并固定。"
+L["Debug log is off and unpinned."] = "调试日志已关闭并取消固定。"
+L["Debug log is off for this session; it is still pinned."] =
+	"本次会话已关闭调试日志，但仍保持固定。"
+L["Debug log is off."] = "调试日志已关闭。"
+L["Debug log is on and pinned for this character."] = "该角色的调试日志已开启并固定。"
+L["Debug log is on for this session."] = "本次会话已开启调试日志。"
+L["Feature request"] = "功能建议"
+L["Feature request: "] = "功能建议："
+L["ForeverCore"] = "ForeverCore"
+L["Forever addons"] = "Forever 插件"
+L["Hide this section"] = "隐藏此分区"
+L["Inspired by"] = "灵感来自"
+L["Lock the tracker"] = "锁定追踪栏"
+L["No addon has attached its log yet."] = "还没有插件附加日志。"
+L["No one is listed yet."] = "还没有列出任何人。"
+L["On"] = "开启"
+L["Players"] = "玩家"
+L["Report a bug or request a feature"] = "报告错误或提交功能建议"
+L["Thanks"] = "感谢"
+L["Thanks to %s"] = "感谢 %s"
+L["The link is selected. Press Ctrl+C (Cmd+C on a Mac), then paste into a browser; GitHub opens a filled-in issue."] =
+	"链接已选中。按 Ctrl+C（Mac 上为 Cmd+C）复制，然后粘贴到浏览器中；GitHub 会打开一个已填写的问题。"
+L["The players who helped each Forever addon."] = "帮助过每个 Forever 插件的玩家。"
+L["The text is selected. Press Ctrl+C (Cmd+C on a Mac) to copy it, then paste it into your bug report."] =
+	"文本已选中。按 Ctrl+C（Mac 上为 Cmd+C）复制，然后粘贴到你的错误报告中。"
+L["Title"] = "标题"
+L["Tracker background"] = "追踪栏背景"
+L["Tracker position"] = "追踪栏位置"
+L["Under the quest tracker"] = "任务追踪栏下方"
+L["Left of the quest tracker"] = "任务追踪栏左侧"
+L["Attach to quest tracker"] = "附着到任务追踪栏" -- mt
+L["The shared Forever tracker sits under the quest tracker when this is on, and left of it when it is off. Every Forever addon shows this same setting."] =
+	"开启时，共享的 Forever 追踪栏位于任务追踪栏下方；关闭时位于其左侧。所有 Forever 插件都显示同一设置。" -- mt
+L["Tracker"] = "追踪栏"
+L["Click to %s"] = "点击 %s"
+L["Right-click for options"] = "右键查看选项"
+L["Unavailable in combat"] = "战斗中不可用"
+L["Usage: /forever debug, /forever debug on, /forever debug off, /forever debug pin, /forever debug show"] =
+	"用法：/forever debug、/forever debug on、/forever debug off、/forever debug pin、/forever debug show"
+L["What happened, or what you would like"] = "请描述遇到的问题或希望增加的功能"
+
+L["1 ms"] = "1 毫秒"
+L["5 ms"] = "5 毫秒"
+L["10 ms"] = "10 毫秒"
+L["50 ms"] = "50 毫秒"
+L["100 ms"] = "100 毫秒"
+L["Addon"] = "插件"
+L["Application"] = "客户端"
+L["Last"] = "最近一次"
+L["Memory KB"] = "内存（KB）"
+L["Memory: not available on this client."] = "当前客户端无法读取内存占用。"
+L["Peak"] = "峰值"
+L["Recent"] = "近期"
+L["Session"] = "会话"
+L["Performance (read when this window opened):"] = "性能（打开此窗口时读取）："
+L["Performance: not available on this client."] = "当前客户端无法读取性能数据。"
+L["Performance: the client's add-on profiler is off."] = "性能：客户端的插件性能分析器已关闭。"
+L["%d more rows not shown."] = "另有 %d 行未显示。"
+L["Debug capture is on: /forever debug off stops it."] = "调试记录已开启：/forever debug off 可将其关闭。"
+L["Debug capture is on. Attach the files in the client's Logs folder to your report. Turn it off with /forever debug off."] =
+	"调试捕获已开启。请将客户端 Logs 文件夹中的文件附在报告中。使用 /forever debug off 关闭。"
+L["Debug capture is on. The client's logs are in its Logs folder; turn it off with /forever debug off."] =
+	"调试捕获已开启。客户端日志位于其 Logs 文件夹中；使用 /forever debug off 关闭。"
+L["Debug capture is off and the client's settings are back; the debug log is off and unpinned."] =
+	"调试捕获已关闭，客户端设置已恢复；调试日志已关闭并取消固定。"
+L["Debug capture could not start because ForeverCore has not finished loading."] =
+	"无法启动调试捕获，因为 ForeverCore 尚未完成加载。"
+L["%s: the installed ForeverCore is another addon (%s). Remove it and install ForeverCore from CurseForge."] =
+	"%s：已安装的 ForeverCore 是另一个插件（%s）。请移除它，并从 CurseForge 安装 ForeverCore。"
+L["%s needs ForeverCore. Install it from CurseForge, or choose Reinstall on ForeverCore in the CurseForge app."] =
+	"%s 需要 ForeverCore。请从 CurseForge 安装它，或在 CurseForge 应用中选择 ForeverCore 的“重新安装”。"
+L["%s: ForeverCore is turned off. Enable it in the AddOns list to fix this."] =
+	"%s：ForeverCore 已关闭。请在插件列表中启用它。"
+L["Quests"] = "任务"
+
+L["ForeverCore startup report"] = "ForeverCore 启动报告"
+L["Core: %s; API %s"] = "核心版本：%s，API：%s"
+L["Runtime: %s copy %s"] = "运行时：%s（副本 %s）"
+L["Runtime error: %s"] = "运行时错误：%s"
+L["Standalone runtime"] = "独立运行时"
+L["Core copies:"] = "核心副本列表："
+L["Rejected"] = "已拒绝"
+L["Sealed"] = "已完整加载"
+L["Unsealed"] = "加载不完整"
+L["%s: build %s, %s"] = "%s：构建 %s，%s"
+L['No installed Forever addon named "%s".'] = "没有名为“%s”的已安装 Forever 插件。"
+L["No installed Forever addons found."] = "未找到已安装的 Forever 插件。"
+L["Enable ForeverCore or a Forever addon in AddOns if /fcore is unavailable, then /reload and read Lua errors."] =
+	"如果 /fcore 不是命令，请打开 AddOns，启用 ForeverCore 或任一 Forever 插件，然后在 /reload 后查看首个 Lua 错误。"
+L["Installed Forever addons:"] = "已安装的 Forever 插件："
+L["Registered"] = "已注册"
+L["Loaded but not registered"] = "已加载但未注册"
+L["Not loaded"] = "未加载"
+L["Load: %s; enabled: %s; core pin: %s"] = "已加载：%s；已启用：%s；Core 版本：%s"
+L["Requires: %s; optional: %s"] = "必需：%s；可选：%s"
+L["Loadable: %s; reason: %s"] = "可加载：%s；原因：%s"
+L["First error: %s"] = "首个错误：%s"
+L["No error captured. Use /console scriptErrors 1, then /reload and read the first error naming %s."] =
+	"未记录错误。请用 /console scriptErrors 1 启用 Lua 错误，再执行 /reload，查看首个提到 %s 的错误。"
+L["Callback error: %s"] = "回调错误：%s"
+L["Login error: %s"] = "登录错误：%s"
+L["Warning: %s"] = "警告：%s" -- mt
+L["Copy %s: %s"] = "副本 %s：%s"
+
+end)

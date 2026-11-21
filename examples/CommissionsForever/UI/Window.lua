@@ -1,0 +1,376 @@
+local ForeverCoreHostChunk = function(...) local _, ns = ...
+
+if ns.broken then
+	return
+end
+
+local L = ns.L
+local Window = {}
+ns.Window = Window
+
+local ProfessionTabs = assert(ForeverCore.ProfessionTabs, "ForeverCore has no shared Professions tabs")
+local ROW_HEIGHT = 30
+-- The materials list keeps its own columns, and the window needs this much room for the 584-wide scroll child: the
+-- page's 4 either side, the inset's 14 either side and the scroll frame's 4 and 30. The shared tab owner keeps the
+-- window at one width for every profession and tab, raised for this page.
+local LIST_WIDTH = 584
+local WINDOW_WIDTH = LIST_WIDTH + 70
+local page
+local pendingOpen = false -- a command during combat, retried when combat ends
+local pendingPage = false -- a command's page, waiting for the player to open their profession
+local requestedItems = {}
+
+-- What the player can do about each reason the route did not start (ns.NavigateActiveAssignments).
+local ROUTE_REASONS = {
+	questie = L["Install QuestieDB to find where your commissions are handed in."],
+	unclassified = L["QuestieDB cannot tell which of your quests are commissions. Update QuestieDB."],
+	none = L["No quest in your log is a commission. Accept one, then try again."],
+	unplaced = L["QuestieDB does not know where your commissions are handed in."],
+	shortestPath = L["Install Shortest Path Forever to get a turn-in route."],
+	declined = L["Shortest Path Forever could not start the route."],
+}
+
+local function IsTrackedItem(itemID)
+	for _, row in ipairs(ns.Rows or {}) do
+		if row.itemID == itemID then
+			return true
+		end
+	end
+	return false
+end
+
+-- Frame strata, lowest first. The pinned client's APIDocumentationGenerated names the FrameStrata type
+-- (SimpleFrameAPIDocumentation.lua:445) but does not list its members, so this is the documented FrameStrata enum
+-- order (Wowpedia, "API FrameStrata"). A frame in a higher strata draws over every frame in a lower one.
+local STRATA = {
+	BACKGROUND = 1,
+	LOW = 2,
+	MEDIUM = 3,
+	HIGH = 4,
+	DIALOG = 5,
+	FULLSCREEN = 6,
+	FULLSCREEN_DIALOG = 7,
+	TOOLTIP = 8,
+}
+
+-- The highest strata among the shown frames of either native page and the highest level within that strata, so this
+-- page can sit above every frame that draws there and take their input. Hidden frames draw nothing, and the pages hold
+-- hidden DIALOG frames that would otherwise lift this page level with the game's popups. The profession rank bars
+-- are HIGH while the pages are MEDIUM, so the level of the page alone does not cover them
+-- (cjber/commissions-forever#167).
+local function NativePagesStrata()
+	local function walk(frame, best)
+		local strata = frame:GetFrameStrata()
+		local level = frame:GetFrameLevel()
+		local rank = STRATA[strata] or 0
+		if not best or rank > (STRATA[best.strata] or 0) then
+			best = { strata = strata, level = level }
+		elseif strata == best.strata and level > best.level then
+			best.level = level
+		end
+		for _, child in ipairs({ frame:GetChildren() }) do
+			if child:IsShown() then
+				best = walk(child, best)
+			end
+		end
+		return best
+	end
+	-- The window itself is the floor when neither native page is shown. Its children include this page, so it is
+	-- not walked.
+	local best = { strata = ProfessionsFrame:GetFrameStrata(), level = ProfessionsFrame:GetFrameLevel() }
+	for _, native in ipairs({ ProfessionsFrame.CraftingPage, ProfessionsFrame.BookPage }) do
+		if native:IsShown() then
+			best = walk(native, best)
+		end
+	end
+	return best.strata, best.level
+end
+
+local function RaiseAboveNativePages()
+	local strata, level = NativePagesStrata()
+	page:SetFrameStrata(strata)
+	page:SetFrameLevel(level + 1)
+end
+
+local function SelectPage()
+	-- The shared tab owner shows this page and hides every other registered page, unchecks the client's tabs and
+	-- never shows or hides a native page. A page above both native pages takes their input instead
+	-- (cjber/commissions-forever#147).
+	ProfessionTabs.Select("commissions")
+end
+
+local function Text(parent, font, x, y, width)
+	local text = parent:CreateFontString(nil, "OVERLAY", font)
+	text:SetPoint("TOPLEFT", x, y)
+	text:SetWidth(width)
+	text:SetJustifyH("LEFT")
+	text:SetWordWrap(false)
+	return text
+end
+
+local function Row(index)
+	local row = Window.rows[index]
+	if not row then
+		row = CreateFrame("Button", nil, Window.list)
+		row:SetPoint("TOPLEFT", 4, -(index - 1) * ROW_HEIGHT)
+		row:SetPoint("TOPRIGHT", -4, -(index - 1) * ROW_HEIGHT)
+		row:SetHeight(ROW_HEIGHT)
+		row.background = ns.RowArt.RowAtlas(row, "common-button-list-large", "BACKGROUND")
+		row.selected = ns.RowArt.RowAtlas(row, "common-button-list-large-selected", "BACKGROUND")
+		row.selected:Hide()
+		row.hover = ns.RowArt.RowAtlas(row, "common-button-list-large-hover", "HIGHLIGHT", "ADD")
+		-- art-ok: the highlight is the row's own RowArt texture, already fitted at its native aspect.
+		row:SetHighlightTexture(row.hover, "ADD")
+		row.icon = row:CreateTexture(nil, "ARTWORK")
+		row.icon:SetSize(24, 24)
+		row.icon:SetPoint("LEFT", 4, 0)
+		row.name = Text(row, "GameFontHighlight", 36, -8, 218)
+		row.source = Text(row, "GameFontHighlightSmall", 260, -9, 170)
+		row.count = Text(row, "GameFontHighlight", 440, -8, 64)
+		row.need = Text(row, "GameFontHighlight", 510, -8, 64)
+		row:SetScript("OnEnter", function(self)
+			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+			GameTooltip:SetItemByID(self.itemID)
+			GameTooltip:Show()
+		end)
+		row:SetScript("OnLeave", function()
+			GameTooltip:Hide()
+		end)
+		Window.rows[index] = row
+	end
+	return row
+end
+
+-- This character's recorded turn-ins; Stats calls it on each recorded hand-in so an open page stays current.
+function Window.ShowTotal()
+	if Window.total then
+		Window.total:SetText(L["Turn-ins recorded on this character: %d"]:format(ns.Stats.Total()))
+	end
+end
+
+function Window.Refresh()
+	if not page then
+		return
+	end
+	local rows = ns.Rows or {}
+	local query = (Window.search:GetText() or ""):lower()
+	local shown = 0
+	for _, row in ipairs(Window.rows) do
+		row:Hide()
+	end
+	for _, item in ipairs(rows) do
+		local name = C_Item.GetItemNameByID(item.itemID)
+		if not name and not requestedItems[item.itemID] then
+			requestedItems[item.itemID] = true
+			C_Item.RequestLoadItemDataByID(item.itemID)
+		end
+		name = name or L["Item %d"]:format(item.itemID)
+		local source = item.turnIn.faction
+		if query == "" or name:lower():find(query, 1, true) or source:lower():find(query, 1, true) then
+			shown = shown + 1
+			local row = Row(shown)
+			row.itemID = item.itemID
+			-- art-ok: an item icon is square, and the icon region is a square 24 by 24.
+			row.icon:SetTexture(C_Item.GetItemIconByID(item.itemID))
+			row.name:SetText(name)
+			row.source:SetText(source)
+			row.count:SetText(item.count)
+			row.need:SetText(item.need and tostring(item.need) or "-")
+			row:Show()
+		end
+	end
+	Window.list:SetHeight(math.max(1, shown * ROW_HEIGHT))
+	Window.empty:SetShown(shown == 0)
+	-- The last press's reason describes the log and bags before this refresh, so it goes with them.
+	Window.routeStatus:Hide()
+	Window.notice:SetShown(not ns.Questie.Available())
+	Window.ShowTotal()
+end
+
+local function Attach()
+	if page or not ProfessionsFrame then
+		return
+	end
+	page = CreateFrame("Frame", nil, ProfessionsFrame)
+	page:SetPoint("TOPLEFT", 4, -28)
+	page:SetPoint("BOTTOMRIGHT", -4, 4)
+	-- A combat tab press cannot hide the protected native page, so sit above both pages and take their input.
+	RaiseAboveNativePages()
+	-- Both pages create and re-level their frames after attach, so take the highest strata again on every show.
+	-- SetFrameStrata and SetFrameLevel on this unprotected frame are allowed in combat.
+	page:HookScript("OnShow", RaiseAboveNativePages)
+	-- The native page stays shown beneath, so the page carries the host's own surface instead of leaving it visible.
+	local surface = page:CreateTexture(nil, "BACKGROUND")
+	-- art-ok: the host's own overview surface fills the page above the native page it covers.
+	surface:SetAtlas("Profession-Background-Overview")
+	surface:SetAllPoints()
+	page:EnableMouse(true)
+	page:Hide()
+	Window.page = page
+	Text(page, "GameFontNormalLarge", 74, -12, 350):SetText(L["Commissions Forever"])
+	-- Hand-ins from before the addon was installed were never recorded, so the line says what it counts.
+	Window.total = Text(page, "GameFontHighlightSmall", 0, 0, 240)
+	Window.total:ClearAllPoints()
+	Window.total:SetPoint("TOPRIGHT", -22, -16)
+	Window.total:SetJustifyH("RIGHT")
+	Window.search = CreateFrame("EditBox", nil, page, "SearchBoxTemplate")
+	Window.search:SetSize(250, 20)
+	Window.search:SetPoint("TOPLEFT", 22, -48)
+	Window.search:SetAutoFocus(false)
+	Window.search:HookScript("OnTextChanged", Window.Refresh)
+	Window.notice = Text(page, "GameFontDisableSmall", 288, -52, 350)
+	Window.notice:SetText(L["Install QuestieDB to see your active turn-ins."])
+	local inset = CreateFrame("Frame", nil, page)
+	inset:SetPoint("TOPLEFT", 14, -78)
+	inset:SetPoint("BOTTOMRIGHT", -14, 44)
+	Window.inset = inset
+	local background = inset:CreateTexture(nil, "BACKGROUND")
+	inset.background = background
+	background:SetPoint("TOPLEFT", 2, -2)
+	background:SetPoint("BOTTOMRIGHT", -2, 2)
+	-- art-ok: common-insideframe is a nine-slice, so the client keeps its 53px corners (WhoList.xml:86).
+	background:SetAtlas("common-insideframe")
+	for _, column in ipairs({
+		{ L["Material"], 40, 218 },
+		{ L["Turn-in"], 264, 170 },
+		{ L["Have"], 444, 64 },
+		{ L["Need"], 514, 64 },
+	}) do
+		Text(inset, "GameFontNormalSmall", column[2], -10, column[3]):SetText(column[1])
+	end
+	Window.scroll = CreateFrame("ScrollFrame", nil, inset, "UIPanelScrollFrameTemplate")
+	Window.scroll.scrollBarHideable = true
+	Window.scroll:SetPoint("TOPLEFT", 4, -32)
+	Window.scroll:SetPoint("BOTTOMRIGHT", -30, 4)
+	Window.list = CreateFrame("Frame", nil, Window.scroll)
+	Window.list:SetSize(LIST_WIDTH, 1)
+	Window.scroll:SetScrollChild(Window.list)
+	Window.rows = {}
+	Window.empty = Text(inset, "GameFontDisableSmall", 12, -42, 560)
+	Window.empty:SetText(L["No tracked materials found"])
+	local route = CreateFrame("Button", nil, page, "SharedButtonSmallTemplate")
+	route:SetSize(190, 24)
+	route:SetPoint("BOTTOMRIGHT", -14, 10)
+	route:SetText(L["Open turn-in route"])
+	Window.route = route
+	-- Why the last press sent no route, beside the button, so the player sees what to do next.
+	Window.routeStatus = Text(page, "GameFontHighlightSmall", 22, 0, 410)
+	Window.routeStatus:ClearAllPoints()
+	Window.routeStatus:SetPoint("RIGHT", route, "LEFT", -12, 0)
+	Window.routeStatus:SetJustifyH("RIGHT")
+	Window.routeStatus:SetWordWrap(true)
+	Window.routeStatus:Hide()
+	route:SetScript("OnClick", function()
+		local started, reason = ns.NavigateActiveAssignments()
+		Window.routeStatus:SetText(started and "" or ROUTE_REASONS[reason])
+		Window.routeStatus:SetShown(not started)
+	end)
+	-- The shared tab owner creates and places the tab under the client's own tabs, and hands the window back from
+	-- every native tab and page. This page only declares what it is and how wide it needs the window.
+	Window.tab = ProfessionTabs.Register("commissions", {
+		icon = ns.ICON,
+		tooltip = L["Commissions Forever"],
+		page = page,
+		minWidth = WINDOW_WIDTH,
+		onSelect = Window.Refresh,
+		safeCall = ns.core.SafeCall,
+	})
+	-- A command asked for the page while the window was closed. The player opens the window with their own
+	-- profession control, and the page appears with it (cjber/commissions-forever#194).
+	ProfessionsFrame:HookScript("OnShow", function()
+		if pendingPage then
+			SelectPage()
+		end
+	end)
+	-- The client shows the profession's native page after the window, and the shared owner hands the window back on
+	-- that show. A waiting request takes the page again after it. This only serves the request; the hand-back itself
+	-- is the shared owner's.
+	local function NativePageShown()
+		if pendingPage then
+			pendingPage = false
+			SelectPage()
+		end
+	end
+	ProfessionsFrame.CraftingPage:HookScript("OnShow", NativePageShown)
+	ProfessionsFrame.BookPage:HookScript("OnShow", NativePageShown)
+	-- Closing the window leaves the shared selection on this page; clear it so the next open starts on the client's
+	-- own page. The client still owns the window and every native page.
+	ProfessionsFrame:HookScript("OnHide", function()
+		pendingPage = false
+		ProfessionTabs.ShowNative()
+	end)
+	Window.Refresh()
+end
+
+-- A command, the addon compartment and the pending open after combat are not secure input, and the client refuses
+-- C_TradeSkillUI.OpenTradeSkill from addon code (AllowedWhenUntainted). The player opens the Professions window with
+-- their own profession control; the page waits for it and appears with it (cjber/commissions-forever#194).
+local function ShowPageWhenOpened()
+	if page and ProfessionsFrame and ProfessionsFrame:IsShown() then
+		pendingPage = false
+		SelectPage()
+		return true
+	end
+	return false
+end
+
+local function Open()
+	Attach()
+	if ShowPageWhenOpened() then
+		return
+	end
+	if not GetProfessions() then
+		-- Nothing to open, so ask the player to learn a profession instead of waiting for a window that cannot come.
+		UIErrorsFrame:AddMessage(
+			L["Commissions opens in the Professions window. Learn a profession to use it."],
+			NORMAL_FONT_COLOR:GetRGB() -- multi-value: r, g, b
+		)
+		return
+	end
+	pendingPage = true
+	UIErrorsFrame:AddMessage(
+		L["Commissions opens in the Professions window. Open it from your spellbook."],
+		NORMAL_FONT_COLOR:GetRGB() -- multi-value: r, g, b
+	)
+end
+
+function Window.Toggle()
+	-- The panel manager refuses ShowUIPanel and HideUIPanel in combat, so wait for the player to leave it.
+	if InCombatLockdown() then
+		pendingOpen = true
+		UIErrorsFrame:AddMessage(L["Commissions opens when combat ends."], NORMAL_FONT_COLOR:GetRGB()) -- multi-value: r, g, b
+		return
+	end
+	if page and page:IsShown() and ProfessionsFrame:IsShown() then
+		-- The client's own close runs its panel and gamepad bookkeeping securely; HideUIPanel from here would write
+		-- it under our taint. A client that closes on a later frame leaves the native window as it was.
+		C_TradeSkillUI.CloseTradeSkill()
+		ProfessionTabs.ShowNative()
+		return
+	end
+	Open()
+end
+
+local events = CreateFrame("Frame")
+events:RegisterEvent("ADDON_LOADED")
+events:RegisterEvent("GET_ITEM_INFO_RECEIVED")
+events:RegisterEvent("PLAYER_REGEN_ENABLED")
+events:SetScript("OnEvent", function(_, event, name)
+	if event == "ADDON_LOADED" and name == "Blizzard_Professions" then
+		Attach()
+	elseif event == "GET_ITEM_INFO_RECEIVED" and (requestedItems[name] or IsTrackedItem(name)) then
+		-- A name the quest log scan waits on is rescanned by Core's own handler; any other only redraws its row.
+		if not ns.AwaitingName(name) then
+			ns.Refresh()
+		end
+	elseif event == "PLAYER_REGEN_ENABLED" then
+		if pendingOpen then
+			pendingOpen = false
+			Open()
+		end
+	end
+end)
+Attach()
+return Window
+
+end local _, ForeverCoreHostNs = ... if type(ForeverCoreHostNs) == "table" and type(ForeverCoreHostNs.ForeverCoreHostChunks) == "table" then local chunks = ForeverCoreHostNs.ForeverCoreHostChunks chunks[#chunks + 1] = ForeverCoreHostChunk else return ForeverCoreHostChunk(...) end

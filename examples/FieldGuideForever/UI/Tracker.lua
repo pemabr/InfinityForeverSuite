@@ -1,0 +1,221 @@
+local ForeverCoreHostChunk = function(...) ---@type string, FGNamespace
+local addonName, ns = ...
+
+if ns.broken then
+	return
+end
+
+local L = ns.L
+
+-- A tracked species gets a section in the shared Forever tracker column, the one ForeverCore owns: this file supplies
+-- only the section, as Legacy Forever supplies its challenges. One species is tracked at a time, the one the journal's
+-- button shows, and that switch is saved as state.tracked (Core/Migrate keeps it). The column draws the section under
+-- the game's own objectives and hides it while the character tracks nothing.
+---@class FGTracker
+local Tracker = {}
+ns.Tracker = Tracker
+
+---@return integer?
+local function Tracked()
+	local state = ns.GetCharacterState(false)
+	local id = state and tonumber(state.tracked)
+	if id and id > 0 and id % 1 == 0 then
+		return id
+	end
+end
+
+-- The species the section follows, as the public API reads it too.
+---@return integer?
+function Tracker.TrackedSpecies()
+	return Tracked()
+end
+
+---@param speciesId integer
+---@return boolean
+function Tracker.IsTracked(speciesId)
+	return Tracked() == speciesId
+end
+
+---@type FGTrackerModule?
+local module
+
+-- Asks the column to lay the section out again. A kill, a sighting and the button all land here; writing a saved
+-- switch is safe in combat, and the column itself waits for combat's end before it moves anything.
+function Tracker.Refresh()
+	if module then
+		module:MarkDirty()
+	end
+end
+
+-- Write the one saved switch both the journal's button and the public API use, then refresh the section and tell API
+-- subscribers. Returns whether it changed anything: false for the species already tracked, no species while one is
+-- tracked, or a malformed id.
+---@param speciesId integer?
+---@return boolean
+function Tracker.SetTracked(speciesId)
+	local state = ns.GetCharacterState(true)
+	if not state then
+		return false
+	end
+	local id
+	if speciesId ~= nil then
+		id = tonumber(speciesId)
+		if not id or id <= 0 or id % 1 ~= 0 then
+			return false
+		end
+	end
+	if (state.tracked or nil) == id then
+		return false
+	end
+	state.tracked = id
+	Tracker.Refresh()
+	ns.NotifyAPIChange("tracked")
+	return true
+end
+
+-- The journal's button: track the species it shows, or stop tracking it. The saved switch is the whole state, so a
+-- reload, a zone change and the next log in all keep the section as the player left it.
+---@param speciesId integer
+function Tracker.Toggle(speciesId)
+	if Tracked() == speciesId then
+		Tracker.SetTracked(nil)
+	else
+		Tracker.SetTracked(speciesId)
+	end
+end
+
+-- The species' lines, in the order the detail pane reads them: where it lives, what this character has recorded of
+-- it, and how often it has died here.
+---@param species FGSpecies
+---@return string[]
+local function Lines(species)
+	local entry = ns.Model.Specimen(ns.GetCharacterState(false), species.id)
+	local lines = {}
+	local zone = ns.SpeciesZone and ns.SpeciesZone[species.id]
+	if zone then
+		lines[#lines + 1] = L[zone.name]
+	end
+	lines[#lines + 1] = string.format(L["%d / %d sightings"], entry.count or 0, ns.Model.MASTERED_AT)
+	local kills = entry.kills or 0
+	if kills > 0 then
+		lines[#lines + 1] = string.format(kills == 1 and L["%d kill"] or L["%d kills"], kills)
+	end
+	return lines
+end
+
+---@class FGTrackerSection : FGTrackerModule
+local ModuleMixin = { headerText = L["Field Guide"] }
+
+-- The species as the block header, then those lines, like a quest's own objectives. A species the catalogue has not
+-- loaded yet, or an id from another build, draws nothing: the column then has no section to show and hides itself.
+function ModuleMixin:LayoutContents()
+	local speciesId = Tracked()
+	local species = speciesId and ns.SpeciesById and ns.SpeciesById[speciesId] or nil
+	if not species or ns.catalogueStatus ~= "ok" then
+		return
+	end
+	local block = self:GetBlock(species.id)
+	block:SetHeader(species.name)
+	for index, text in ipairs(Lines(species)) do
+		block:AddObjective(index, text)
+	end
+	self:LayoutBlock(block)
+end
+
+---@return boolean
+local function Available()
+	return ObjectiveTrackerFrame ~= nil and ObjectiveTrackerManager ~= nil
+end
+
+-- A column section is the game's own ObjectiveTrackerModuleTemplate. ForeverCore's host takes it over in Attach: it
+-- parents the section into its column, orders it, and gives its header the column's right-click switches.
+local function Create()
+	if not Available() then
+		return
+	end
+	local section =
+		CreateFrame("Frame", "FieldGuideForeverObjectiveTracker", UIParent, "ObjectiveTrackerModuleTemplate")
+	---@cast section FGTrackerModule
+	Mixin(section, ModuleMixin)
+	section:SetHeader(ModuleMixin.headerText)
+	-- After the Forever sections that were here first, so the journal's species follows a player's challenges.
+	section.uiOrder = 10
+	module = section
+end
+
+-- Reuse the discovery alert's journal navigation, with no list filter hiding the destination.
+local function Open(target)
+	if target.kind == "section" then
+		ns.Window.Show()
+		return true
+	end
+	if ns.catalogueStatus ~= "ok" then
+		return false, L["The creature catalogue is not loaded yet."]
+	end
+	if not ns.SpeciesById[target.id] or not ns.SpeciesZone[target.id] then
+		return false, L["This creature is no longer in the catalogue."]
+	end
+	ns.Window.Show()
+	ns.Window.search:SetText("")
+	ns.Window.SetFilter("all")
+	ns.Discovery.Open(target.id)
+	return true
+end
+
+local show = {
+	get = function()
+		return Tracked() ~= nil
+	end,
+	set = function(shown)
+		if not shown then
+			Tracker.SetTracked(nil)
+		end
+	end,
+	where = L["Track a creature again from its page in the Field Guide."],
+}
+
+local contract = {
+	menu = function(target, menu)
+		local species = target.id and ns.SpeciesById[target.id]
+		menu:Title(species and species.name or L["Field Guide"])
+		menu:Open(L["Open the Field Guide"], function()
+			return Open(target)
+		end)
+		menu:End(L["Stop tracking"], function()
+			return Tracker.SetTracked(nil)
+		end)
+	end,
+	click = function(target, button)
+		if button == "LeftButton" then
+			return Open(target)
+		end
+	end,
+	clickHint = function()
+		return L["open its page"]
+	end,
+}
+
+-- The column's scale, Lock and position were Field Guide's before ForeverCore kept them; the host copies this table
+-- once, so the player keeps the layout they chose. Saved variables load with the addon, so attach happens after them.
+local function Attach()
+	if not module then
+		return
+	end
+	module.legacySettings = ns.db and ns.db.trackerHost or nil
+	module.safeCall = ns.core.SafeCall
+	ForeverCore.TrackerHost.Attach(module, show, contract)
+	if ns.db then
+		ns.db.trackerHost = nil
+	end
+	Tracker.Refresh()
+end
+
+Create()
+ns.On("ADDON_LOADED", function(name)
+	if name == addonName then
+		Attach()
+	end
+end)
+ns.OnProgress(Tracker.Refresh)
+
+end local _, ForeverCoreHostNs = ... if type(ForeverCoreHostNs) == "table" and type(ForeverCoreHostNs.ForeverCoreHostChunks) == "table" then local chunks = ForeverCoreHostNs.ForeverCoreHostChunks chunks[#chunks + 1] = ForeverCoreHostChunk else return ForeverCoreHostChunk(...) end

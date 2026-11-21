@@ -43,24 +43,21 @@ local function InitializeInfinityHealer()
 		end
 	end)
 	
-	InfinityUtils:Info("InfinityHealer initialized successfully", "Healer")
-	InfinityMessaging:Publish(INFINITY_EVENTS.FEATURE_ENABLED, "healer", true)
-end
-
-
-local function RegisterAddonWithInfinityManager()
 	if _G.InfinityAddonManager then
-		_G.InfinityAddonManager:RegisterAddon(ADDON_NAME, ADDON_VERSION, {
+		_G.InfinityAddonManager:RegisterAddon("InfinityHealer", "1.4.0", {
 			description = "Healer tools",
 			author = "Infinity Suite Team",
 			category = "Combat",
 			enabled = true,
-			settings = {{}}
+			settings = {}
 		})
 	end
+	
+	InfinityUtils:Info("InfinityHealer initialized successfully", "Healer")
+	InfinityMessaging:Publish(INFINITY_EVENTS.FEATURE_ENABLED, "healer", true)
 end
 
-	local frame = CreateFrame("Frame")
+local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:SetScript("OnEvent", function(self, event, addonName)
 	if addonName == "InfinityHealer" then

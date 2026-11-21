@@ -1,0 +1,16 @@
+## Interface: 11200
+## Title: Infinity Data Collector
+## Notes: Autonomous data gathering, database integration, and secure P2P sharing
+## Author: Infinity Forever
+## Version: 1.0.0
+## Dependencies: InfinityCore, InfinityData
+
+Core\DataCollectorCore.lua
+Modules\AutomaticHooks.lua
+Modules\Privacy.lua
+Modules\Network.lua
+Modules\DBIntegration.lua
+Modules\DataCollector.lua
+Modules\DataSharing.lua
+UI\Main.lua
+Init.lua

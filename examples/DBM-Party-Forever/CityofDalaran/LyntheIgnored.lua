@@ -1,0 +1,13 @@
+local mod	= DBM:NewMod("LyntheIgnored", "DBM-Party-Forever", 4)
+local L		= mod:GetLocalizedStrings()
+
+mod:SetRevision("20261107034458")
+mod:EnableGenericTrash()
+--mod:SetCreatureID(11517)
+mod:SetEncounterID(3310)
+mod:SetModelID(130235)
+mod:SetZone(2959)
+
+mod:RegisterCombat("combat")
+
+--mod:AddAuraSoundOption(123456, true, 123456, 1, 1, "targetyou", 2, 0)

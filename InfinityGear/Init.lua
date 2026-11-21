@@ -36,24 +36,21 @@ local function InitializeGear()
 		action = function() InfinityGearUI:Toggle() end,
 	})
 	
-	InfinityUtils:Info("InfinityGear initialized successfully", "InfinityGear")
-	InfinityMessaging:Publish("gear_addon_loaded", { addon = "InfinityGear" })
-end
-
-
-local function RegisterAddonWithInfinityManager()
 	if _G.InfinityAddonManager then
-		_G.InfinityAddonManager:RegisterAddon(ADDON_NAME, ADDON_VERSION, {
+		_G.InfinityAddonManager:RegisterAddon("InfinityGear", "1.1.0", {
 			description = "Manage gear",
 			author = "Infinity Suite Team",
 			category = "Gear",
 			enabled = true,
-			settings = {{}}
+			settings = {}
 		})
 	end
+	
+	InfinityUtils:Info("InfinityGear initialized successfully", "InfinityGear")
+	InfinityMessaging:Publish("gear_addon_loaded", { addon = "InfinityGear" })
 end
 
-	local frame = CreateFrame("Frame")
+local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:SetScript("OnEvent", function(self, event, addonName)
 	if addonName == "InfinityCore" then

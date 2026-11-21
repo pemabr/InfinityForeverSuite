@@ -1,0 +1,130 @@
+# Changelog
+
+## 1.15.0
+
+- New **timed runs**, for when you don't have time for a whole zone. On the **New route** tab, set **Lap time** to how long one lap should take (5 to 60 minutes). GatherPath finds the busiest part of the zone and makes a loop through as many of your nodes as fit in that time, instead of one big loop that takes 50 minutes. Thanks to RawG for the idea.
+- The time is riding time at your mount's speed (on foot until you've ridden one), not counting stops to gather. Chat tells you how many of the zone's nodes the run takes in, and the Routes tab shows "(10 min run)" beside its lap time.
+- **Edit** a route to change its lap time, or slide it all the way left (**Whole zone**) to go back to every node. **Rebuild** keeps the time.
+- Nodes GatherMate2 finds later don't stretch a timed run past its time: they join it the next time you **Rebuild** it, if they fit.
+
+## 1.14.0
+
+- New **HUD** in the middle of the screen: a see-through round map round your character with your route's line, its direction arrows, the line to the route and your herb and ore nodes as colored dots (green herbs, orange ore). It turns with you, so straight up on the HUD is straight ahead, and you can follow a route without looking down at the minimap. Thanks to RawG for the idea.
+- It's off to start. Switch it on with **Show the HUD** on the new **HUD** tab, or type **/gpf hud**. On the same tab: **Turn with me** (off keeps north up), **Show nodes**, and its **size**, **zoom**, **opacity** and **height** on the screen.
+- It takes the minimap's line width, colors and opacity, hides in combat and on flights, and only shows when a route is showing in your zone.
+- **Restore defaults** on the Display tab puts the HUD settings back too.
+
+## 1.13.0
+
+- New **TomTom waypoint**, if you have the **TomTom** addon: TomTom's arrow points to the nearest stop of the route showing in your zone. When you get within 20 yards of it, the waypoint moves on to the next stop round the loop, the same way the direction arrows go (the other way if you've turned them round). Thanks to cidolfus27 for the idea.
+- If you ride off somewhere else on the route, the waypoint starts again from the stop nearest you. It goes away when you leave the zone or hide the route.
+- It's off to start. Switch it on with **TomTom waypoint** in the **Following a route** card on the **Display** tab, or type **/gpf tomtom**. Without TomTom the switch is greyed out and GatherPath works as before.
+
+## 1.12.1
+
+- **Route passes within** now goes up to **200 yards** (it stopped at 150), and moves in steps of 5.
+- New routes start at **185 yards**, about as far as Find Herbs and Find Minerals show nodes on the minimap, so routes cut more corners and come out shorter. Thanks to Raz87 for the suggestion.
+- Routes you already made keep their own distance. Click **Edit** on one and **Save changes** at a new distance to rework it.
+
+## 1.12.0
+
+- New **taboo areas**: parts of a zone your routes stay out of, like the mountains in Eastern Plaguelands. Nodes inside a taboo area are left out, and a route's line goes **round** the area instead of straight over it.
+- Draw them from the new **Taboo areas** tab: pick the zone, click **Draw a taboo area**, then left-click the world map for each corner (right-click takes the last one back) and click **Finish** at the top of the map. You can still zoom and drag the map while drawing.
+- When you add or delete an area, the routes in that zone are worked out again by themselves. Chat says how many nodes were left out.
+- Taboo areas show on the world map in red, hatched. Turn that off with **Show on the world map** on the same tab.
+- Nodes GatherMate2 finds inside a taboo area don't join your routes, and ones found elsewhere join them going round the areas.
+
+## 1.11.0
+
+- New **skip list** for nodes you never want in a route, like Poor Copper Ore or Wilted Peacebloom. On the **New route** tab, **right-click** a node to skip it: it's greyed out and marked "skipped", **Select all** leaves it out, and it's skipped in every zone and every route.
+- New nodes of a skipped kind don't join your routes, and routes that already had it drop it the next time you **Rebuild** or **Edit** them.
+- Right-click it again, or just click it, to stop skipping it. Type **/gpf skipped** to see the list.
+
+## 1.10.0
+
+- New **Restore defaults** button at the bottom of the **Display** tab. It puts every setting on that tab back as it was when you first installed GatherPath: line width, opacity and color on both maps, direction arrows, the line to the route, the range circle, adding new nodes and the minimap button. It asks first, and your routes are kept.
+- If you'd hidden the lines from the minimap button, they come back too.
+- The cards on the Display tab sit a little closer together to make room for the button.
+
+## 1.9.0
+
+- New **line to the route** on the minimap: when you're away from your route, a dashed line in the route's color points from you to the nearest point of it, so you know where to join the loop. If the route is off the minimap, the line runs to the edge toward it. It goes away once you're within 20 yards of the route. Turn it off with **Line to the route** on the **Display** tab.
+- Each route on the **Routes** tab now shows **about how long one lap takes**. GatherPath remembers your speed the last time you rode a mount and uses it; until you've ridden one, it says "on foot".
+- The Display tab's **Direction arrows** card is now called **Following a route** and holds the new switch too.
+
+## 1.8.0
+
+- New **direction arrows** along your route lines, on the world map and the minimap, so you can see which way round to ride the loop and never double back by mistake. They take the line's color, opacity and width, and stay the same size as you zoom.
+- On the **Display** tab, the new **Direction arrows** card has **Show arrows** (on to start) to turn them off, and **Reverse direction** to ride every loop the other way.
+- A route with only two stops (there and back) gets no arrows.
+
+## 1.7.1
+
+- The **Select all** buttons on **New route** are no longer cut off at the top.
+- The window is taller, so the list of herbs, ore and treasure on **New route** shows about five more rows before you need to scroll, and the **Routes** tab shows more routes.
+
+## 1.7.0
+
+- **Routes are worked out faster**, so you wait much less on "Working out the shortest loop...": up to six times faster on big routes (hundreds of nodes), about twice as fast with **Route passes within** on. The game still keeps running smoothly meanwhile. Routes also come out a little shorter, usually 2 to 5%.
+- New **Range circle** on the **Display** tab: a ring round you on the minimap, 100 yards to start, the furthest Find Herbs and Find Minerals show nodes. Switch it on, then pick its **color**, **opacity** and **radius** (20 to 200 yards). It's off to start, and it stays even when you hide the route lines.
+- Routes you already made keep their line until you **Rebuild** or **Edit** them.
+
+## 1.6.0
+
+- **Select all** beside each kind of node on **New route** (Herbs, Ore, Treasure and so on) switches on every node of that kind. Click it again (it then reads **Clear all**) to switch them all off.
+- The **Name** box on New route now starts with the zone, for example "The Barrens - ". Type the rest, or leave it and the rest is made from the nodes you picked, shown in grey until you do. Change the zone and the name follows, unless you've typed your own.
+
+## 1.5.0
+
+- New on the **Display** tab: the world map and the minimap each get their own **opacity** slider (they used to share one), so you can keep a bold line on the world map and a faint one on the minimap, or the other way round. Your old opacity is kept for both.
+- New **line color** for each map. **Each route's own color** is on to start, so nothing changes until you want it to. Turn it off and click the **Line color** square to draw every route on that map in one color you pick, for example white on the minimap so lines stand out against the terrain.
+
+## 1.4.0
+
+- **New route** on the **Routes** tab now opens New route in the zone you were looking at, so you only have to pick the nodes. Everything else still starts blank. The **New route** tab on the left still starts with no zone.
+
+## 1.3.0
+
+- **Combine nodes within** is gone: **Route passes within** now does its job. Nodes close together become one stop on their own, and the route still comes within your distance of every node.
+- Routes with **Route passes within** on are much shorter: about a third shorter at the default 100 yards, whether nodes grow in patches or are spread out. They are also worked out several times faster.
+- Routes you already made keep their line until you **Rebuild** or **Edit** them. Do that to get the shorter route.
+
+## 1.2.1
+
+- Fixed: with a route already made, the window stopped filling in. On **New route** the **Zone** list was empty and the two sliders showed no values; on **Routes** the **Rebuild** button didn't grey out. Everything works again with routes in the list.
+- The **Routes** tab is tidier: **Edit**, **Rebuild** and **Delete** sit in a row beside the name (they no longer overlap), and the route's details get two lines under it, so nothing is cut off.
+- Clearer names on **New route**: **Merge nodes closer than** is now **Combine nodes within**, and **Pass within** is now **Route passes within**. They work the same as before.
+
+## 1.2.0
+
+- **New route** now opens blank every time: no zone, no nodes picked, no name, and **Merge** and **Pass within** at their defaults (off and 100 yards). Pick a zone from the list or click **My zone**.
+- New **Edit** button on each route in the **Routes** tab: it opens the route's zone, nodes, name, merge and pass within so you can change them, then **Save changes** finds the loop again. The route keeps its color and stays where it is in the list. **Cancel** leaves it as it was.
+- An edited route still needs a name of its own in its zone. If the nodes you pick aren't in GatherMate2, the route is left as it was.
+
+## 1.1.1
+
+- **Pass within** now starts at 100 yards instead of 50. Find Herbs and Find Minerals show nodes anywhere on the minimap (about 67 to 233 yards depending on zoom), so 100 still lets you see every node at any zoom and makes routes shorter. If you had it at 50 from 1.1.0, it moves to 100; set it back on the New route tab if you prefer. Routes you already made are unchanged.
+
+## 1.1.0
+
+- New **Pass within** setting for new routes (50 yards to start, 0 to 150): with Find Herbs or Find Minerals on you can see a node on the minimap before you reach it, so the route only comes that close to each node instead of right up to it. It cuts corners and is shorter.
+- Routes list how many nodes they take you past, and how close they pass.
+- Existing routes are unchanged.
+
+## 1.0.2
+
+- Fixed: making a route with the same name as one already in that zone made a hidden copy that sat under the first one on the map. Now each route in a zone needs its own name: GatherPath says so in chat and keeps what you picked, so you can change the name (or Rebuild the route you already have). Renaming a route to another route's name in the same zone is turned down the same way.
+
+## 1.0.1
+
+- The description now recommends GatherMate2 Data (Wowhead Classic): import its herb and ore nodes into GatherMate2 to make full routes through a zone before you've gathered it yourself.
+
+## 1.0.0
+
+- First release.
+- Make routes from GatherMate2's herb, ore, fishing and treasure nodes: pick a zone and the nodes, and GatherPath finds the shortest loop through them.
+- Routes are drawn on the world map (the zone's map, and thinner on the continent's) and on the minimap, turning with it.
+- Several routes per zone, each with its own color; show, hide, rename, rebuild or delete each one.
+- Nodes GatherMate2 records later join the routes they belong to.
+- Merge nodes closer than a distance you choose into one stop.
+- Line widths, opacity, a minimap button, and `/gpf`.

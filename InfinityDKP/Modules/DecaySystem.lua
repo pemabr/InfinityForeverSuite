@@ -63,7 +63,7 @@ function DecaySystem:CheckDecaySchedule()
 	if decayDue then
 		-- Check if correct day/time
 		if self:IsDecayTime() then
-			self:PrepareDeca yData()
+			self:PrepareDecayData()
 		end
 	end
 end
@@ -86,7 +86,7 @@ function DecaySystem:IsDecayTime()
 	return false
 end
 
-function DecaySystem:PrepareDeca yData()
+function DecaySystem:PrepareDecayData()
 	-- Get all guild members
 	local guildSize = GetNumGuildMembers()
 	
@@ -148,38 +148,35 @@ function DecaySystem:ApplyDecay()
 				-- Check if should be excluded
 				if self:ShouldExcludeFromDecay(memberName, memberData) then
 					InfinityUtils:Debug(memberName .. " excluded from decay", "DKP")
-					goto continue
-				end
-				
-				-- Calculate decay
-				local currentDKP = memberData.dkpBalance or 0
-				local decayAmount = currentDKP * self.config.decayRate
-				local newDKP = math.max(currentDKP - decayAmount, self.config.minimumDKP)
-				
-				-- Apply decay
-				memberData.dkpBalance = newDKP
-				
-				-- Log the decay
-				table.insert(decayLog, {
-					player = memberName,
-					before = currentDKP,
-					decayAmount = decayAmount,
-					after = newDKP,
-					timestamp = time(),
-				})
-				
-				-- Record transaction
-				if InfinityDKP and InfinityDKP.RecordTransaction then
-					InfinityDKP:RecordTransaction({
-						type = "decay",
+				else
+					-- Calculate decay
+					local currentDKP = memberData.dkpBalance or 0
+					local decayAmount = currentDKP * self.config.decayRate
+					local newDKP = math.max(currentDKP - decayAmount, self.config.minimumDKP)
+
+					-- Apply decay
+					memberData.dkpBalance = newDKP
+
+					-- Log the decay
+					table.insert(decayLog, {
 						player = memberName,
-						amount = -decayAmount,
-						reason = "Automatic decay (" .. string.format("%.1f%%", self.config.decayRate * 100) .. ")",
+						before = currentDKP,
+						decayAmount = decayAmount,
+						after = newDKP,
 						timestamp = time(),
 					})
+
+					-- Record transaction
+					if InfinityDKP and InfinityDKP.RecordTransaction then
+						InfinityDKP:RecordTransaction({
+							type = "decay",
+							player = memberName,
+							amount = -decayAmount,
+							reason = "Automatic decay (" .. string.format("%.1f%%", self.config.decayRate * 100) .. ")",
+							timestamp = time(),
+						})
+					end
 				end
-				
-				::continue::
 			end
 		end
 	end

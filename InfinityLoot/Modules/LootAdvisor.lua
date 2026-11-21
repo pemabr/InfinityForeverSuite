@@ -40,7 +40,7 @@ function LootAdvisor:OnLootOpened(itemLink, quantity)
 		return
 	end
 	
-	local itemId, itemName, itemRarity, itemLevel = GetItemInfo(itemLink)
+	local itemId, itemName, itemRarity, itemLevel = InfinityUtils:GetItemInfo(itemLink)
 	
 	if itemId then
 		table.insert(self.pendingLoot, {

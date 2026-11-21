@@ -1,8 +1,17 @@
 -- DKP UI Display Module
 -- Handles visual components for DKP auctions: bid bars, popups, queues, leaderboards
 
-local InfinityDKPUI = {}
+local InfinityDKPUI = _G.InfinityDKPUI or {}
 _G.InfinityDKPUI = InfinityDKPUI
+
+local function TableFind(tbl, value)
+	for i, v in ipairs(tbl) do
+		if v == value then
+			return i
+		end
+	end
+	return nil
+end
 
 -- Configuration
 InfinityDKPUI.config = {
@@ -27,7 +36,11 @@ InfinityDKPUI.mainWindow = nil
 -- ============================================================================
 
 --- Initialize DKP UI system
+local prevInitialize = InfinityDKPUI.Initialize
 function InfinityDKPUI:Initialize()
+	if prevInitialize then
+		prevInitialize(self)
+	end
 	InfinityUtils:Info("DKP UI System initialized", "DKP UI")
 	
 	-- Create main window frame (initially hidden)
@@ -65,13 +78,14 @@ function InfinityDKPUI:CreateMainWindow()
 	-- Create tabs
 	self:CreateMainWindowTabs(frame)
 	
+	frame:Hide()
 	self.mainWindow = frame
 end
 
 --- Create tab system for main window
 function InfinityDKPUI:CreateMainWindowTabs(parentFrame)
 	-- Tab container
-	local tabFrame = CreateFrame("Frame", nil, parentFrame)
+	local tabFrame = CreateFrame("Frame", nil, parentFrame, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	tabFrame:SetSize(780, 30)
 	tabFrame:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 10, -35)
 	
@@ -133,7 +147,7 @@ end
 -- @param bidCount: number
 -- @return frameReference: frame
 function InfinityDKPUI:CreateBidBar(itemId, currentBid, bidCount)
-	local barFrame = CreateFrame("Frame", nil, UIParent)
+	local barFrame = CreateFrame("Frame", nil, UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	barFrame:SetSize(300, 25)
 	
 	-- Background
@@ -228,7 +242,7 @@ function InfinityDKPUI:ShowOutbidPopup(playerName, itemName, newBid)
 		return
 	end
 	
-	local popup = CreateFrame("Frame", nil, UIParent)
+	local popup = CreateFrame("Frame", nil, UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	popup:SetSize(300, 50)
 	popup:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -50, -100)
 	
@@ -253,10 +267,12 @@ function InfinityDKPUI:ShowOutbidPopup(playerName, itemName, newBid)
 	popup:SetScript("OnUpdate", function(f, delta)
 		elapsed = elapsed + delta
 		if elapsed > 5 then
-			f:FadeOut(0.5, function()
-				f:Hide()
-				table.remove(InfinityDKPUI.popups, table.find(InfinityDKPUI.popups, f) or 0)
-			end)
+			f:SetScript("OnUpdate", nil)
+			f:Hide()
+			local idx = TableFind(InfinityDKPUI.popups, f)
+			if idx then
+				table.remove(InfinityDKPUI.popups, idx)
+			end
 		end
 	end)
 	
@@ -270,7 +286,7 @@ end
 function InfinityDKPUI:ShowNotification(message, color)
 	color = color or {r = 0.2, g = 0.8, b = 0.2}
 	
-	local frame = CreateFrame("Frame", nil, UIParent)
+	local frame = CreateFrame("Frame", nil, UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	frame:SetSize(300, 30)
 	frame:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -50, -50 - (#self.popups * 60))
 	
@@ -293,10 +309,12 @@ function InfinityDKPUI:ShowNotification(message, color)
 	frame:SetScript("OnUpdate", function(f, delta)
 		elapsed = elapsed + delta
 		if elapsed > 3 then
-			f:FadeOut(0.3, function()
-				f:Hide()
-				table.remove(InfinityDKPUI.popups, table.find(InfinityDKPUI.popups, f) or 0)
-			end)
+			f:SetScript("OnUpdate", nil)
+			f:Hide()
+			local idx = TableFind(InfinityDKPUI.popups, f)
+			if idx then
+				table.remove(InfinityDKPUI.popups, idx)
+			end
 		end
 	end)
 	
@@ -329,13 +347,14 @@ function InfinityDKPUI:CreateLootQueueFrame()
 	scrollFrame:SetSize(380, 250)
 	scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -35)
 	
-	local listFrame = CreateFrame("Frame", nil, scrollFrame)
+	local listFrame = CreateFrame("Frame", nil, scrollFrame, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	listFrame:SetSize(380, 1) -- Height will be adjusted dynamically
 	scrollFrame:SetScrollChild(listFrame)
 	
 	frame.scrollFrame = scrollFrame
 	frame.listFrame = listFrame
 	
+	frame:Hide()
 	self.lootQueueFrame = frame
 	
 	return frame
@@ -363,7 +382,7 @@ function InfinityDKPUI:UpdateLootQueue(queueItems)
 			break
 		end
 		
-		local itemFrame = CreateFrame("Frame", nil, listFrame)
+		local itemFrame = CreateFrame("Frame", nil, listFrame, BackdropTemplateMixin and "BackdropTemplate" or nil)
 		itemFrame:SetSize(380, 25)
 		itemFrame:SetPoint("TOPLEFT", listFrame, "TOPLEFT", 0, -yOffset)
 		
@@ -435,13 +454,14 @@ function InfinityDKPUI:CreateLeaderboardFrame()
 	scrollFrame:SetSize(480, 350)
 	scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -35)
 	
-	local listFrame = CreateFrame("Frame", nil, scrollFrame)
+	local listFrame = CreateFrame("Frame", nil, scrollFrame, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	listFrame:SetSize(480, 1)
 	scrollFrame:SetScrollChild(listFrame)
 	
 	frame.scrollFrame = scrollFrame
 	frame.listFrame = listFrame
 	
+	frame:Hide()
 	self.leaderboardFrame = frame
 	
 	return frame
@@ -465,7 +485,7 @@ function InfinityDKPUI:UpdateLeaderboard(players)
 	-- Add players
 	local yOffset = 0
 	for rank, player in ipairs(players) do
-		local playerFrame = CreateFrame("Frame", nil, listFrame)
+		local playerFrame = CreateFrame("Frame", nil, listFrame, BackdropTemplateMixin and "BackdropTemplate" or nil)
 		playerFrame:SetSize(480, 25)
 		playerFrame:SetPoint("TOPLEFT", listFrame, "TOPLEFT", 0, -yOffset)
 		
@@ -548,7 +568,7 @@ function InfinityDKPUI:CreateAntiSnipeCountdown(itemId, timeRemaining)
 		return nil
 	end
 	
-	local frame = CreateFrame("Frame", nil, UIParent)
+	local frame = CreateFrame("Frame", nil, UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	frame:SetSize(100, 30)
 	
 	frame:SetBackdrop({

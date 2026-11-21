@@ -2,9 +2,10 @@
 -- DPS/HPS/Threat meters window
 
 local InfinityDetailsUI = {}
+_G.InfinityDetailsUI = InfinityDetailsUI
 
 function InfinityDetailsUI:Initialize()
-    self.frame = CreateFrame("Frame", "InfinityDetailsMainFrame", UIParent)
+    self.frame = CreateFrame("Frame", "InfinityDetailsMainFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
     self.frame:SetSize(700, 500)
     self.frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     self.frame:SetBackdrop({
@@ -17,7 +18,7 @@ function InfinityDetailsUI:Initialize()
     self.frame:SetBackdropBorderColor(0.8, 0.8, 0.8, 1)
     
     -- Title
-    local title = self.frame:CreateFontString(nil, "ARTWORK", "GameFontBold")
+    local title = self.frame:CreateFontString(nil, "ARTWORK", (GameFontBold and "GameFontBold" or "GameFontNormalLarge"))
     title:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 10, -10)
     title:SetText("Infinity Details - Meters")
     

@@ -15,9 +15,9 @@ function InfinityBagTracker:ScanBags()
 			self.bagContents[bag] = {}
 		end
 		
-		for slot = 1, GetContainerNumSlots(bag) or 0 do
-			local itemId = GetContainerItemID(bag, slot)
-			local quantity = select(2, GetContainerItemInfo(bag, slot))
+		for slot = 1, InfinityUtils:GetBagSlots(bag) do
+			local itemId = InfinityUtils:GetBagItemID(bag, slot)
+			local _, quantity = InfinityUtils:GetBagItemInfo(bag, slot)
 			
 			if itemId then
 				self.bagContents[bag][slot] = {
@@ -46,7 +46,7 @@ end
 function InfinityBagTracker:GetFreeSlots()
 	local free = 0
 	for bag = 0, NUM_BAG_SLOTS or 4 do
-		for slot = 1, GetContainerNumSlots(bag) or 0 do
+		for slot = 1, InfinityUtils:GetBagSlots(bag) do
 			if not self.bagContents[bag] or not self.bagContents[bag][slot] then
 				free = free + 1
 			end

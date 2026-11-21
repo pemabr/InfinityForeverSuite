@@ -250,7 +250,7 @@ end
 
 function HealingCalculationEngine:GetTotalEffectiveHealing()
     return self:GetTotalHealing() - self:GetTotalOverhealing()
-end end
+end
 
 function HealingCalculationEngine:GetAverageOverhealPercent()
     local total = self:GetTotalHealing()

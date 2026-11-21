@@ -66,7 +66,7 @@ function PodiumDisplay:CreateFrame()
     end
     
     -- Create main frame
-    local frame = CreateFrame("Frame", "InfinityPodiumDisplay", UIParent)
+    local frame = CreateFrame("Frame", "InfinityPodiumDisplay", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
     frame:SetWidth(self.config.width)
     frame:SetHeight(self.config.height)
     frame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", self.config.position.x, -self.config.position.y)
@@ -106,7 +106,7 @@ function PodiumDisplay:CreateFrame()
     scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -50)
     scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -8, 8)
     
-    local content = CreateFrame("Frame", nil, scrollFrame)
+    local content = CreateFrame("Frame", nil, scrollFrame, BackdropTemplateMixin and "BackdropTemplate" or nil)
     content:SetWidth(frame:GetWidth() - 16)
     content:SetHeight(1)
     scrollFrame:SetScrollChild(content)
@@ -129,7 +129,7 @@ function PodiumDisplay:CreateFrame()
 end
 
 function PodiumDisplay:CreateHeaderRow(parent)
-    local header = CreateFrame("Frame", nil, parent)
+    local header = CreateFrame("Frame", nil, parent, BackdropTemplateMixin and "BackdropTemplate" or nil)
     header:SetWidth(parent:GetWidth())
     header:SetHeight(20)
     header:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, -34)
@@ -188,7 +188,7 @@ function PodiumDisplay:CreateRow(parent, index)
     row.index = index
     
     -- Row frame
-    local frame = CreateFrame("Frame", nil, parent)
+    local frame = CreateFrame("Frame", nil, parent, BackdropTemplateMixin and "BackdropTemplate" or nil)
     frame:SetWidth(parent:GetWidth())
     frame:SetHeight(20)
     frame:SetBackdrop({

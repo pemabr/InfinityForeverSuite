@@ -1,0 +1,4 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+	
+	<Frame name="CommissionsForever_ForeverCore_ForeverTrackerInteractiveLineTemplate" inherits="ObjectiveTrackerLineTemplate" enableMouse="true" virtual="true" />
+</Ui>

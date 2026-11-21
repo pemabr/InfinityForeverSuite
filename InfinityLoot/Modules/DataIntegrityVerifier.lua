@@ -239,7 +239,7 @@ function DataIntegrityVerifier:DisplayReport()
 	local report = self:GenerateReport()
 	
 	print("|cffffd700=== DATA INTEGRITY VERIFICATION ===|r")
-	print("Timestamp: " .. os.date("%H:%M:%S", report.timestamp))
+	print("Timestamp: " .. date("%H:%M:%S", report.timestamp))
 	print("")
 	
 	for sectionName, section in pairs(report.sections) do

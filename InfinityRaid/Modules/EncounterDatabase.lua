@@ -526,7 +526,7 @@ function EncounterDatabase:RegisterDefaultEncounters()
 			loot = {{name = "Drake Talon Pauldrons", rarity = 4}}
 		},
 		{
-			id = 76, name = "Taerar (Green)', zone = "Ashenvale", level = 51, health = 150000,
+			id = 76, name = "Taerar (Green)", zone = "Ashenvale", level = 51, health = 150000,
 			mechanics = {"Summons sleepwalkers", "High melee", "Poison"},
 			compositionRequirements = {minTanks = 1, minHealers = 2, minDPS = 7},
 			tactics = "Focus sleep targets. Tank swaps.",

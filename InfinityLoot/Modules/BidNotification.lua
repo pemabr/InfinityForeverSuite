@@ -31,7 +31,7 @@ function BidNotification:Initialize()
 end
 
 function BidNotification:CreateNotificationFrame()
-	local frame = CreateFrame("Frame", "InfinityBidNotificationFrame", UIParent)
+	local frame = CreateFrame("Frame", "InfinityBidNotificationFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	frame:SetSize(300, 100)
 	frame:SetPoint(self.config.popupPosition, 0, -10)
 	frame:Hide()
@@ -88,7 +88,7 @@ function BidNotification:ShowPopup(auctionID, itemName, yourBid, newBid)
 	end
 	
 	-- Create new popup frame
-	local popup = CreateFrame("Frame", "BidNotificationPopup_" .. auctionID, UIParent)
+	local popup = CreateFrame("Frame", "BidNotificationPopup_" .. auctionID, UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	popup:SetSize(300, 100)
 	popup:SetPoint(self.config.popupPosition, 20, -20)
 	popup:SetBackdrop({
@@ -102,7 +102,7 @@ function BidNotification:ShowPopup(auctionID, itemName, yourBid, newBid)
 	popup:SetBackdropColor(0.1, 0.1, 0.1, 0.9)
 	
 	-- Add title
-	local title = popup:CreateFontString(nil, "OVERLAY", "GameFontBold")
+	local title = popup:CreateFontString(nil, "OVERLAY", (GameFontBold and "GameFontBold" or "GameFontNormalLarge"))
 	title:SetPoint("TOPLEFT", 15, -15)
 	title:SetText("|cffff6b6bOutbid!|r")
 	title:SetTextColor(1, 0.42, 0.42)
@@ -159,7 +159,7 @@ function BidNotification:NotifyWon(auctionID, itemName, finalBid)
 end
 
 function BidNotification:ShowSuccessPopup(auctionID, itemName, finalBid)
-	local popup = CreateFrame("Frame", "BidSuccessPopup_" .. auctionID, UIParent)
+	local popup = CreateFrame("Frame", "BidSuccessPopup_" .. auctionID, UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	popup:SetSize(300, 80)
 	popup:SetPoint(self.config.popupPosition, 20, -20)
 	popup:SetBackdrop({
@@ -172,7 +172,7 @@ function BidNotification:ShowSuccessPopup(auctionID, itemName, finalBid)
 	})
 	popup:SetBackdropColor(0.1, 0.3, 0.1, 0.9)
 	
-	local title = popup:CreateFontString(nil, "OVERLAY", "GameFontBold")
+	local title = popup:CreateFontString(nil, "OVERLAY", (GameFontBold and "GameFontBold" or "GameFontNormalLarge"))
 	title:SetPoint("TOPLEFT", 15, -15)
 	title:SetText("|cff00ff00✓ Won!|r")
 	title:SetTextColor(0.5, 1, 0.5)

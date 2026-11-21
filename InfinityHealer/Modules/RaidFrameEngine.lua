@@ -62,7 +62,7 @@ function RaidFrameEngine:CreateFrameContainer()
     end
     
     -- Create main container frame
-    local container = CreateFrame("Frame", "InfinityRaidFrameContainer", UIParent)
+    local container = CreateFrame("Frame", "InfinityRaidFrameContainer", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
     container:SetWidth(self.config.frame_width * self.config.groups_per_row + 
                       (self.config.group_spacing * (self.config.groups_per_row - 1)))
     container:SetHeight(self.config.frame_height * math.ceil(self.config.max_frames / self.config.frames_per_group) + 
@@ -213,7 +213,7 @@ end
 
 function RaidFrameEngine:CreateGroupFrame(groupIndex, members)
     local groupName = "InfinityGroupFrame_" .. groupIndex
-    local groupFrame = CreateFrame("Frame", groupName, self.frameContainer)
+    local groupFrame = CreateFrame("Frame", groupName, self.frameContainer, BackdropTemplateMixin and "BackdropTemplate" or nil)
     
     -- Calculate group position
     local groupsPerRow = self.config.groups_per_row
@@ -243,7 +243,7 @@ end
 
 function RaidFrameEngine:CreateMemberFrame(frameIndex, member, parentFrame)
     local frameName = "InfinityMemberFrame_" .. frameIndex
-    local frame = CreateFrame("Frame", frameName, parentFrame)
+    local frame = CreateFrame("Frame", frameName, parentFrame, BackdropTemplateMixin and "BackdropTemplate" or nil)
     
     frame:SetWidth(self.config.frame_width)
     frame:SetHeight(self.config.frame_height)

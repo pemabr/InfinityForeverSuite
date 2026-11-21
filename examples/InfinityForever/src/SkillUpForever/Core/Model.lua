@@ -1,0 +1,1291 @@
+local ForeverCoreHostChunk = function(...) ---@type string, SkillUpNamespace
+local _, ns = ...
+
+if ns.broken then
+	return
+end
+---@class SkillUpModel
+local Model = {}
+ns.Model = Model
+
+-- A value the client hands over as secret (Forever's restricted reads, as in combat) errors on a truth
+-- test, a comparison or arithmetic, and stays secret wherever it is kept. nil for one, so the caller treats
+-- it as unknown; any other value unchanged.
+---@generic T
+---@param value T
+---@return T?
+function ns.Readable(value)
+	if issecretvalue and issecretvalue(value) then
+		return nil
+	end
+	return value
+end
+
+-- Whether a tooltip may be read and drawn on: false for nil and for one the client marks forbidden (a secure
+-- tooltip), which raises on any method call. Every tooltip hook starts with it (tools/lint_secret.py).
+---@param frame? Frame
+---@return boolean
+function ns.Usable(frame)
+	if not frame then
+		return false
+	end
+	return not (frame.IsForbidden and frame:IsForbidden())
+end
+
+-- Classic's gathering bands: a node is orange from its required skill, then yellow, green and grey this far past.
+local GATHER_BANDS = { 0, 25, 50, 100 }
+-- Classic asks a skinner (or a herbalist or miner on a corpse) for 1 up to level 10, ten points a level to 20 and
+-- five times the level above that. Nobody has checked Forever kept it, so until someone does a corpse shows "?"
+-- (#122). Once it is confirmed in game, set this to true.
+local CORPSE_RULE_CONFIRMED = false
+
+-- A gathering requirement as recipe thresholds, so it colours like a recipe.
+---@param required number
+---@return number[]
+function Model.GatherThresholds(required)
+	local t = {}
+	for i, past in ipairs(GATHER_BANDS) do
+		t[i] = required + past
+	end
+	return t
+end
+
+-- Classic's rule: the skill gathering from a corpse of this level asks; nil for an unknown level.
+---@param level number?
+---@return number?
+function Model.ClassicCorpseSkill(level)
+	if not level or level < 1 then
+		return nil
+	elseif level <= 10 then
+		return 1
+	elseif level <= 20 then
+		return (level - 10) * 10
+	end
+	return level * 5
+end
+
+-- What the tooltip uses: nothing while the rule is unconfirmed.
+---@param level number?
+---@return number?
+function Model.CorpseSkill(level)
+	return CORPSE_RULE_CONFIRMED and Model.ClassicCorpseSkill(level) or nil
+end
+
+---@param recipeID integer
+---@return number[]?
+function Model.Get(recipeID)
+	-- The client's live grey replaces the bundled one; its yellow and green do not exist, so the
+	-- bundled pair stays under the live grey.
+	local live = ns.LiveRecipes and ns.LiveRecipes[recipeID]
+	local thresholds = live and live.thresholds or (ns.Thresholds and ns.Thresholds[recipeID])
+	-- Yellow, green and grey may be equal: a recipe with no yellow or green band is orange below the value and
+	-- grey from it, not contradictory (#688). Only a band below the one before it is.
+	if
+		thresholds
+		and thresholds[1] <= thresholds[2]
+		and thresholds[2] <= thresholds[3]
+		and thresholds[3] <= thresholds[4]
+	then
+		return thresholds
+	end
+	return nil
+end
+
+---@param t number[]?
+---@param skill number
+---@return string?
+function Model.Color(t, skill)
+	if not t then
+		return nil
+	end
+	if skill < t[1] then
+		return "red"
+	end
+	if skill < t[2] then
+		return "orange"
+	end
+	if skill < t[3] then
+		return "yellow"
+	end
+	if skill < t[4] then
+		return "green"
+	end
+	return "grey"
+end
+
+-- The bonus a Legacy talent gives every yellow and green chance, in percentage points. It is state
+-- rather than an argument so every route, plan and row that asks Chance sees the same talent; orange
+-- stays certain and grey stays impossible, since a grey recipe can give no skill-up to improve.
+local chanceBonus = 0
+local chanceRevision = 0
+-- Called with the new revision whenever it changes, so a reader that sleeps between changes (the supply
+-- solver frame) wakes on the producer itself rather than polling the revision every frame.
+---@type (fun(revision: integer))[]
+local revisionListeners = {}
+
+---@param listener fun(revision: integer)
+function Model.OnChanceRevision(listener)
+	revisionListeners[#revisionListeners + 1] = listener
+end
+
+-- Sets that bonus; returns whether it changed, so a reader on a game event only refreshes on a real change.
+---@param bonus number
+---@return boolean changed
+function Model.SetChanceBonus(bonus)
+	local value = math.max(0, tonumber(bonus) or 0)
+	local changed = value ~= chanceBonus
+	chanceBonus = value
+	if changed then
+		chanceRevision = chanceRevision + 1
+		for _, listener in ipairs(revisionListeners) do
+			listener(chanceRevision)
+		end
+	end
+	return changed
+end
+
+---@return integer
+function Model.ChanceRevision()
+	return chanceRevision
+end
+
+---@param t number[]?
+---@param skill number
+---@return number?
+function Model.Chance(t, skill)
+	-- A grey at yellow (t[4] == t[2]) has no yellow or green band: certain below yellow, impossible from grey.
+	-- Only a grey below yellow is contradictory.
+	if not t or t[4] < t[2] or skill < t[1] then
+		return nil
+	end
+	if skill < t[2] then
+		return 1
+	end
+	if skill >= t[4] then
+		return 0
+	end
+	return math.min(1, (t[4] - skill) / (t[4] - t[2]) + chanceBonus)
+end
+
+---@param thresholds number[]?
+---@param skill number
+---@param skillUps integer?
+---@param target number
+---@return table?
+function Model.DemandStage(thresholds, skill, skillUps, target)
+	local chance = Model.Chance(thresholds, skill)
+	if not chance then
+		return nil
+	end
+	---@cast thresholds number[]
+	local gain = Model.Gain(thresholds, skill, skillUps, target - skill)
+	return { chance = chance, gain = gain }
+end
+
+-- Expected spend per skill point: one craft costs `cost` and succeeds with `chance`.
+---@param cost number?
+---@param chance number?
+---@return number?
+function Model.CostPerSkillUp(cost, chance)
+	if not cost or not chance or chance <= 0 then
+		return nil
+	end
+	return cost / chance
+end
+
+-- What a step of `crafts` costs: every craft at the recipe's net plus its time, so a sale value lowers
+-- every craft in the step, not only the first, and a profitable step shows as a gain (#466).
+---@param netCost number?
+---@param _ number? Kept for callers that price a route; the net already includes the sale value.
+---@param crafts number
+---@param timeCost number?
+---@return number?
+function Model.StepCost(netCost, _, crafts, timeCost)
+	if not netCost then
+		return nil
+	end
+	if crafts <= 0 then
+		return 0
+	end
+	return (netCost + (timeCost or 0)) * crafts
+end
+
+-- What a step adds to a planned route. Every craft is priced at its net and time, except that a free or
+-- profitable recipe's extra crafts, which are made only to fish for a skill-up, still pay their reagents
+-- and time, so a run to grey cannot be free (#400). The route's step money uses Model.StepCost: a recipe
+-- that sells above its reagents shows the gain its crafts make, even when the planner will not chase it.
+---@param netCost number?
+---@param reagentCost number?
+---@param crafts number
+---@param timeCost number?
+---@return number?
+function Model.RouteStepCost(netCost, reagentCost, crafts, timeCost)
+	if not netCost then
+		return nil
+	end
+	if crafts <= 0 then
+		return 0
+	end
+	local time = timeCost or 0
+	if netCost >= 0 then
+		return (netCost + time) * crafts
+	end
+	local first = time
+	local extra = (reagentCost or 0) + time
+	return first + extra * (crafts - 1)
+end
+
+-- The chance the whole route completes from its starting inventory: every leg's crafts are chosen
+-- together, so the product of their completion odds clears this rather than each leg clearing 90% alone.
+Model.ROUTE_CONFIDENCE = 0.95
+
+-- What a craft's time is worth, in copper. A craft takes a few seconds, and without a price on that
+-- a free recipe's last point before grey, which can take dozens of crafts, would still look free (#400).
+Model.CRAFT_TIME_COST = 100
+
+-- A certainty no floating-point run quite reaches, and the most crafts one leg may ask for: the second only
+-- bounds a recipe whose chance is so low that no practical run reaches the target.
+local CERTAIN = 1 - 1e-9
+local MAX_CRAFTS = 2000
+
+-- A point's chance and what a craft there gains, from `from` to `to`: false where a craft gains nothing.
+---@param thresholds number[]
+---@param from number
+---@param to number
+---@param skillUps integer?
+---@return integer needed
+---@return table<integer, number|false> chances
+---@return table<integer, integer> gains
+local function CraftChances(thresholds, from, to, skillUps)
+	local needed = to - from
+	if needed <= 0 then
+		return 0, {}, {}
+	end
+	local ups = math.max(skillUps or 1, 1)
+	local chances, gains = {}, {}
+	for points = 0, needed - 1 do
+		local chance = Model.Chance(thresholds, from + points)
+		if chance and chance > 0 then
+			chances[points] = chance
+			-- A craft never grants more points than the recipe has left before grey.
+			gains[points] = math.min(ups, needed - points, math.max(thresholds[4] - (from + points), 1))
+		else
+			chances[points] = false
+		end
+	end
+	return needed, chances, gains
+end
+
+-- The chance after `crafts` crafts that a leg has reached `to` from `from`, for every craft count up to the
+-- point it is effectively certain. Worked out point by point because the chance changes as skill rises; a
+-- craft can grant `skillUps` points at once, which the client's own recipe info gives for an orange recipe.
+---@param thresholds number[]
+---@param from number
+---@param to number
+---@param skillUps integer?
+---@return number[] odds odds[crafts] is the chance at most that many crafts reach the goal.
+function Model.CompletionOdds(thresholds, from, to, skillUps)
+	local needed, chances, gains = CraftChances(thresholds, from, to, skillUps)
+	local oddsByCraft = { 0 }
+	if needed <= 0 then
+		oddsByCraft[0] = 1
+		return oddsByCraft
+	end
+	-- odds[points]: the chance that many points are in hand after the crafts counted so far. Two tables
+	-- take turns, so a long run of crafts leaves no garbage.
+	local odds, next_ = { [0] = 1 }, {}
+	local crafts = 0
+	while crafts < MAX_CRAFTS do
+		crafts = crafts + 1
+		for points in pairs(next_) do
+			next_[points] = nil
+		end
+		next_[needed] = odds[needed] or 0
+		for points = 0, needed - 1 do
+			local inHand = odds[points]
+			if inHand then
+				local chance = chances[points]
+				if chance then
+					local gained = gains[points]
+					next_[points] = (next_[points] or 0) + inHand * (1 - chance)
+					next_[points + gained] = (next_[points + gained] or 0) + inHand * chance
+				else
+					next_[points] = (next_[points] or 0) + inHand
+				end
+			end
+		end
+		odds, next_ = next_, odds
+		oddsByCraft[crafts] = odds[needed] or 0
+		if oddsByCraft[crafts] >= CERTAIN then
+			break
+		end
+	end
+	return oddsByCraft
+end
+
+-- The chance that `crafts` crafts reach `to` from `from`, exact from the same model.
+---@param thresholds number[]
+---@param from number
+---@param to number
+---@param skillUps integer?
+---@param crafts number
+---@return number
+function Model.CompletionChance(thresholds, from, to, skillUps, crafts)
+	if crafts <= 0 then
+		return to <= from and 1 or 0
+	end
+	local odds = Model.CompletionOdds(thresholds, from, to, skillUps)
+	return odds[crafts] or 0
+end
+
+-- The crafts that reach `to` from `from` with `confidence` certainty: the fewest crafts whose odds of every
+-- needed skill point are at least that. A route's own budgets are chosen jointly by Model.BudgetSegments;
+-- this is the single-leg count its ranking and the parts of a plan that are not the whole route use.
+---@param thresholds number[]
+---@param from number
+---@param to number
+---@param skillUps integer?
+---@param confidence number? Defaults to Model.ROUTE_CONFIDENCE.
+---@return number
+function Model.CoveredCrafts(thresholds, from, to, skillUps, confidence)
+	local target = confidence or Model.ROUTE_CONFIDENCE
+	if target <= 0 then
+		return 0
+	end
+	local ups = math.max(skillUps or 1, 1)
+	local needed = to - from
+	if needed <= 0 then
+		return 0
+	end
+	-- One point, as every recipe is ranked at each skill: the odds that it is in hand and that it is still to
+	-- come, which the count below keeps in tables, worked out in the same order.
+	if needed <= ups and to <= thresholds[4] then
+		local chance = Model.Chance(thresholds, from)
+		if chance and chance > 0 then
+			if chance == 1 then
+				return 1
+			elseif target < 1 then
+				-- A single point is geometric: after n crafts its failure chance is (1 - chance)^n.
+				return math.ceil(math.log(1 - target) / math.log(1 - chance))
+			end
+		end
+	end
+	-- Orange crafts are deterministic. Start the distribution at the first uncertain point instead of
+	-- walking its single state through every guaranteed craft in each training candidate's route.
+	local guaranteed = 0
+	while from < to and Model.Chance(thresholds, from) == 1 do
+		from = from + math.min(ups, to - from, math.max(thresholds[4] - from, 1))
+		guaranteed = guaranteed + 1
+	end
+	needed = to - from
+	if needed <= 0 then
+		return guaranteed
+	end
+	-- A point's chance, and what a craft there gains, are the same for every craft counted: false where a
+	-- craft gains nothing.
+	local chances, gains = {}, {}
+	for points = 0, needed - 1 do
+		local chance = Model.Chance(thresholds, from + points)
+		if chance and chance > 0 then
+			chances[points] = chance
+			-- A craft never grants more points than the recipe has left before grey.
+			gains[points] = math.min(ups, needed - points, math.max(thresholds[4] - (from + points), 1))
+		else
+			chances[points] = false
+		end
+	end
+	-- Descending skill order updates the distribution in place: a successful craft only moves to a
+	-- higher state, which has already been processed. No second table needs clearing or copying.
+	local odds = { [0] = 1 }
+	local crafts = 0
+	while (odds[needed] or 0) < target and crafts < MAX_CRAFTS do
+		crafts = crafts + 1
+		for points = needed - 1, 0, -1 do
+			local inHand = odds[points]
+			local chance = chances[points]
+			if inHand and chance then
+				local gained = gains[points]
+				odds[points] = inHand * (1 - chance)
+				odds[points + gained] = (odds[points + gained] or 0) + inHand * chance
+			end
+		end
+	end
+	return guaranteed + crafts
+end
+
+-- One leg's odds are advanced one craft at a time, so a budget search works out only the crafts it places,
+-- not the whole run to certainty. `Peek` holds the next craft's chance and state until the leg is chosen.
+---@class SkillUpBudgetLeg
+---@field needed integer
+---@field chances table<integer, number|false>
+---@field gains table<integer, integer>
+---@field odds table<integer, number>
+---@field spare table<integer, number>
+---@field crafts integer
+---@field p number
+---@field pendingP? number
+---@field pendingOdds? table<integer, number>
+---@field pendingSpare? table<integer, number>
+
+---@param leg SkillUpBudgetLeg
+---@return number
+local function Peek(leg)
+	if leg.needed <= 0 then
+		return leg.p
+	end
+	if leg.pendingP ~= nil then
+		return leg.pendingP
+	end
+	local needed = leg.needed
+	local odds, next_ = leg.odds, leg.spare
+	for points in pairs(next_) do
+		next_[points] = nil
+	end
+	next_[needed] = odds[needed] or 0
+	for points = 0, needed - 1 do
+		local inHand = odds[points]
+		if inHand then
+			local chance = leg.chances[points]
+			if chance then
+				local gained = leg.gains[points]
+				next_[points] = (next_[points] or 0) + inHand * (1 - chance)
+				next_[points + gained] = (next_[points + gained] or 0) + inHand * chance
+			else
+				next_[points] = (next_[points] or 0) + inHand
+			end
+		end
+	end
+	leg.pendingP = next_[needed] or 0
+	leg.pendingOdds, leg.pendingSpare = next_, odds
+	return leg.pendingP
+end
+
+---@param leg SkillUpBudgetLeg
+local function Commit(leg)
+	leg.odds, leg.spare = leg.pendingOdds, leg.pendingSpare
+	leg.crafts = leg.crafts + 1
+	leg.p = leg.pendingP
+	leg.pendingP, leg.pendingOdds, leg.pendingSpare = nil, nil, nil
+end
+
+---@param thresholds number[]
+---@param from number
+---@param to number
+---@param skillUps integer?
+---@return SkillUpBudgetLeg
+local function NewLeg(thresholds, from, to, skillUps)
+	-- Guaranteed opening crafts have only one possible state. Begin the distribution after them,
+	-- retaining their craft count, rather than propagating a single probability through every point.
+	local crafts = 0
+	local ups = math.max(skillUps or 1, 1)
+	while from < to and Model.Chance(thresholds, from) == 1 and crafts < MAX_CRAFTS do
+		from = from + math.min(ups, to - from, math.max(thresholds[4] - from, 1))
+		crafts = crafts + 1
+	end
+	local needed, chances, gains = CraftChances(thresholds, from, to, skillUps)
+	if needed <= 0 then
+		return { needed = 0, chances = {}, gains = {}, odds = {}, spare = {}, crafts = crafts, p = 1 }
+	end
+	local leg = {
+		needed = needed,
+		chances = chances,
+		gains = gains,
+		odds = { [0] = 1 },
+		spare = {},
+		crafts = crafts,
+		p = 0,
+	}
+	while leg.p <= 0 and leg.crafts < MAX_CRAFTS do
+		Peek(leg)
+		Commit(leg)
+	end
+	return leg
+end
+
+-- The per-leg craft budgets whose product of completion odds is at least `confidence`, chosen for the
+-- lowest reagent purchase cost. Each extra craft is placed where it adds the most completion chance per
+-- copper, using the reagent cost the caller has already priced. A leg with no price cannot be compared by
+-- cost, so an unknown price falls back to probability alone for the whole route rather than guessing one.
+-- `restockCost` is a player-set copper value for one trip to buy more after a leg falls short: an extra craft
+-- that raises a leg's chance lowers that expected trip cost too. Returns the budgets, the route's completion
+-- chance at them, and the expected number of restock trips.
+---@param segments SkillUpSegment[]
+---@param confidence number?
+---@param restockCost number?
+---@return number[] budgets
+---@return number completion
+---@return number trips
+function Model.BudgetSegments(segments, confidence, restockCost)
+	local target = confidence or Model.ROUTE_CONFIDENCE
+	local tripCost = math.max(restockCost or 0, 0)
+	local count = #segments
+	local budgets, legs = {}, {}
+	local completion = 1
+	local knownCost = true
+	for index = 1, count do
+		local segment = segments[index]
+		local thresholds = segment.thresholds
+		local leg = thresholds and NewLeg(thresholds, segment.fromSkill, segment.toSkill, segment.skillUps)
+			or { crafts = 0, p = 0 }
+		legs[index] = leg
+		budgets[index] = leg.crafts
+		completion = completion * leg.p
+		if segment.reagentCost == nil then
+			knownCost = false
+		end
+	end
+	while completion < target do
+		local bestIndex, bestScore
+		for index = 1, count do
+			local leg = legs[index]
+			local now, next = leg.p, leg.needed and Peek(leg) or leg.p
+			if next > now then
+				local gain = math.log(next) - math.log(now)
+				local score
+				if knownCost then
+					local saved = tripCost * (next - now)
+					score = ((segments[index].reagentCost or 0) - saved) / gain
+				else
+					score = 1 / gain
+				end
+				if not bestScore or score < bestScore then
+					bestIndex, bestScore = index, score
+				end
+			end
+		end
+		if not bestIndex then
+			break
+		end
+		local leg = legs[bestIndex]
+		local now, next = leg.p, Peek(leg)
+		completion = completion * next / now
+		Commit(leg)
+		budgets[bestIndex] = leg.crafts
+	end
+	local trips = 0
+	for index = 1, count do
+		trips = trips + (1 - legs[index].p)
+	end
+	return budgets, math.min(completion, 1), trips
+end
+
+-- The skill points one craft grants at `skill`, at most `room` of them: the client's live count,
+-- capped by what the recipe has left before grey and by what the target still wants.
+---@param thresholds number[]
+---@param skill number
+---@param skillUps integer?
+---@param room number
+---@return integer
+function Model.Gain(thresholds, skill, skillUps, room)
+	local left = thresholds[4] - skill
+	if left <= 0 or room <= 0 then
+		return 0
+	end
+	return math.max(1, math.min(skillUps or 1, left, room))
+end
+
+-- Net cost of one skill point at Model.ROUTE_CONFIDENCE: a low chance carries the crafts it needs, and a
+-- craft that grants several points is worth that many.
+---@param cost number?
+---@param thresholds number[]
+---@param skill number
+---@param skillUps integer?
+---@return number?
+function Model.CostPerPoint(cost, thresholds, skill, skillUps)
+	local ups = math.max(skillUps or 1, 1)
+	if not cost or (Model.Chance(thresholds, skill) or 0) <= 0 then
+		return nil
+	end
+	return cost * Model.CoveredCrafts(thresholds, skill, skill + ups, ups, Model.ROUTE_CONFIDENCE) / ups
+end
+
+-- A recipe's place in a route's order at a skill: what a point there costs, nil when a craft there gains none,
+-- and the chance that breaks a tie. A non-profitable craft costs its net and time, so a sale value lowers
+-- every craft; a free or profitable recipe's extra crafts a falling chance needs cost their reagents and time,
+-- so a near-grey recipe cannot rank as free into grey (#400, #466).
+---@param recipe SkillUpCandidate
+---@param skill number
+---@return number?
+---@return number?
+local function Rank(recipe, skill)
+	local thresholds, ups = recipe.thresholds, math.max(recipe.skillUps or 1, 1)
+	local chance = Model.Chance(thresholds, skill)
+	if not chance or chance <= 0 then
+		return nil, chance
+	end
+	if recipe.gatherableUnknown then
+		return math.huge, chance
+	end
+	local covered = Model.CoveredCrafts(thresholds, skill, skill + ups, ups, Model.ROUTE_CONFIDENCE)
+	local cost = Model.RouteStepCost(recipe.netCost, recipe.reagentCost, covered, Model.CRAFT_TIME_COST)
+	return (cost or 0) / ups, chance
+end
+
+-- Among recipes that can gain skill, the most recent pin wins; otherwise a cheaper point, then a better
+-- chance, then a buff the player can use, then the lower recipe ID. A tie keeps the best so far.
+---@param recipe SkillUpCandidate
+---@param key number?
+---@param chance number?
+---@param best SkillUpCandidate|false|nil
+---@param bestKey number?
+---@param bestChance number?
+---@param buffs table<integer, true> The snapshot's recipes whose product is a buff the player can use.
+---@return boolean
+local function Beats(recipe, key, chance, best, bestKey, bestChance, buffs)
+	if key == nil then
+		return false
+	end
+	if not best then
+		return true
+	end
+	local preference, bestPreference = recipe.preference or 0, best.preference or 0
+	if preference ~= bestPreference then
+		return preference > bestPreference
+	end
+	if key ~= bestKey then
+		return key < bestKey
+	end
+	if chance ~= bestChance then
+		return chance > bestChance
+	end
+	local buff = buffs[recipe.recipeID] or false
+	if buff ~= (buffs[best.recipeID] or false) then
+		return buff
+	end
+	return recipe.recipeID < best.recipeID
+end
+
+-- What a route is planned from: a snapshot's recipes, and the ones a training search adds to the end of
+-- them. Training re-plans once per candidate, so what each re-plan would work out again is kept: a recipe's
+-- rank at a skill, the crafts a step takes, and the list's best recipe at each skill, which a recipe joining
+-- the end updates. A route over the list plus one more recipe on its end then picks, at each skill, the list's
+-- best or that recipe, whichever goes first: what ranking the whole longer list picks, as a tie keeps the
+-- earlier. Nothing is kept past the search that made it, so a threshold changed later is never read from it.
+---@param snapshot SkillUpSnapshot
+---@return SkillUpPlanner
+local function Planner(snapshot)
+	local from, target = snapshot.skill, snapshot.target
+	local buffs = snapshot.buffs or {}
+	local held = snapshot.held or {}
+	local stockCost = snapshot.stockCost
+	local base, pooled = {}, {}
+	local byID = {}
+	-- [recipe] = true when any of its reagents is one the bags or bank hold: only those are re-priced from
+	-- the pool; the rest keep the list's static ranking, which a pool can only improve on (to lower a cost).
+	local pooledOf = {}
+	local thresholds, costOf, reagentOf = {}, {}, {}
+	local excluded = { unpriced = 0, recipes = {} }
+	-- [recipe][skill]: its rank there, the key false where it gains nothing.
+	local keys, chances = {}, {}
+	-- [skill]: the list's best recipe there, false for none, and its rank.
+	local bests, bestKeys, bestChances = {}, {}, {}
+	-- [thresholds][from][to][skillUps]: Model.CoveredCrafts at the route's confidence.
+	local covered = {}
+
+	---@param recipe SkillUpCandidate
+	---@param skill number
+	---@return number?
+	---@return number?
+	local function RankAt(recipe, skill)
+		local byKey, byChance = keys[recipe], chances[recipe]
+		if not byKey then
+			byKey, byChance = {}, {}
+			keys[recipe], chances[recipe] = byKey, byChance
+		end
+		local key = byKey[skill]
+		if key == nil then
+			local chance
+			key, chance = Rank(recipe, skill)
+			byKey[skill], byChance[skill] = key or false, chance
+			return key, chance
+		end
+		return key or nil, byChance[skill]
+	end
+
+	---@param skill number
+	---@return SkillUpCandidate|false
+	---@return number?
+	---@return number?
+	local function BestAt(skill)
+		local best = bests[skill]
+		if best == nil then
+			local bestKey, bestChance
+			best = false
+			for _, recipe in ipairs(base) do
+				local key, chance = RankAt(recipe, skill)
+				if Beats(recipe, key, chance, best, bestKey, bestChance, buffs) then
+					best, bestKey, bestChance = recipe, key, chance
+				end
+			end
+			bests[skill], bestKeys[skill], bestChances[skill] = best, bestKey, bestChance
+		end
+		return best, bestKeys[skill], bestChances[skill]
+	end
+
+	---@param t number[]
+	---@param fromSkill number
+	---@param toSkill number
+	---@param skillUps integer?
+	---@return number
+	local function Covered(t, fromSkill, toSkill, skillUps)
+		local ups = math.max(skillUps or 1, 1)
+		covered[t] = covered[t] or {}
+		local byFrom = covered[t]
+		byFrom[fromSkill] = byFrom[fromSkill] or {}
+		local byTo = byFrom[fromSkill]
+		byTo[toSkill] = byTo[toSkill] or {}
+		local byUps = byTo[toSkill]
+		byUps[ups] = byUps[ups] or Model.CoveredCrafts(t, fromSkill, toSkill, ups, Model.ROUTE_CONFIDENCE)
+		return byUps[ups]
+	end
+
+	-- Whether a held copy could stand in for one of a recipe's reagents, so its cost has to be worked out from
+	-- the pool at this skill rather than taken from the list's static ranking.
+	---@param recipe SkillUpCandidate
+	---@return boolean
+	local function IsPooled(recipe)
+		if recipe.stockSensitive then
+			return true
+		end
+		if recipe.gatherableUnknown then
+			return false
+		end
+		local pooledRecipe = pooledOf[recipe]
+		if pooledRecipe == nil then
+			pooledRecipe = false
+			for _, reagent in ipairs(recipe.reagents or {}) do
+				if (held[reagent.itemID] or 0) > 0 then
+					pooledRecipe = true
+					break
+				end
+			end
+			pooledOf[recipe] = pooledRecipe
+		end
+		return pooledRecipe
+	end
+
+	-- What `crafts` crafts' reagents cost: held copies at what using them gives up, the rest at the buy price.
+	-- Nil when a unit it still needs has no price, as Rank's own cost is.
+	---@param recipe SkillUpCandidate
+	---@param crafts number
+	---@param pool table<integer, number>
+	---@return number?
+	local function PoolReagentCost(recipe, crafts, pool)
+		local total = 0
+		for _, reagent in ipairs(recipe.reagents or {}) do
+			local need = reagent.quantity * crafts
+			local have = pool[reagent.itemID] or 0
+			local copies = math.min(have, need)
+			if copies > 0 then
+				if not reagent.held then
+					return nil
+				end
+				total = total + copies * reagent.held
+			end
+			local short = need - copies
+			if short > 0 then
+				if not reagent.buy then
+					return nil
+				end
+				total = total + short * reagent.buy
+			end
+		end
+		return total
+	end
+
+	-- A recipe's rank at `skill` from the pool: Model.RouteStepCost's own money, with the reagents it takes
+	-- there priced from what is left in the bags and bank. The crafts and the points they are divided by are
+	-- Rank's own, so a pooled recipe is keyed on the same basis as every static one it is compared against.
+	---@param recipe SkillUpCandidate
+	---@param skill number
+	---@param pool table<integer, number>
+	---@param stock table<integer, number>?
+	---@return number?
+	---@return number?
+	---@param surplus table<integer, number>?
+	local function PoolRank(recipe, skill, pool, stock, surplus)
+		local ups = math.max(recipe.skillUps or 1, 1)
+		local chance = Model.Chance(recipe.thresholds, skill)
+		if not chance or chance <= 0 then
+			return nil, chance
+		end
+		local crafts = Covered(recipe.thresholds, skill, skill + ups, ups)
+		local batch
+		if recipe.stockSensitive and stockCost then
+			batch = stockCost(recipe.recipeID, crafts, pool, stock, false, surplus)
+		else
+			batch = PoolReagentCost(recipe, crafts, pool)
+		end
+		if not batch then
+			return recipe.stockSensitive and math.huge or nil, chance
+		end
+		-- RouteStepCost takes one craft's money and multiplies it by the crafts, so the batch is divided back.
+		local each = crafts > 0 and batch / crafts or 0
+		local netCost = each - (recipe.value or 0)
+		local cost = Model.RouteStepCost(netCost, each, crafts, Model.CRAFT_TIME_COST)
+		return (cost or 0) / ups, chance
+	end
+
+	-- A fresh copy of what the bags and bank hold, for one walk to take reagents out of.
+	---@return table<integer, number>
+	local function CopyHeld()
+		local pool = {}
+		for itemID, count in pairs(held) do
+			pool[itemID] = count
+		end
+		return pool
+	end
+
+	-- Takes the reagents of `crafts` crafts out of the pool, so a later step never counts the same copy twice.
+	---@param recipe SkillUpCandidate
+	---@param crafts number
+	---@param pool table<integer, number>
+	local function TakePool(recipe, crafts, pool)
+		for _, reagent in ipairs(recipe.reagents or {}) do
+			local need = reagent.quantity * crafts
+			pool[reagent.itemID] = math.max((pool[reagent.itemID] or 0) - need, 0)
+		end
+	end
+
+	-- A recipe joins the end of the list.
+	---@param recipe SkillUpCandidate
+	local function Add(recipe)
+		-- A recipe waiting on an auction price is counted as unpriced, so its reagents stay in the Auctionator search
+		-- and the total says it is incomplete, and it still plans as an unknown cost after every priced recipe (#855).
+		local waiting = recipe.netCost == nil and recipe.gatherableUnknown == "auction"
+		if (recipe.netCost == nil and not recipe.gatherableUnknown) or waiting then
+			-- A grey recipe could not help even with a price, so it keeps nothing out.
+			if recipe.thresholds[4] > from then
+				excluded.unpriced = excluded.unpriced + 1
+				excluded.recipes[excluded.unpriced] = recipe.recipeID
+			end
+			if not waiting then
+				return
+			end
+		end
+		byID[recipe.recipeID] = recipe
+		thresholds[recipe.recipeID] = recipe.thresholds
+		costOf[recipe.recipeID] = recipe.netCost
+		reagentOf[recipe.recipeID] = recipe.reagentCost
+		if IsPooled(recipe) then
+			pooled[#pooled + 1] = recipe
+			return
+		end
+		base[#base + 1] = recipe
+		for skill, best in pairs(bests) do
+			local key, chance = RankAt(recipe, skill)
+			if Beats(recipe, key, chance, best, bestKeys[skill], bestChances[skill], buffs) then
+				bests[skill], bestKeys[skill], bestChances[skill] = recipe, key, chance
+			end
+		end
+	end
+
+	-- Use the same inventory pool to price trial routes and the final joint craft budget.
+	---@param route SkillUpRoute
+	---@param extra SkillUpCandidate?
+	local function Price(route, extra)
+		local money = CopyHeld()
+		local stock, surplus
+		route.expectedCost = 0
+		for _, segment in ipairs(route.segments) do
+			local recipeID = segment.recipeID
+			local t, cost, reagentCost = thresholds[recipeID], costOf[recipeID], reagentOf[recipeID]
+			local candidate = byID[recipeID]
+			if extra and extra.recipeID == recipeID then
+				t, cost, reagentCost, candidate = extra.thresholds, extra.netCost, extra.reagentCost, extra
+			end
+			segment.thresholds = t
+			segment.cost = cost
+			segment.reagentCost = reagentCost
+			if not route.completion then
+				segment.crafts = Covered(t, segment.fromSkill, segment.toSkill, segment.skillUps)
+			end
+			if candidate and IsPooled(candidate) then
+				local pooledCost
+				if candidate.stockSensitive and stockCost then
+					stock, surplus = stock or {}, surplus or {}
+					pooledCost = stockCost(recipeID, segment.crafts, money, stock, true, surplus)
+					cost, reagentCost = nil, nil
+				else
+					pooledCost = PoolReagentCost(candidate, segment.crafts, money)
+					TakePool(candidate, segment.crafts, money)
+				end
+				if pooledCost then
+					-- RouteStepCost multiplies one craft's money by the crafts, so the batch is divided back.
+					local each = segment.crafts > 0 and pooledCost / segment.crafts or 0
+					reagentCost = each
+					cost = each - (candidate.value or 0)
+				end
+			end
+			route.expectedCost = route.expectedCost
+				+ (Model.RouteStepCost(cost, reagentCost, segment.crafts, Model.CRAFT_TIME_COST) or 0)
+		end
+	end
+
+	-- The route the list takes, optionally with one extra recipe, and each skill it picked at.
+	---@param extra SkillUpCandidate?
+	---@return SkillUpRoute
+	---@return number[]
+	local function Route(extra)
+		if extra and extra.netCost == nil and not extra.gatherableUnknown then
+			extra = nil
+		end
+		local route = { segments = {}, expectedCost = 0, reachedSkill = from, excluded = excluded }
+		local picked = {}
+		-- A copy of what the bags and bank hold when the route starts: every craft takes its reagents out, so
+		-- a later step sees only what is left. Each call starts from the same pool, so a training search's
+		-- re-plans are all weighed against today's bags.
+		local pool = CopyHeld()
+		local stock, surplus
+		while route.reachedSkill < target do
+			local skill = route.reachedSkill
+			picked[#picked + 1] = skill
+			-- Recipes with no held reagent keep the list's static ranking; the others are priced from the pool
+			-- at this skill, which can only change which of them wins here.
+			local best, bestKey, bestChance = BestAt(skill)
+			for _, recipe in ipairs(pooled) do
+				local key, chance = PoolRank(recipe, skill, pool, stock, surplus)
+				if Beats(recipe, key, chance, best, bestKey, bestChance, buffs) then
+					best, bestKey, bestChance = recipe, key, chance
+				end
+			end
+			if extra then
+				local key, chance
+				if IsPooled(extra) then
+					key, chance = PoolRank(extra, skill, pool, stock, surplus)
+				else
+					key, chance = RankAt(extra, skill)
+				end
+				if Beats(extra, key, chance, best, bestKey, bestChance, buffs) then
+					best = extra
+				end
+			end
+			if not best then
+				route.stopReason = "no_recipe"
+				break
+			end
+			local gain = Model.Gain(best.thresholds, skill, best.skillUps, target - skill)
+			if gain <= 0 then
+				route.stopReason = "no_recipe"
+				break
+			end
+			local segment = route.segments[#route.segments]
+			if not segment or segment.recipeID ~= best.recipeID then
+				segment = { recipeID = best.recipeID, fromSkill = skill, toSkill = skill, skillUps = best.skillUps }
+				route.segments[#route.segments + 1] = segment
+			end
+			segment.toSkill = skill + gain
+			route.reachedSkill = skill + gain
+			if IsPooled(best) then
+				local ups = math.max(best.skillUps or 1, 1)
+				local crafts = Covered(best.thresholds, skill, skill + gain, ups)
+				if best.stockSensitive and stockCost then
+					stock, surplus = stock or {}, surplus or {}
+					stockCost(best.recipeID, crafts, pool, stock, true, surplus)
+				else
+					TakePool(best, crafts, pool)
+				end
+			end
+		end
+		-- Each step carries the recipe's price and thresholds, and the crafts that cover it alone at the
+		-- route's confidence. The whole route's budgets are chosen together after the last route is picked,
+		-- by Model.BudgetRoute, so a training search's many re-plans stay cheap.
+		Price(route, extra)
+		return route, picked
+	end
+
+	-- Whether `extra` on the end of the list changes the route the list takes, which picked at the skills in
+	-- `picked`: only by going first at one of them, or by an ID the list already has, whose crafts are then
+	-- counted from it. A recipe with no price is never picked. One the pool can price is always worth a re-plan:
+	-- its own ranking at a skill is then worked out from what the bags and bank still hold.
+	---@param extra SkillUpCandidate
+	---@param picked number[]
+	---@return boolean
+	local function Changes(extra, picked)
+		if extra.netCost == nil and not extra.gatherableUnknown then
+			return false
+		elseif IsPooled(extra) or costOf[extra.recipeID] ~= nil then
+			return true
+		end
+		for _, skill in ipairs(picked) do
+			local best, bestKey, bestChance = BestAt(skill)
+			local key, chance = RankAt(extra, skill)
+			if Beats(extra, key, chance, best, bestKey, bestChance, buffs) then
+				return true
+			end
+		end
+		return false
+	end
+
+	-- How many of a route's steps wait on an auction price: their cost counts as nothing in expectedCost, so a
+	-- comparison of savings alone would take them for free (#855). `extra` is the service the route was planned with.
+	---@param route SkillUpRoute
+	---@param extra SkillUpCandidate?
+	---@return integer
+	local function Waiting(route, extra)
+		local count = 0
+		for _, segment in ipairs(route.segments) do
+			local candidate = extra and extra.recipeID == segment.recipeID and extra or byID[segment.recipeID]
+			if candidate and candidate.netCost == nil and candidate.gatherableUnknown == "auction" then
+				count = count + 1
+			end
+		end
+		return count
+	end
+
+	for _, recipe in ipairs(snapshot.recipes) do
+		Add(recipe)
+	end
+	return {
+		Add = Add,
+		Route = Route,
+		Changes = Changes,
+		Waiting = Waiting,
+		Budget = function()
+			local route = Model.BudgetRoute(Route(), Model.ROUTE_CONFIDENCE, snapshot.restockCost)
+			Price(route)
+			return route
+		end,
+	}
+end
+
+-- Chooses a picked route's per-leg budgets together, then prices the route at them.
+---@param route SkillUpRoute
+---@param confidence number?
+---@param restockCost number?
+---@return SkillUpRoute
+function Model.BudgetRoute(route, confidence, restockCost)
+	local budgets, completion = Model.BudgetSegments(route.segments, confidence, restockCost)
+	local cost = 0
+	for index, segment in ipairs(route.segments) do
+		segment.crafts = budgets[index]
+		cost = cost
+			+ (Model.RouteStepCost(segment.cost, segment.reagentCost, segment.crafts, Model.CRAFT_TIME_COST) or 0)
+	end
+	route.completion = completion
+	route.expectedCost = cost
+	return route
+end
+
+-- Inputs are already filtered to learned recipes of one profession, with prices
+-- frozen by the caller. The bags and bank choose too: a held reagent is priced at what using it gives up,
+-- so a recipe the player can make from what they hold can win over a cheaper market one.
+---@param snapshot SkillUpSnapshot
+---@return SkillUpRoute
+function Model.PlanRoute(snapshot)
+	return Planner(snapshot).Budget()
+end
+
+-- Reach comes first, then a pin the resulting route uses, then fewer steps waiting on an auction price, then savings
+-- for equal endpoints.
+-- Each candidate is a separate purchase, charged exactly once.
+---@param planner SkillUpPlanner
+---@param services SkillUpService[]
+---@return {recipeID: integer, savings: number, reachedSkill: number}?
+local function Recommend(planner, services)
+	local baseline, picked = planner.Route()
+	local baseWaiting = planner.Waiting(baseline)
+	local best, bestPreference, bestWaiting
+	for _, service in ipairs(services) do
+		local route = planner.Changes(service, picked) and planner.Route(service) or baseline
+		local preference = 0
+		for _, segment in ipairs(route.segments) do
+			if segment.recipeID == service.recipeID then
+				preference = service.preference or 0
+				break
+			end
+		end
+		local savings = baseline.expectedCost - (route.expectedCost + service.fee)
+		-- A step waiting on an auction price adds nothing to expectedCost, so at equal reach the route with fewer of
+		-- them is the better known one before savings are compared (#855). With none, this is the savings rule.
+		local waiting = planner.Waiting(route, service)
+		local fewerWaiting = waiting < baseWaiting
+		local sameWaiting = waiting == baseWaiting
+		local helps = route.reachedSkill > baseline.reachedSkill
+			or (
+				route.reachedSkill == baseline.reachedSkill
+				and (preference > 0 or fewerWaiting or (sameWaiting and savings > 0))
+			)
+		if
+			helps
+			and (
+				not best
+				or route.reachedSkill > best.reachedSkill
+				or (
+					route.reachedSkill == best.reachedSkill
+					and (
+						preference > bestPreference
+						or (
+							preference == bestPreference
+							and (
+								waiting < bestWaiting
+								or (
+									waiting == bestWaiting
+									and (
+										savings > best.savings
+										or (savings == best.savings and service.recipeID < best.recipeID)
+									)
+								)
+							)
+						)
+					)
+				)
+			)
+		then
+			best = { recipeID = service.recipeID, savings = savings, reachedSkill = route.reachedSkill }
+			bestPreference, bestWaiting = preference, waiting
+		end
+	end
+	return best
+end
+
+-- The one service worth training next on the learned route.
+---@param snapshot SkillUpSnapshot
+---@param services SkillUpService[]
+---@return {recipeID: integer, savings: number, reachedSkill: number}?
+function Model.RecommendTraining(snapshot, services)
+	return Recommend(Planner(snapshot), services)
+end
+
+-- The learned route plus whatever training pays for itself: keep adding the
+-- service RecommendTraining picks (reach first, then pin priority, then savings net of its fee),
+-- then drop any a later addition made unnecessary. Greedy, so not guaranteed
+-- optimal, but each fee is charged once and only for recipes the route uses.
+---@param snapshot SkillUpSnapshot
+---@param services SkillUpService[]
+---@return SkillUpTrainedRoute
+function Model.PlanWithTraining(snapshot, services)
+	local remaining = {}
+	for index, service in ipairs(services) do
+		remaining[index] = service
+	end
+	local planner = Planner(snapshot)
+	local chosen = {}
+	while true do
+		local best = Recommend(planner, remaining)
+		if not best then
+			break
+		end
+		for index, service in ipairs(remaining) do
+			if service.recipeID == best.recipeID then
+				planner.Add(service)
+				chosen[service.recipeID] = service
+				table.remove(remaining, index)
+				break
+			end
+		end
+	end
+	local route = planner.Budget()
+	---@cast route SkillUpTrainedRoute
+	local firstUse = {}
+	for _, segment in ipairs(route.segments) do
+		firstUse[segment.recipeID] = firstUse[segment.recipeID] or segment.fromSkill
+	end
+	-- An unused recipe never changes a greedy pick, so dropping it keeps the route.
+	route.training, route.trainingCost = {}, 0
+	for recipeID, service in pairs(chosen) do
+		if firstUse[recipeID] then
+			route.training[#route.training + 1] =
+				{ recipeID = recipeID, fee = service.fee, atSkill = firstUse[recipeID] }
+			route.trainingCost = route.trainingCost + service.fee
+		end
+	end
+	table.sort(route.training, function(a, b)
+		return a.atSkill < b.atSkill or (a.atSkill == b.atSkill and a.recipeID < b.recipeID)
+	end)
+	return route
+end
+
+-- The shopping list's buckets, in the order it lists them, and the price source that fills each;
+-- a reagent with no price goes in "unknown". Everything that walks the list walks this.
+---@type SkillUpShoppingSource[]
+Model.SHOPPING_SOURCES = { "gather", "vendor", "auction", "unknown" }
+---@type table<SkillUpPriceSource, SkillUpShoppingSource>
+local BUCKET = {
+	gather = "gather",
+	vendor = "vendor",
+	auctionator = "auction",
+	tsm = "auction",
+	ahdb = "auction",
+	naowh = "auction",
+	auction = "auction",
+}
+
+-- The shopping list's bucket for a price source: what every item in the list carries as its source.
+---@param source SkillUpPriceSource?
+---@return SkillUpShoppingSource
+function Model.ShoppingSource(source)
+	return source and BUCKET[source] or "unknown"
+end
+
+---@param needed table<integer, number>
+---@param sourceOf fun(itemID: integer): SkillUpPriceSource?
+---@return table<string, SkillUpShoppingItem[]>
+function Model.BucketNeeded(needed, sourceOf)
+	local list = {}
+	for _, source in ipairs(Model.SHOPPING_SOURCES) do
+		list[source] = {}
+	end
+	for itemID, count in pairs(needed) do
+		if count > 0 then
+			local bucket = list[Model.ShoppingSource(sourceOf(itemID))]
+			bucket[#bucket + 1] = { itemID = itemID, count = count }
+		end
+	end
+	for _, bucket in pairs(list) do
+		table.sort(bucket, function(a, b)
+			return a.itemID < b.itemID
+		end)
+	end
+	return list
+end
+
+-- Raw items, already totalled, into the shopping list's buckets.
+---@param items {itemID: integer, count: number}[]
+---@param sourceOf fun(itemID: integer): SkillUpPriceSource?
+---@return table<string, SkillUpShoppingItem[]>
+function Model.BucketItems(items, sourceOf)
+	local needed = {}
+	for _, item in ipairs(items) do
+		if item.itemID then
+			needed[item.itemID] = (needed[item.itemID] or 0) + item.count
+		end
+	end
+	return Model.BucketNeeded(needed, sourceOf)
+end
+
+---@param recipeData table<integer, SkillUpRecipe>
+---@return table<integer, integer[]>
+function Model.BuildReagentIndex(recipeData)
+	local index = {}
+	for recipeID, recipe in pairs(recipeData) do
+		local seen = {}
+		for _, reagent in ipairs(recipe.reagents) do
+			local itemID = reagent.itemID
+			if not seen[itemID] then
+				index[itemID] = index[itemID] or {}
+				local recipes = index[itemID]
+				recipes[#recipes + 1] = recipeID
+				seen[itemID] = true
+			end
+		end
+	end
+	for _, recipes in pairs(index) do
+		table.sort(recipes)
+	end
+	return index
+end
+
+-- Rounds so a row stays short: whole gold from 100g (123g), else whole silver from
+-- 1s (1g 23s, 45s), else copper (80c).
+---@param copper number
+---@return number
+function Model.RoundMoney(copper)
+	if copper == 0 then
+		return 0
+	end
+	local unit = copper >= 1000000 and 10000 or copper >= 100 and 100 or 1
+	return math.max(math.floor(copper / unit + 0.5), 1) * unit
+end
+
+end local _, ForeverCoreHostNs = ... if type(ForeverCoreHostNs) == "table" and type(ForeverCoreHostNs.ForeverCoreHostChunks) == "table" then local chunks = ForeverCoreHostNs.ForeverCoreHostChunks chunks[#chunks + 1] = ForeverCoreHostChunk else return ForeverCoreHostChunk(...) end

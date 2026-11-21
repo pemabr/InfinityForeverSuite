@@ -80,20 +80,7 @@ local function InitializeGatherPath()
 	print("InfinityGatherPath loaded - Use /gatherpath for route management")
 end
 
-
-local function RegisterAddonWithInfinityManager()
-	if _G.InfinityAddonManager then
-		_G.InfinityAddonManager:RegisterAddon(ADDON_NAME, ADDON_VERSION, {
-			description = "Optimize routes",
-			author = "Infinity Suite Team",
-			category = "Gathering",
-			enabled = true,
-			settings = {{}}
-		})
-	end
-end
-
-	local frame = CreateFrame("Frame")
+local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 
 local addonLoaded = false

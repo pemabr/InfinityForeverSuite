@@ -40,24 +40,21 @@ local function InitializeRaid()
 		end,
 	})
 	
-	InfinityUtils:Info("InfinityRaid initialized successfully", "InfinityRaid")
-	InfinityMessaging:Publish("raid_addon_loaded", { addon = "InfinityRaid" })
-end
-
-
-local function RegisterAddonWithInfinityManager()
 	if _G.InfinityAddonManager then
-		_G.InfinityAddonManager:RegisterAddon(ADDON_NAME, ADDON_VERSION, {
+		_G.InfinityAddonManager:RegisterAddon("InfinityRaid", "1.3.0", {
 			description = "Raid management",
 			author = "Infinity Suite Team",
 			category = "Raid",
 			enabled = true,
-			settings = {{}}
+			settings = {}
 		})
 	end
+	
+	InfinityUtils:Info("InfinityRaid initialized successfully", "InfinityRaid")
+	InfinityMessaging:Publish("raid_addon_loaded", { addon = "InfinityRaid" })
 end
 
-	local frame = CreateFrame("Frame")
+local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:SetScript("OnEvent", function(self, event, addonName)
 	if addonName == "InfinityCore" then

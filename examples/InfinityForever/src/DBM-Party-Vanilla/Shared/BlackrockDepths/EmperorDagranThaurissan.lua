@@ -1,0 +1,14 @@
+local mod	= DBM:NewMod(387, "DBM-Party-Vanilla", 2, 228)
+local L		= mod:GetLocalizedStrings()
+
+mod:SetRevision("20261109220309")
+if DBM:IsForever() then
+	mod:EnableGenericTrash()
+end
+mod:SetCreatureID(9019)--Moira 8929
+mod:SetEncounterID(245, 2790)--2790 is Forever
+mod:SetModelID(8807)
+mod:SetZone(230)
+
+mod:RegisterCombat("combat")
+

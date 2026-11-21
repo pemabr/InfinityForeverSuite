@@ -12,7 +12,7 @@ local DiagnosticsConsole = {
 function DiagnosticsConsole:Log(message, source, level)
 	level = level or "INFO"
 	source = source or "Debug"
-	local timestamp = os.date("%H:%M:%S", GetTime())
+	local timestamp = date("%H:%M:%S", GetTime())
 	
 	local logEntry = {
 		timestamp = timestamp,
@@ -214,7 +214,7 @@ end
 -- Export logs to string for external review
 function DiagnosticsConsole:ExportLogs()
 	local logText = "=== INFINITY SUITE DIAGNOSTIC LOGS ===\n"
-	logText = logText .. "Exported: " .. os.date("%Y-%m-%d %H:%M:%S") .. "\n\n"
+	logText = logText .. "Exported: " .. date("%Y-%m-%d %H:%M:%S") .. "\n\n"
 	
 	for i, entry in ipairs(self.logBuffer) do
 		logText = logText .. string.format("[%s %s] %s: %s\n", 

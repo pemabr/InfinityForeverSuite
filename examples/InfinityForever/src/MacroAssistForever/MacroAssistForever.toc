@@ -1,0 +1,96 @@
+## Interface: 16001
+## OptionalDeps: ForeverCore
+## X-Forever-Core: v1.15.4
+## Title: Macro Assist Forever
+## Notes: A macro list and editor with completions, live checks and a bundled mono font.
+## Author: cjber
+## Version: 0.8.6
+## Category: Interface Enhancements
+## X-License: GPL-3.0-or-later
+## X-Website: https://github.com/cjber/macro-assist-forever
+## X-Curse-Project-ID: 1795141
+## SavedVariables: MacroAssistForeverDB
+## X-Forever-Core-Embed: 1
+## IconTexture: Interface\AddOns\MacroAssistForever\media\Icon
+## X-Forever-Icon: Interface\Icons\INV_Misc_Note_01
+## AddonCompartmentFunc: MacroAssistForever_OnAddonCompartmentClick
+
+Libs\ForeverCore\Core\Loader.lua
+Libs\ForeverCore\Begin.lua
+Libs\ForeverCore\Core.lua
+Libs\ForeverCore\Locales\enUS.lua
+Libs\ForeverCore\Locales\deDE.lua
+Libs\ForeverCore\Locales\esES.lua
+Libs\ForeverCore\Locales\esMX.lua
+Libs\ForeverCore\Locales\frFR.lua
+Libs\ForeverCore\Locales\koKR.lua
+Libs\ForeverCore\Locales\ptBR.lua
+Libs\ForeverCore\Locales\ruRU.lua
+Libs\ForeverCore\Locales\zhCN.lua
+Libs\ForeverCore\Locales\zhTW.lua
+Libs\ForeverCore\Data\Credits.lua
+Libs\ForeverCore\Core\SafeCall.lua
+Libs\ForeverCore\Core\Open.lua
+Libs\ForeverCore\Core\OpenMap.lua
+Libs\ForeverCore\Core\OpenSettings.lua
+Libs\ForeverCore\Core\Log.lua
+Libs\ForeverCore\Core\Capture.lua
+Libs\ForeverCore\Core\Performance.lua
+Libs\ForeverCore\Core\Text.lua
+Libs\ForeverCore\UI\Art.lua
+Libs\ForeverCore\UI\Report.lua
+Libs\ForeverCore\UI\Credits.lua
+Libs\ForeverCore\UI\SettingsPage.lua
+Libs\ForeverCore\UI\SettingsSections.lua
+Libs\ForeverCore\UI\TrackerLock.lua
+Libs\ForeverCore\UI\TrackerOrder.lua
+Libs\ForeverCore\UI\ContextMenu.lua
+Libs\ForeverCore\UI\TrackerHost.lua
+Libs\ForeverCore\UI\TrackerSection.xml
+Libs\ForeverCore\UI\TrackerSection.lua
+Libs\ForeverCore\UI\MapCanvas.lua
+Libs\ForeverCore\Core\APIKit.lua
+Libs\ForeverCore\Core\Journey.lua
+Libs\ForeverCore\UI\QuestLogTabs.lua
+Libs\ForeverCore\UI\ProfessionTabs.lua
+Libs\ForeverCore\Expose.lua
+Libs\ForeverCore\End.lua
+ForeverCoreHost.lua
+Locales\enUS.lua
+Core\ForeverRequire.lua
+Core\Require.lua
+Data\Commands.lua
+Data\Conditions.lua
+Data\Recipes.lua
+Data\IconNames.lua
+Data\Credits.lua
+Core\Lexer.lua
+Core\Parser.lua
+Core\Icons.lua
+Core\Length.lua
+Core\Insert.lua
+Core\Bars.lua
+Core\Now.lua
+Core\Highlight.lua
+Core\Explain.lua
+Core\History.lua
+Core\CharacterMacros.lua
+Core\Import.lua
+Core\Complete.lua
+Core\Check.lua
+Core\API.lua
+Core\Shorten.lua
+Core\Secret.lua
+Core\Roster.lua
+UI\Context.lua
+UI\Editor.lua
+UI\IconSelector.lua
+UI\History.lua
+UI\Import.lua
+UI\Recipes.lua
+UI\Shorten.lua
+UI\MacroWindow.xml
+UI\MacroWindow.lua
+Core\Core.lua
+ForeverCoreRun.lua
+ForeverCoreReady.lua

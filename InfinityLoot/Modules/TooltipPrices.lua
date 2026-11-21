@@ -19,30 +19,45 @@ _G.InfinityTooltipPrices = TooltipPrices
 
 function TooltipPrices:Initialize()
 	InfinityUtils:Info("Tooltip Prices system initialized", "Loot")
+	if self.hooked then return end
+	self.hooked = true
 	
-	-- Hook tooltips
-	GameTooltip:HookScript("OnTooltipSetItem", function(tooltip)
-		TooltipPrices:OnTooltipSetItem(tooltip)
-	end)
-	
-	ItemRefTooltip:HookScript("OnTooltipSetItem", function(tooltip)
-		TooltipPrices:OnTooltipSetItem(tooltip)
-	end)
+	-- Hook tooltips (Forever 1.60.1 TooltipDataProcessor + legacy fallback)
+	if _G.TooltipDataProcessor and _G.TooltipDataProcessor.AddTooltipPostCall and _G.Enum and _G.Enum.TooltipDataType and _G.Enum.TooltipDataType.Item then
+		_G.TooltipDataProcessor.AddTooltipPostCall(_G.Enum.TooltipDataType.Item, function(tooltip, data)
+			TooltipPrices:OnTooltipSetItem(tooltip, data)
+		end)
+	else
+		if GameTooltip and GameTooltip.HasScript and GameTooltip:HasScript("OnTooltipSetItem") then
+			GameTooltip:HookScript("OnTooltipSetItem", function(tooltip)
+				TooltipPrices:OnTooltipSetItem(tooltip)
+			end)
+		end
+		if ItemRefTooltip and ItemRefTooltip.HasScript and ItemRefTooltip:HasScript("OnTooltipSetItem") then
+			ItemRefTooltip:HookScript("OnTooltipSetItem", function(tooltip)
+				TooltipPrices:OnTooltipSetItem(tooltip)
+			end)
+		end
+	end
 end
 
-function TooltipPrices:OnTooltipSetItem(tooltip)
-	if not self.config.enableTooltipPrices then return end
+function TooltipPrices:OnTooltipSetItem(tooltip, data)
+	if not self.config.enableTooltipPrices or not tooltip then return end
+	if tooltip.IsForbidden and tooltip:IsForbidden() then return end
 	
-	local name, link = tooltip:GetItem()
-	if not link then return end
-	
-	-- Extract item ID from link
-	local itemID = self:ExtractItemID(link)
+	local itemID = data and data.id
+	if not itemID and tooltip.GetItem then
+		local _, link = tooltip:GetItem()
+		itemID = self:ExtractItemID(link)
+	end
+	if not itemID and data and data.hyperlink then
+		itemID = self:ExtractItemID(data.hyperlink)
+	end
 	if not itemID then return end
 	
 	-- Get price info
 	local priceInfo = self:GetItemPriceInfo(itemID)
-	if not priceInfo then return end
+	if not priceInfo or (priceInfo.base <= 0 and priceInfo.ascending <= 0) then return end
 	
 	-- Add tooltip lines
 	self:AddPriceLinesToTooltip(tooltip, itemID, priceInfo)
@@ -69,10 +84,23 @@ function TooltipPrices:GetItemPriceInfo(itemID)
 	
 	if InfinityLoot and InfinityLoot.GetItemBasePrice then
 		basePrice = InfinityLoot:GetItemBasePrice(itemID) or 0
+	elseif _G.InfinityLootAdvancedEconomy and _G.InfinityLootAdvancedEconomy.GetItemValue then
+		basePrice = _G.InfinityLootAdvancedEconomy:GetItemValue(itemID) or 0
 	end
 	
 	if InfinityLoot and InfinityLoot.GetItemAscendingValue then
 		ascendingValue = InfinityLoot:GetItemAscendingValue(itemID) or 0
+	elseif _G.InfinityLootAdvancedEconomy and _G.InfinityLootAdvancedEconomy.GetAscendingValue then
+		ascendingValue = _G.InfinityLootAdvancedEconomy:GetAscendingValue(itemID, 1) or 0
+	end
+	
+	if basePrice == 0 then
+		local _, _, rarity, ilvl = InfinityUtils:GetItemInfo(itemID)
+		if rarity and rarity >= 2 then
+			local mult = (rarity == 2 and 0.5) or (rarity == 3 and 1.0) or (rarity == 4 and 2.0) or 3.0
+			basePrice = math.max(10, math.floor((ilvl or 1) * mult))
+			ascendingValue = basePrice
+		end
 	end
 	
 	-- Cache result
@@ -116,9 +144,9 @@ end
 
 function TooltipPrices:CalculatePlayerCost(itemID, priceInfo)
 	local playerName = UnitName("player")
-	local memberData = InfinityGuildRoster:GetMember(playerName)
+	local memberData = _G.InfinityGuildRoster and _G.InfinityGuildRoster.GetMember and _G.InfinityGuildRoster:GetMember(playerName)
 	
-	if not memberData then return 0 end
+	if not memberData then return priceInfo.ascending or priceInfo.base end
 	
 	-- Get player's class
 	local playerClass = select(2, UnitClass("player"))

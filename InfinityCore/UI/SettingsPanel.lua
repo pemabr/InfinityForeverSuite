@@ -59,7 +59,7 @@ function InfinitySettingsPanel:SetSetting(category, key, value)
 end
 
 function InfinitySettingsPanel:CreateSettingsFrame(parent)
-	local mainFrame = CreateFrame("Frame", "InfinitySettingsFrame", parent)
+	local mainFrame = CreateFrame("Frame", "InfinitySettingsFrame", parent, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	mainFrame:SetSize(600, 500)
 	mainFrame:SetPoint("CENTER")
 	mainFrame:SetBackdrop({
@@ -93,7 +93,7 @@ function InfinitySettingsPanel:CreateSettingsFrame(parent)
 	categoryScroll:SetSize(120, 420)
 	categoryScroll:SetPoint("TOPLEFT", 10, -35)
 	
-	local categoryList = CreateFrame("Frame", nil, categoryScroll)
+	local categoryList = CreateFrame("Frame", nil, categoryScroll, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	categoryList:SetSize(120, 1)
 	categoryScroll:SetScrollChild(categoryList)
 	
@@ -105,7 +105,7 @@ function InfinitySettingsPanel:CreateSettingsFrame(parent)
 	contentFrame:SetSize(430, 420)
 	contentFrame:SetPoint("TOPLEFT", 140, -35)
 	
-	local contentArea = CreateFrame("Frame", nil, contentFrame)
+	local contentArea = CreateFrame("Frame", nil, contentFrame, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	contentArea:SetSize(430, 1)
 	contentFrame:SetScrollChild(contentArea)
 	
@@ -151,9 +151,7 @@ end
 
 function InfinitySettingsPanel:ShowCategorySettings(mainFrame, category)
 	-- Clear content
-	for i = mainFrame.contentFrame:GetNumChildren(), 1, -1 do
-		mainFrame.contentFrame:GetChild(i):Hide()
-	end
+	InfinityUtils:ClearContainer(mainFrame.contentFrame)
 	
 	local y = 0
 	local settings = self.settings[category]
@@ -217,6 +215,146 @@ function InfinitySettingsPanel:ShowFeatureSettings(featureName)
 	local settings = InfinityStorageManager:GetFeatureSettings(featureName)
 	InfinityUtils:Info("Showing settings for feature: " .. featureName, "SettingsPanel")
 	return settings
+end
+
+function InfinitySettingsPanel:RegisterBlizzardSettings()
+	if self.blizzardPanel then
+		return self.blizzardCategory
+	end
+	
+	local panel = CreateFrame("Frame", "InfinityBlizzardSettingsCanvas", UIParent)
+	panel.name = "Infinity Suite"
+	
+	local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+	title:SetPoint("TOPLEFT", 16, -16)
+	title:SetText("|cff00ccffInfinity Suite|r Settings")
+	
+	local subtitle = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
+	subtitle:SetText("Configure global options for the Infinity Forever Suite. Use /infinity for the main hub.")
+	
+	local y = -64
+	local categoryOrder = { "General", "Features", "Appearance" }
+	for _, catName in ipairs(categoryOrder) do
+		local catSettings = self.settings[catName]
+		if catSettings then
+			local catHeader = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+			catHeader:SetPoint("TOPLEFT", 16, y)
+			catHeader:SetText("|cff33ff33" .. catName .. "|r")
+			y = y - 22
+			
+			for key, setting in pairs(catSettings) do
+				local savedVal = InfinityStorageManager and InfinityStorageManager:GetSetting(catName, key, nil)
+				if savedVal ~= nil then
+					setting.value = savedVal
+				end
+				
+				if setting.type == "checkbox" then
+					local cb = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+					cb:SetSize(24, 24)
+					cb:SetPoint("TOPLEFT", 24, y + 4)
+					cb:SetChecked(setting.value == true)
+					cb:SetScript("OnClick", function(selfBtn)
+						InfinitySettingsPanel:SetSetting(catName, key, selfBtn:GetChecked() == true)
+					end)
+					local lbl = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+					lbl:SetPoint("LEFT", cb, "RIGHT", 6, 0)
+					lbl:SetText(key .. "  |cff999999(" .. setting.description .. ")|r")
+					y = y - 26
+				elseif setting.type == "slider" then
+					local lbl = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+					lbl:SetPoint("TOPLEFT", 28, y)
+					lbl:SetText(string.format("%s: %s", key, tostring(setting.value)))
+					
+					local minusBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+					minusBtn:SetSize(22, 18)
+					minusBtn:SetPoint("TOPLEFT", 240, y + 2)
+					minusBtn:SetText("-")
+					minusBtn:SetScript("OnClick", function()
+						local nextVal = math.max(setting.min, (tonumber(setting.value) or setting.min) - (setting.step or 1))
+						nextVal = math.floor(nextVal * 100 + 0.5) / 100
+						InfinitySettingsPanel:SetSetting(catName, key, nextVal)
+						lbl:SetText(string.format("%s: %s", key, tostring(nextVal)))
+					end)
+					
+					local plusBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+					plusBtn:SetSize(22, 18)
+					plusBtn:SetPoint("LEFT", minusBtn, "RIGHT", 6, 0)
+					plusBtn:SetText("+")
+					plusBtn:SetScript("OnClick", function()
+						local nextVal = math.min(setting.max, (tonumber(setting.value) or setting.min) + (setting.step or 1))
+						nextVal = math.floor(nextVal * 100 + 0.5) / 100
+						InfinitySettingsPanel:SetSetting(catName, key, nextVal)
+						lbl:SetText(string.format("%s: %s", key, tostring(nextVal)))
+					end)
+					y = y - 24
+				elseif setting.type == "dropdown" and setting.options then
+					local lbl = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+					lbl:SetPoint("TOPLEFT", 28, y)
+					lbl:SetText(key .. ": " .. tostring(setting.value))
+					
+					local cycleBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+					cycleBtn:SetSize(110, 20)
+					cycleBtn:SetPoint("TOPLEFT", 240, y + 2)
+					cycleBtn:SetText(tostring(setting.value))
+					cycleBtn:SetScript("OnClick", function()
+						local idx = 1
+						for i, opt in ipairs(setting.options) do
+							if opt == setting.value then
+								idx = (i % #setting.options) + 1
+								break
+							end
+						end
+						local nextOpt = setting.options[idx]
+						InfinitySettingsPanel:SetSetting(catName, key, nextOpt)
+						if catName == "Appearance" and key == "Theme" and _G.InfinityUIFramework then
+							_G.InfinityUIFramework:LoadTheme(nextOpt)
+						end
+						cycleBtn:SetText(tostring(nextOpt))
+						lbl:SetText(key .. ": " .. tostring(nextOpt))
+					end)
+					y = y - 26
+				end
+			end
+			y = y - 8
+		end
+	end
+	
+	local openHubBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+	openHubBtn:SetSize(160, 24)
+	openHubBtn:SetPoint("TOPLEFT", 24, y - 6)
+	openHubBtn:SetText("Open Infinity Hub")
+	openHubBtn:SetScript("OnClick", function()
+		if _G.InfinityMainFrame and _G.InfinityMainFrame.Toggle then
+			_G.InfinityMainFrame:Toggle()
+		end
+	end)
+	
+	self.blizzardPanel = panel
+	
+	if _G.Settings and _G.Settings.RegisterCanvasLayoutCategory and _G.Settings.RegisterAddOnCategory then
+		local category = _G.Settings.RegisterCanvasLayoutCategory(panel, "Infinity Suite")
+		category.ID = "Infinity Suite"
+		_G.Settings.RegisterAddOnCategory(category)
+		self.blizzardCategory = category
+	elseif _G.InterfaceOptions_AddCategory then
+		_G.InterfaceOptions_AddCategory(panel)
+		self.blizzardCategory = panel
+	end
+	
+	return self.blizzardCategory
+end
+
+function InfinitySettingsPanel:OpenBlizzardSettings()
+	if not self.blizzardCategory then
+		self:RegisterBlizzardSettings()
+	end
+	if _G.Settings and _G.Settings.OpenToCategory and self.blizzardCategory then
+		local catId = (type(self.blizzardCategory) == "table" and self.blizzardCategory.GetID and self.blizzardCategory:GetID()) or self.blizzardCategory.ID or "Infinity Suite"
+		_G.Settings.OpenToCategory(catId)
+	elseif _G.InterfaceOptionsFrame_OpenToCategory and self.blizzardPanel then
+		_G.InterfaceOptionsFrame_OpenToCategory(self.blizzardPanel)
+	end
 end
 
 return InfinitySettingsPanel

@@ -2,9 +2,10 @@
 -- Gathering route manager
 
 local InfinityGatherPathUI = {}
+_G.InfinityGatherPathUI = InfinityGatherPathUI
 
 function InfinityGatherPathUI:Initialize()
-    self.frame = CreateFrame("Frame", "InfinityGatherPathMainFrame", UIParent)
+    self.frame = CreateFrame("Frame", "InfinityGatherPathMainFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
     self.frame:SetSize(500, 400)
     self.frame:SetPoint("CENTER", UIParent, "CENTER", 300, -100)
     self.frame:SetBackdrop({
@@ -17,7 +18,7 @@ function InfinityGatherPathUI:Initialize()
     self.frame:SetBackdropBorderColor(0.8, 0.8, 0.8, 1)
     
     -- Title
-    local title = self.frame:CreateFontString(nil, "ARTWORK", "GameFontBold")
+    local title = self.frame:CreateFontString(nil, "ARTWORK", (GameFontBold and "GameFontBold" or "GameFontNormalLarge"))
     title:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 10, -10)
     title:SetText("Infinity GatherPath")
     

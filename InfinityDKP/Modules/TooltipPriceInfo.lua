@@ -3,6 +3,7 @@
 -- Displays estimated GP cost and priority info when hovering items
 
 local TooltipPriceInfo = {}
+_G.InfinityDKPTooltipPriceInfo = TooltipPriceInfo
 TooltipPriceInfo.enabled = false
 TooltipPriceInfo.db = nil
 TooltipPriceInfo.cache = {}
@@ -29,35 +30,46 @@ function TooltipPriceInfo:Initialize()
     
     self.enabled = true
     
-    -- Hook into tooltip system
-    if GameTooltip then
-        GameTooltip:HookScript("OnTooltipSetItem", function(self)
-            TooltipPriceInfo:OnTooltipShow(self)
-        end)
-    end
-    
-    if ItemRefTooltip then
-        ItemRefTooltip:HookScript("OnTooltipSetItem", function(self)
-            TooltipPriceInfo:OnTooltipShow(self)
-        end)
+    -- Hook into tooltip system (Forever 1.60.1 TooltipDataProcessor + legacy fallback)
+    if not self.hooked then
+        self.hooked = true
+        if _G.TooltipDataProcessor and _G.TooltipDataProcessor.AddTooltipPostCall and _G.Enum and _G.Enum.TooltipDataType and _G.Enum.TooltipDataType.Item then
+            _G.TooltipDataProcessor.AddTooltipPostCall(_G.Enum.TooltipDataType.Item, function(tooltip, data)
+                TooltipPriceInfo:OnTooltipShow(tooltip, data)
+            end)
+        else
+            if GameTooltip and GameTooltip.HasScript and GameTooltip:HasScript("OnTooltipSetItem") then
+                GameTooltip:HookScript("OnTooltipSetItem", function(tt)
+                    TooltipPriceInfo:OnTooltipShow(tt)
+                end)
+            end
+            if ItemRefTooltip and ItemRefTooltip.HasScript and ItemRefTooltip:HasScript("OnTooltipSetItem") then
+                ItemRefTooltip:HookScript("OnTooltipSetItem", function(tt)
+                    TooltipPriceInfo:OnTooltipShow(tt)
+                end)
+            end
+        end
     end
     
     self:Log("Initialized")
 end
 
-function TooltipPriceInfo:OnTooltipShow(tooltip)
-    if not self.enabled or not self.db then
+function TooltipPriceInfo:OnTooltipShow(tooltip, data)
+    if not self.enabled or not tooltip then
+        return
+    end
+    if tooltip.IsForbidden and tooltip:IsForbidden() then
         return
     end
     
-    -- Get item link from tooltip
-    local name, link = tooltip:GetItem()
-    if not link then
-        return
+    local itemID = data and data.id
+    if not itemID and tooltip.GetItem then
+        local _, link = tooltip:GetItem()
+        itemID = self:ExtractItemID(link)
     end
-    
-    -- Parse item ID from link
-    local itemID = self:ExtractItemID(link)
+    if not itemID and data and data.hyperlink then
+        itemID = self:ExtractItemID(data.hyperlink)
+    end
     if not itemID then
         return
     end
@@ -89,14 +101,16 @@ function TooltipPriceInfo:GetItemPrice(itemID)
         return self.cache[itemID]
     end
     
-    -- Look up in DKP economy system
-    if not self.db.economy or not self.db.economy.item_prices then
-        return nil
-    end
-    
-    local priceData = self.db.economy.item_prices[itemID]
+    -- Look up in DKP economy system, or estimate by rarity/ilvl for equippable/uncommon+ items
+    local priceData = self.db and self.db.economy and self.db.economy.item_prices and self.db.economy.item_prices[itemID]
     if not priceData then
-        return nil
+        local _, _, rarity, ilvl = InfinityUtils:GetItemInfo(itemID)
+        if rarity and rarity >= 2 then
+            local mult = (rarity == 2 and 0.5) or (rarity == 3 and 1.0) or (rarity == 4 and 2.0) or 3.0
+            priceData = { gp = math.max(10, math.floor((ilvl or 1) * mult)), ep = 0 }
+        else
+            return nil
+        end
     end
     
     -- Calculate statistics

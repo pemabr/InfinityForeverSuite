@@ -1,0 +1,12 @@
+
+## Interface: 20505, 16001
+## Title: Healer LoS Helper
+## Notes: Shows visual feedback and notifies target on LoS or range failure
+## Author: MaeX78
+## Version: 1.9
+## SavedVariables: Healer_LoS_HelperDB
+
+Locales/enUS.lua
+Locales/deDE.lua
+main.lua
+config.lua

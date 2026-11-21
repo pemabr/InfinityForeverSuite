@@ -128,7 +128,7 @@ function QuestDifficultyFilterEngine:GetDifficultyName(difficulty)
     end
     
     -- Round to nearest integer
-    difficulty = math.round(difficulty)
+    difficulty = math.floor(difficulty + 0.5)
     
     return self.difficulty_names[difficulty] or "Unknown"
 end
@@ -234,7 +234,7 @@ function QuestDifficultyFilterEngine:GetDifficultyDistribution(questList)
     for _, quest in ipairs(questList) do
         local difficulty = self:GetQuestDifficulty(quest.id)
         if difficulty then
-            difficulty = math.round(difficulty)
+            difficulty = math.floor(difficulty + 0.5)
             if distribution[difficulty] then
                 distribution[difficulty] = distribution[difficulty] + 1
             end

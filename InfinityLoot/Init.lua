@@ -25,10 +25,11 @@ local function InitializeInfinityLoot()
 	if InfinityDKPTaxation then pcall(function() InfinityDKPTaxation:Initialize() end) end
 	if InfinityPointAuditing then pcall(function() InfinityPointAuditing:Initialize() end) end
 	if InfinityLootAccessControl then pcall(function() InfinityLootAccessControl:Initialize() end) end
+	if InfinityTooltipPrices then pcall(function() InfinityTooltipPrices:Initialize() end) end
 	if InfinityLootAuctionIntegration then pcall(function() InfinityLootAuctionIntegration:Initialize() end) end
 	if InfinityLootAuctionUI then pcall(function() InfinityLootAuctionUI:Initialize() end) end
-	InfinityPerformanceOptimizer:Enable()
-	InfinityCompatibilityChecker:RegisterAddonsForChecking()
+	if InfinityPerformanceOptimizer and InfinityPerformanceOptimizer.Enable then InfinityPerformanceOptimizer:Enable() end
+	if InfinityCompatibilityChecker and InfinityCompatibilityChecker.RegisterAddonsForChecking then InfinityCompatibilityChecker:RegisterAddonsForChecking() end
 	if InfinityDataIntegrityVerifier then pcall(function() InfinityDataIntegrityVerifier:Initialize() end) end
 	if InfinityDiagnosticsConsole then pcall(function() InfinityDiagnosticsConsole:Initialize() end) end
 	
@@ -312,20 +313,16 @@ local function InitializeInfinityLoot()
 	end)
 	
 	InfinityCommandRegistry:RegisterKeybind("TOGGLE_DKP_UI", "Toggle DKP UI", function()
-		InfinityDKPUI:ToggleWindow()
+		if _G.InfinityDKPUI and _G.InfinityDKPUI.Toggle then
+			_G.InfinityDKPUI:Toggle()
+		end
 	end)
 	
 	-- Mark feature as enabled by default
 	InfinityStorageManager:SetFeatureEnabled(INFINITY_FEATURES.LOOT, true)
 	
-	InfinityUtils:Info("InfinityLoot initialized successfully", "InfinityLoot")
-	InfinityMessaging:Publish(INFINITY_EVENTS.FEATURE_ENABLED, INFINITY_FEATURES.LOOT, true)
-end
-
-
-local function RegisterAddonWithInfinityManager()
 	if _G.InfinityAddonManager then
-		_G.InfinityAddonManager:RegisterAddon(ADDON_NAME, ADDON_VERSION, {
+		_G.InfinityAddonManager:RegisterAddon("InfinityLoot", "1.2.2", {
 			description = "Loot management",
 			author = "Infinity Suite Team",
 			category = "Loot",
@@ -333,9 +330,12 @@ local function RegisterAddonWithInfinityManager()
 			settings = {{}}
 		})
 	end
+	
+	InfinityUtils:Info("InfinityLoot initialized successfully", "InfinityLoot")
+	InfinityMessaging:Publish(INFINITY_EVENTS.FEATURE_ENABLED, INFINITY_FEATURES.LOOT, true)
 end
 
-	local frame = CreateFrame("Frame")
+local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:SetScript("OnEvent", function(self, event, addonName)
 	if addonName == "InfinityLoot" then

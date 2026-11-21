@@ -2,9 +2,10 @@
 -- Individual actor performance breakdown
 
 local InfinityDetailsBreakdown = {}
+_G.InfinityDetailsBreakdown = InfinityDetailsBreakdown
 
 function InfinityDetailsBreakdown:Initialize()
-    self.frame = CreateFrame("Frame", "InfinityDetailsBreakdownFrame", UIParent)
+    self.frame = CreateFrame("Frame", "InfinityDetailsBreakdownFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
     self.frame:SetSize(500, 400)
     self.frame:SetPoint("CENTER", UIParent, "CENTER", 300, 0)
     self.frame:SetBackdrop({
@@ -17,7 +18,7 @@ function InfinityDetailsBreakdown:Initialize()
     self.frame:SetBackdropBorderColor(0.8, 0.8, 0.8, 1)
     
     -- Title
-    local title = self.frame:CreateFontString(nil, "ARTWORK", "GameFontBold")
+    local title = self.frame:CreateFontString(nil, "ARTWORK", (GameFontBold and "GameFontBold" or "GameFontNormalLarge"))
     title:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 10, -10)
     title:SetText("Infinity Details - Breakdown")
     

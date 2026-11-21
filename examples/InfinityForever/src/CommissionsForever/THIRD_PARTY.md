@@ -1,0 +1,30 @@
+# Third party materials
+
+## Inputs
+
+| Input | Source and pin | Licence | Ships in zip |
+|---|---|---|---|
+| Quest names, item objectives and NPC locations | Read from the installed QuestieDB public API at runtime; no QuestieDB data is copied. | QuestieDB | No separate data files |
+| Item names and bag counts | Read from the WoW client at runtime. | Blizzard client data | No separate data files |
+| WoW Forever shared UI mock renderer | `cjber/forever-core/tools/wowmock`, pinned by `tools/forever_tools/MANIFEST.json`. | MIT | No |
+| Recipe materials and multi-stop routes | Read at runtime from the public APIs of SkillUp Forever and Shortest Path Forever, when they are installed; nothing is copied. | Their own, GPL-3.0-or-later | No |
+| Commissions Forever icon | `media/icon.svg`, rendered from the Forever family icon template. | Commissions Forever, GPL-3.0-or-later | Yes |
+| Ko-fi's Support me on Ko-fi button | The support button in the README (`ko-fi.com/img/githubbutton_sm.svg`) and its PNG render, `docs/kofi-button.png`, in the store description; pin: None: the README links Ko-fi's live file; the PNG is rendered from it | Ko-fi's brand asset, used as Ko-fi provides it for linking to a Ko-fi page | No |
+| `docs/github-sponsors-button.png` | The GitHub Sponsors button in the README and store description; drawn here to match the Ko-fi button, with the heart from GitHub's [Octicons](https://github.com/primer/octicons) and the Adwaita Sans font; pin: None | Octicons: MIT; Adwaita Sans: SIL OFL 1.1 | No |
+| `docs/discord-button.png` | The Discord button on the store page; drawn in forever-core with Discord's logo from [Simple Icons](https://simpleicons.org) and the Adwaita Sans font; pin: None | Simple Icons: CC0; Adwaita Sans: SIL OFL 1.1; the logo is Discord's, used to link to a Discord server | No |
+
+## Players
+
+Credit for the reports and requests behind the addon.
+
+| Who | What | Notes |
+|---|---|---|
+
+## Inspired by
+
+Credit for the addons and projects an idea came from.
+
+| Who | What | Notes |
+|---|---|---|
+
+Thanks also to everyone else who reported a bug or asked for a feature, here or on CurseForge.

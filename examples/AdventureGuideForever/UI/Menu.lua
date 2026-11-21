@@ -1,0 +1,332 @@
+local ForeverCoreHostChunk = function(...) ---@type string, AGFNamespace
+local _, ns = ...
+
+if ns.broken then
+	return
+end
+local L = ns.L
+
+-- The step menu (docs/design.md §2.8), one generator for the tracker's right-click and a step row's. It loads before
+-- Tracker.lua, which needs it before Blizzard_WorldMap (and so the guide) has loaded.
+---@class AGFMenuModule
+local Menu = {}
+ns.Menu = Menu
+
+---@alias AGFMenuButton fun(self: any, text: string, fn?: function): ForeverMenuDescription
+---@alias AGFMenuTitle fun(self: any, text: string): any
+---@alias AGFMenuFn fun(self: any, text: string, fn: fun()): any
+---@alias AGFSubmenu fun(self: any, text: string): ForeverMenuDescription
+---@alias AGFMenuActions { CreateButton: AGFMenuButton }
+---@alias AGFStepMenuRoot { CreateButton: AGFMenuButton, CreateTitle: AGFMenuTitle }
+---@alias AGFStepMenuSlots { Primary: AGFMenuFn, Open: AGFMenuFn, End: AGFMenuFn, Submenu: AGFSubmenu }
+
+-- A submenu built from a list scrolls past 20 rows of 20 px rather than running off the screen (WFA-36).
+local MENU_EXTENT = 400
+
+---@param choose ForeverMenuDescription
+local function GuideChoices(choose)
+	local groups = {}
+	choose:SetScrollMode(MENU_EXTENT)
+	for _, guide in ipairs(ns.RestedXP.Guides()) do
+		local group = groups[guide.group]
+		if not group then
+			group = choose:CreateButton(guide.group)
+			group:SetScrollMode(MENU_EXTENT)
+			groups[guide.group] = group
+		end
+		group:CreateButton(guide.name, function()
+			ns.RestedXP.Choose(guide.group, guide.name, true)
+		end)
+	end
+end
+
+-- Guide actions use the same menus as journey cards and step rows.
+---@param root AGFMenuActions
+local function GuideEntries(root)
+	if not ns.RestedXP.Active() then
+		return
+	end
+	local submenu = root:CreateButton(L.RXP_TITLE)
+	GuideChoices(submenu:CreateButton(L.RXP_SELECT))
+	submenu:CreateButton(L.RXP_PREVIOUS, function()
+		ns.RestedXP.Move(-1)
+	end)
+	submenu:CreateButton(L.RXP_NEXT, function()
+		ns.RestedXP.Move(1)
+	end)
+	submenu:CreateButton(L.RXP_IMPORT, ns.RestedXP.OpenImport)
+	submenu:CreateButton(L.RXP_SETTINGS, ns.RestedXP.OpenSettings)
+	submenu:CreateButton(L.RXP_ORIGINAL, ns.RestedXP.UseOriginal)
+end
+
+-- "Show again: <title>" for each step skipped this session, in the order they were skipped, then each journey this
+-- character is not interested in, then each aside it turned down.
+---@param description ForeverMenuDescription
+function Menu.Skipped(description)
+	description:SetScrollMode(MENU_EXTENT)
+	for _, skipped in ipairs(ns.Skipped()) do
+		description:CreateButton(L.SHOW_AGAIN:format(skipped.title), function()
+			ns.Unskip(skipped.key)
+		end)
+	end
+end
+
+-- Go's warning (docs/design.md §2.9) for any surface that starts the route: callers ask
+-- ns.Integrations.ReplacesJourney() first, since there is nothing to say otherwise.
+---@param tooltip GameTooltip
+---@param title string
+function Menu.GoWarning(tooltip, title)
+	GameTooltip_SetTitle(tooltip, title)
+	GameTooltip_AddInstructionLine(tooltip, L.REPLACES_JOURNEY)
+end
+
+-- "Not this quest" (docs/design.md §2.18) for a step's quests: one button for a lone quest, else one per quest under
+-- it. A trainer's or battlemaster's stop has none. The quest stays in the log; Show again brings it back.
+---@param root AGFMenuActions
+---@param step AGFStep
+local function NotThisQuest(root, step)
+	if step.kind == "trainer" or step.kind == "battlemaster" or #step.quests == 0 then
+		return
+	end
+	local log = ns.Snapshot().log
+	local function Title(id)
+		local entry, quest = log[id], ns.Data.quests[id]
+		return (entry and entry.title) or (quest and quest.title) or step.title
+	end
+	if #step.quests == 1 then
+		local id = step.quests[1]
+		root:CreateButton(L.NOT_THIS_QUEST, function()
+			ns.NotThisQuest(id, Title(id))
+		end)
+		return
+	end
+	local submenu = root:CreateButton(L.NOT_THIS_QUEST)
+	submenu:SetScrollMode(MENU_EXTENT)
+	for _, id in ipairs(step.quests) do
+		submenu:CreateButton(Title(id), function()
+			ns.NotThisQuest(id, Title(id))
+		end)
+	end
+end
+
+---@param root AGFStepMenuRoot
+---@param step? AGFStep
+---@param slots AGFStepMenuSlots
+local function Step(root, step, slots)
+	root:CreateTitle(step and step.title or ns.TITLE)
+	if step and not ns.Setting("wanderer") then
+		if ns.Setting("informationOnly") then
+			slots:Primary(L.SHOW_ON_MAP, function()
+				C_Timer.After(0, function()
+					ns.Guidance.ShowOnMap(step)
+				end)
+			end)
+		else
+			local go = slots:Primary(L.GO, function()
+				ns.StartRoute(step)
+			end)
+			if go and ns.Integrations.ReplacesJourney() then
+				go:SetTooltip(function(tooltip)
+					Menu.GoWarning(tooltip, L.GO)
+				end)
+			end
+		end
+	end
+	-- Core places End last regardless of when it is supplied; panel rows retain their existing menu order.
+	if ns.Prefs().journey then
+		slots:End(L.END_JOURNEY, ns.Stop)
+	end
+	-- The quest's map only opens out of combat, so in combat the entry is left out rather than doing nothing.
+	-- MenuUtil runs a responder inside its securecall, where the restricted C_Map.OpenWorldMap is refused (#411); the
+	-- open is asked for on the next frame so it does not depend on what the menu's securecall allows.
+	if step and ns.InLog(step) and not InCombatLockdown() then
+		root:CreateButton(L.SHOW_QUEST, function()
+			C_Timer.After(0, function()
+				ns.ShowQuest(step)
+			end)
+		end)
+	end
+	-- An area with more than one spot: the next one, for a camp that's cleared or contested, standing in it or not.
+	if step and step.kind == "area" and #ns.Model.Spots(step) > 1 then
+		root:CreateButton(L.NEXT_CAMP, function()
+			ns.NextCamp(step)
+		end)
+	end
+	if step then
+		root:CreateButton(L.SKIP, function()
+			ns.Skip(step.key, step.title)
+		end)
+		if step.rxpIndex then
+			GuideEntries(root)
+		else
+			NotThisQuest(root, step)
+		end
+	end
+	local skipped = #ns.Skipped()
+	if skipped > 0 then
+		Menu.Skipped(slots:Submenu(L.SKIPPED:format(skipped)))
+	end
+	if ns.OpenPanel then
+		slots:Open(L.CHOOSE_JOURNEY, function()
+			C_Timer.After(0, ns.OpenPanel)
+		end)
+	end
+end
+
+-- Panel rows and tracker slots share the same entry list. Nested descriptions remain ordinary menus.
+---@param root ForeverMenuDescription
+---@param step? AGFStep
+function Menu.Step(root, step)
+	local function Button(_, text, fn)
+		return root:CreateButton(text, fn)
+	end
+	Step(root, step, { Primary = Button, Open = Button, End = Button, Submenu = Button })
+end
+
+---@param menu ForeverTrackerMenuBuilder
+---@param step? AGFStep
+function Menu.TrackerStep(menu, step)
+	---@type AGFStepMenuRoot
+	local root = {
+		CreateTitle = function(_, text)
+			menu:Title(text)
+			return nil
+		end,
+		CreateButton = function(_, text, fn)
+			return menu:Action(text, fn)
+		end,
+	}
+	Step(root, step, menu)
+end
+
+-- The Library books card's territory: Horde or Alliance radio buttons, the player's own faction until they pick one.
+-- The choice is the character's, so switching territories rebuilds the single card rather than adding a second.
+---@param root ForeverMenuDescription
+local function LibraryTerritories(root)
+	local prefs, player = ns.Prefs(), ns.State.Player()
+	local current = prefs.booksTerritory
+	if current ~= 1 and current ~= 2 then
+		current = player.side == 2 and 2 or 1
+	end
+	for value, label in ipairs({ L.BOOKS_TERRITORY_ALLIANCE, L.BOOKS_TERRITORY_HORDE }) do
+		root:CreateRadio(label, function()
+			return current == value
+		end, function()
+			prefs.booksTerritory = value
+			ns.Invalidate()
+		end)
+	end
+end
+
+-- The journey card's menu, including its dungeon companion data.
+---@param owner Region
+---@param journey AGFJourney
+function Menu.Journey(owner, journey)
+	ForeverCore.ContextMenu(owner, function(_, root)
+		root:CreateTitle(journey.title)
+		if journey.kind == "guide" then
+			GuideEntries(root)
+		end
+		if journey.kind == "tracked" then
+			local choices = root:CreateButton(L.TRAINER_STOPS)
+			choices:SetScrollMode(MENU_EXTENT)
+			local player, prefs = ns.State.Player(), ns.Prefs()
+			local zones = {}
+			for _, id in ipairs(ns.Planner.Services.Choices(ns.Data, player)) do
+				local place = ns.Data.npcs[id].place
+				local zone = zones[place.map]
+				if not zone then
+					zone = choices:CreateButton((C_Map.GetMapInfo(place.map) or {}).name or tostring(place.map))
+					zone:SetScrollMode(MENU_EXTENT)
+					zones[place.map] = zone
+				end
+				zone:CreateCheckbox(place.name, function()
+					return prefs.trainerStops[id] == true
+				end, function()
+					prefs.trainerStops[id] = not prefs.trainerStops[id] or nil
+					ns.Invalidate()
+				end)
+			end
+		end
+		if journey.kind == "library" then
+			LibraryTerritories(root)
+		end
+		if journey.instance then
+			local loot = root:CreateButton(L.DUNGEON_BOSSES_LOOT)
+			loot:SetScrollMode(MENU_EXTENT)
+			local bosses, hint = ns.DungeonLoot.Bosses(journey.instance)
+			if hint then
+				loot:CreateTitle(hint)
+			end
+			for _, boss in ipairs(bosses) do
+				local drops = loot:CreateButton(boss.name)
+				drops:SetScrollMode(MENU_EXTENT)
+				drops:CreateTitle(boss.name)
+				for _, id in ipairs(boss.items) do
+					local name = C_Item.GetItemNameByID(id)
+					if not name then
+						C_Item.RequestLoadItemDataByID(id)
+					end
+					drops:CreateButton(name or L.ITEM_LOADING):SetTooltip(function(tooltip)
+						tooltip:SetItemByID(id)
+					end)
+				end
+			end
+		end
+		root:CreateButton(L.NOT_INTERESTED, function()
+			ns.NotInterested(journey.key, journey.title)
+		end)
+	end)
+end
+
+---@return string
+function Menu.ClickLine()
+	if ns.Setting("informationOnly") then
+		return L.CLICK_SHOW_MAP
+	end
+	local provider = ns.Integrations.Provider()
+	return provider and L.CLICK_TRAVEL:format(provider) or L.CLICK_WAYPOINT
+end
+
+---@param _ Region
+---@param menu ForeverMenuDescription
+function Menu.Settings(_, menu)
+	local function Setting(label, key)
+		return menu:CreateCheckbox(label, function()
+			return ns.Setting(key)
+		end, function()
+			ns.SetSetting(key, not ns.Setting(key))
+		end)
+	end
+	local function Pref(label, key)
+		menu:CreateCheckbox(label, function()
+			return ns.Prefs()[key]
+		end, function()
+			local prefs = ns.Prefs()
+			prefs[key] = not prefs[key]
+			ns.Invalidate()
+		end)
+	end
+	Setting(ns.L.SETTING_RXP, "restedxpGuide")
+	GuideEntries(menu)
+	Pref(ns.L.MENU_QUESTS, "quests")
+	Pref(ns.L.MENU_DUNGEONS, "dungeons")
+	Pref(ns.L.MENU_BATTLEGROUNDS, "battlegrounds")
+	Setting(ns.L.MENU_MAP_PINS, "showMapPins")
+	Setting(ns.L.MENU_HIDE_QUEST_MARKERS, "hideQuestMarkers")
+	-- Givers draw only with map pins on, so the box is grayed until they are (the menu polls a function).
+	Setting(ns.L.MENU_GIVERS, "showQuestGivers"):SetEnabled(function()
+		return ns.Setting("showMapPins")
+	end)
+	Setting(ns.L.MENU_TRACKER, "showTracker")
+	-- Skipped steps, journeys not wanted and asides turned down, each with Show again.
+	local skipped = #ns.Skipped()
+	if skipped > 0 then
+		ns.Menu.Skipped(menu:CreateButton(ns.L.SKIPPED:format(skipped)))
+	end
+	menu:CreateButton(ns.L.MENU_MORE_SETTINGS, function()
+		ns.OpenSettings()
+	end)
+end
+
+end local _, ForeverCoreHostNs = ... if type(ForeverCoreHostNs) == "table" and type(ForeverCoreHostNs.ForeverCoreHostChunks) == "table" then local chunks = ForeverCoreHostNs.ForeverCoreHostChunks chunks[#chunks + 1] = ForeverCoreHostChunk else return ForeverCoreHostChunk(...) end

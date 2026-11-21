@@ -21,7 +21,7 @@ function InfinityRosterManager:ScanGuild()
 	end
 	
 	self.guildName = GetGuildInfo("player")
-	local guildLevel = select(2, GetGuildLevel())
+	local guildLevel = _G.GetGuildLevel and select(2, _G.GetGuildLevel()) or 0
 	self.guildLevel = guildLevel or 0
 	
 	-- Get total members

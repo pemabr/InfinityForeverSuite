@@ -14,7 +14,7 @@ function InfinityVendorPricing:Initialize()
 end
 
 function InfinityVendorPricing:GetVendorPrice(itemId)
-	local name, link, quality, ilvl, _, _, _, _, _, _, sellPrice = GetItemInfo(itemId)
+	local name, link, quality, ilvl, _, _, _, _, _, _, sellPrice = InfinityUtils:GetItemInfo(itemId)
 	return sellPrice or 0
 end
 
@@ -45,7 +45,7 @@ function InfinityVendorPricing:CalculateBagValue()
 	
 	for bag, slots in pairs(InfinityBagTracker.bagContents) do
 		for slot, item in pairs(slots) do
-			local price = self:GetAuctionPrice(item.itemId, GetContainerItemLink(bag, slot))
+			local price = self:GetAuctionPrice(item.itemId, InfinityUtils:GetBagItemLink(bag, slot))
 			total = total + (price * item.quantity)
 		end
 	end

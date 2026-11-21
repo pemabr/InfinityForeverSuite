@@ -1,0 +1,15 @@
+## Interface: 11509, 20506, 38002, 120100
+## Title: Infinity Analytics
+## Notes: Real-time DPS/HPS meter and performance analytics
+## Author: Infinity Suite
+## Version: 1.0.0
+## Parent: InfinityCore
+## SavedVariables: InfinityAnalyticsDB
+## OptionalDeps: InfinityCore
+
+Init.lua
+
+Modules\CombatAnalytics.lua
+Modules\BuffTracker.lua
+Modules\CompositionOptimizer.lua
+Modules\LootAnalytics.lua

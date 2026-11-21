@@ -33,12 +33,19 @@ end
 
 -- Sync with QuestieDB
 function InfinityDataCollectorDBIntegration:SyncQuestieDB()
+	local integration = self.integrations["questiedb"]
+	if integration then
+		integration.lastSync = time()
+	end
 	if not _G.QuestieDB then
-		InfinityUtils:Warning("QuestieDB not found, skipping sync", "DBIntegration")
+		if integration and integration.status ~= "not_loaded" then
+			integration.status = "not_loaded"
+			InfinityUtils:Info("QuestieDB not found, skipping sync", "DBIntegration")
+		end
 		return false
 	end
 	
-	pcall(function()
+	local ok = pcall(function()
 		local questDB = _G.QuestieDB.questData or {}
 		local npcDB = _G.QuestieDB.npcData or {}
 		
@@ -72,24 +79,32 @@ function InfinityDataCollectorDBIntegration:SyncQuestieDB()
 			end
 		end
 		
-		self.integrations["questiedb"].status = "synced"
-		self.integrations["questiedb"].lastSync = time()
+		if integration then
+			integration.status = "synced"
+			integration.lastSync = time()
+		end
 		
 		InfinityUtils:Info("QuestieDB sync complete", "DBIntegration")
-		return true
 	end)
 	
-	return false
+	return ok
 end
 
 -- Sync with WowHead data (if available)
 function InfinityDataCollectorDBIntegration:SyncWowHeadDB()
+	local integration = self.integrations["wowheaddb"]
+	if integration then
+		integration.lastSync = time()
+	end
 	if not _G.WowHeadDB then
-		InfinityUtils:Warning("WowHeadDB not found, skipping sync", "DBIntegration")
+		if integration and integration.status ~= "not_loaded" then
+			integration.status = "not_loaded"
+			InfinityUtils:Info("WowHeadDB not found, skipping sync", "DBIntegration")
+		end
 		return false
 	end
 	
-	pcall(function()
+	local ok = pcall(function()
 		local mobDB = _G.WowHeadDB.mobs or {}
 		local dropDB = _G.WowHeadDB.drops or {}
 		
@@ -120,24 +135,32 @@ function InfinityDataCollectorDBIntegration:SyncWowHeadDB()
 			end
 		end
 		
-		self.integrations["wowheaddb"].status = "synced"
-		self.integrations["wowheaddb"].lastSync = time()
+		if integration then
+			integration.status = "synced"
+			integration.lastSync = time()
+		end
 		
 		InfinityUtils:Info("WowHeadDB sync complete", "DBIntegration")
-		return true
 	end)
 	
-	return false
+	return ok
 end
 
 -- Sync with GathererDB
 function InfinityDataCollectorDBIntegration:SyncGathererDB()
+	local integration = self.integrations["gathererdb"]
+	if integration then
+		integration.lastSync = time()
+	end
 	if not _G.GathererDB then
-		InfinityUtils:Warning("GathererDB not found, skipping sync", "DBIntegration")
+		if integration and integration.status ~= "not_loaded" then
+			integration.status = "not_loaded"
+			InfinityUtils:Info("GathererDB not found, skipping sync", "DBIntegration")
+		end
 		return false
 	end
 	
-	pcall(function()
+	local ok = pcall(function()
 		local nodeDB = _G.GathererDB.nodes or {}
 		
 		-- Import nodes
@@ -157,14 +180,15 @@ function InfinityDataCollectorDBIntegration:SyncGathererDB()
 			end
 		end
 		
-		self.integrations["gathererdb"].status = "synced"
-		self.integrations["gathererdb"].lastSync = time()
+		if integration then
+			integration.status = "synced"
+			integration.lastSync = time()
+		end
 		
 		InfinityUtils:Info("GathererDB sync complete", "DBIntegration")
-		return true
 	end)
 	
-	return false
+	return ok
 end
 
 -- Perform all configured syncs
@@ -211,12 +235,25 @@ function InfinityDataCollectorDBIntegration:AutoSync()
 	
 	for dbName, integration in pairs(self.integrations) do
 		if integration.enabled and (now - integration.lastSync) >= integration.syncInterval then
+			integration.lastSync = now
 			if dbName == "questiedb" then
-				table.insert(synced, {name = dbName, success = self:SyncQuestieDB()})
+				if _G.QuestieDB then
+					table.insert(synced, {name = dbName, success = self:SyncQuestieDB()})
+				else
+					integration.status = "not_loaded"
+				end
 			elseif dbName == "wowheaddb" then
-				table.insert(synced, {name = dbName, success = self:SyncWowHeadDB()})
+				if _G.WowHeadDB then
+					table.insert(synced, {name = dbName, success = self:SyncWowHeadDB()})
+				else
+					integration.status = "not_loaded"
+				end
 			elseif dbName == "gathererdb" then
-				table.insert(synced, {name = dbName, success = self:SyncGathererDB()})
+				if _G.GathererDB then
+					table.insert(synced, {name = dbName, success = self:SyncGathererDB()})
+				else
+					integration.status = "not_loaded"
+				end
 			end
 		end
 	end

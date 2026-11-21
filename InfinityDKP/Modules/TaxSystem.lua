@@ -213,7 +213,7 @@ function InfinityDKPTaxSystem:CollectTax(playerName, goldEarned, reason)
 	end
 	
 	-- Trigger callback
-	self:TriggerCallback("tax_collected", playerName, goldTaxed, dkpAwarded, reason)
+	self:TriggerCallback("tax_collected", playerName, taxAmount, dkpAwarded, reason)
 	
 	InfinityUtils:Info("Tax collected from " .. playerName .. ": " .. taxAmount .. "g → " .. dkpAwarded .. " DKP", "TaxSystem")
 	

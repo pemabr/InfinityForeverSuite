@@ -188,7 +188,7 @@ function RefundSystem:ApproveRefund(refundRequestID, approverName)
     return true
 end
 
-function RefundSystem:DenyRefund(refundRequestID, denyReasonReason)
+function RefundSystem:DenyRefund(refundRequestID, denyReason)
     if not self.enabled or not self.db then
         return false
     end

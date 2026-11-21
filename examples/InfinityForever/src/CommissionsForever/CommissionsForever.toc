@@ -1,0 +1,76 @@
+## Interface: 16001
+## X-Forever-Core: v1.15.4
+## Title: Commissions Forever
+## Notes: Tracks repeatable Classic turn-ins and the materials in your bags.
+## Author: cjber
+## Version: 0.4.14
+## Category: Quests
+## X-License: GPL-3.0-or-later
+## X-Website: https://github.com/cjber/commissions-forever
+## X-Donate: https://github.com/sponsors/cjber
+## X-Curse-Project-ID: 1794367
+## SavedVariables: CommissionsForeverDB
+## X-Forever-Core-Embed: 1
+## OptionalDeps: QuestieDB, SkillUpForever, ShortestPathForever, ForeverCore
+## IconTexture: Interface\AddOns\CommissionsForever\media\Icon
+## X-Forever-Icon: Interface\Icons\INV_Letter_15
+## AddonCompartmentFunc: CommissionsForever_OnAddonCompartmentClick
+
+Libs\ForeverCore\Core\Loader.lua
+Libs\ForeverCore\Begin.lua
+Libs\ForeverCore\Core.lua
+Libs\ForeverCore\Locales\enUS.lua
+Libs\ForeverCore\Locales\deDE.lua
+Libs\ForeverCore\Locales\esES.lua
+Libs\ForeverCore\Locales\esMX.lua
+Libs\ForeverCore\Locales\frFR.lua
+Libs\ForeverCore\Locales\koKR.lua
+Libs\ForeverCore\Locales\ptBR.lua
+Libs\ForeverCore\Locales\ruRU.lua
+Libs\ForeverCore\Locales\zhCN.lua
+Libs\ForeverCore\Locales\zhTW.lua
+Libs\ForeverCore\Data\Credits.lua
+Libs\ForeverCore\Core\SafeCall.lua
+Libs\ForeverCore\Core\Open.lua
+Libs\ForeverCore\Core\OpenMap.lua
+Libs\ForeverCore\Core\OpenSettings.lua
+Libs\ForeverCore\Core\Log.lua
+Libs\ForeverCore\Core\Capture.lua
+Libs\ForeverCore\Core\Performance.lua
+Libs\ForeverCore\Core\Text.lua
+Libs\ForeverCore\UI\Art.lua
+Libs\ForeverCore\UI\Report.lua
+Libs\ForeverCore\UI\Credits.lua
+Libs\ForeverCore\UI\SettingsPage.lua
+Libs\ForeverCore\UI\SettingsSections.lua
+Libs\ForeverCore\UI\TrackerLock.lua
+Libs\ForeverCore\UI\TrackerOrder.lua
+Libs\ForeverCore\UI\ContextMenu.lua
+Libs\ForeverCore\UI\TrackerHost.lua
+Libs\ForeverCore\UI\TrackerSection.xml
+Libs\ForeverCore\UI\TrackerSection.lua
+Libs\ForeverCore\UI\MapCanvas.lua
+Libs\ForeverCore\Core\APIKit.lua
+Libs\ForeverCore\Core\Journey.lua
+Libs\ForeverCore\UI\QuestLogTabs.lua
+Libs\ForeverCore\UI\ProfessionTabs.lua
+Libs\ForeverCore\Expose.lua
+Libs\ForeverCore\End.lua
+ForeverCoreHost.lua
+Core\ForeverRequire.lua
+Core\Require.lua
+Locales\enUS.lua
+Data\TurnIns.lua
+Data\Credits.lua
+Core\Model.lua
+Integrations\Questie.lua
+Integrations\SkillUp.lua
+Integrations\ShortestPath.lua
+Core\Report.lua
+Core\Core.lua
+Core\Stats.lua
+Core\API.lua
+UI\RowArt.lua
+UI\Window.lua
+ForeverCoreRun.lua
+ForeverCoreReady.lua

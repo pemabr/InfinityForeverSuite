@@ -1,0 +1,54 @@
+## Interface: 16001
+## Title: |cff00ccffInfinity|r Loot
+## Notes: Unified loot management, tracking, and economy features for the Infinity Suite.
+## Author: Infinity Suite Team
+## Version: 1.2.2
+## SavedVariables: InfinityLootDB
+## Depends: InfinityCore
+## X-Category: Loot
+
+Localization\Localization.lua
+
+Modules\LootManager.lua
+Modules\Tracking.lua
+Modules\Economy.lua
+Modules\AdvancedEconomy.lua
+Modules\Commissions.lua
+Modules\EPGP.lua
+Modules\Decay.lua
+Modules\LootHistory.lua
+Modules\DKPDisplayUI.lua
+Modules\DKPTrade.lua
+Modules\DKPTaxation.lua
+Modules\PointAuditing.lua
+Modules\AccessControl.lua
+Modules\Auctions.lua
+Modules\AuctionIntegration.lua
+Modules\PerformanceOptimizer.lua
+Modules\CompatibilityChecker.lua
+Modules\DataIntegrityVerifier.lua
+Modules\DiagnosticsConsole.lua
+Modules\LootAudit.lua
+Modules\GuildBankIntegration.lua
+Modules\LootAdvisor.lua
+Modules\TooltipPrices.lua
+Modules\BidNotification.lua
+Modules\LootQueueDisplay.lua
+Modules\LootReclaim.lua
+Modules\LiveBidBars.lua
+Modules\LootExporter.lua
+Modules\BidPopup.lua
+Modules\AwardDisplay.lua
+Modules\LootHistoryDB.lua
+Modules\LootValueAnalysis.lua
+Modules\LootQueueDisplay.lua
+
+Tests\AuctionTests.lua
+Tests\ComprehensiveTests.lua
+Tests\IntegrationTests.lua
+Tests\CrossAddonIntegrationTests.lua
+
+UI\MainUI.lua
+UI\AuctionUI.lua
+
+Init.lua

@@ -11,16 +11,27 @@ function InfinityCharacterUI:CreatePanel(parentFrame)
 	local title = InfinityUIFramework:CreateLabel(panel, 
 		INFINITY_COLORS.PRIMARY .. "Character Management" .. INFINITY_COLORS.RESET)
 	title:SetPoint("TOPLEFT", 10, -10)
-	title:SetFont("Fonts/FRIZQT__.TTF", 14)
+	title:SetFont("Fonts/FRIZQT__.TTF", 14, "")
 	
 	local y = -35
 	
 	-- Current character info
-	local currentChar = InfinityCharacterManager:GetCurrentCharacter()
+	local currentChar = InfinityCharacterManager and InfinityCharacterManager:GetCurrentCharacter()
+	if not currentChar then
+		local waitLabel = InfinityUIFramework:CreateLabel(panel, "Waiting for character data...")
+		waitLabel:SetPoint("TOPLEFT", 10, y)
+		return panel
+	end
 	local currentInfo = InfinityUIFramework:CreateLabel(panel,
 		INFINITY_COLORS.SECONDARY .. currentChar.name .. INFINITY_COLORS.RESET .. 
-		" - Level " .. currentChar.level .. " " .. currentChar.class)
+		" - Level " .. currentChar.level .. " " .. tostring(currentChar.class))
 	currentInfo:SetPoint("TOPLEFT", 10, y)
+	if not currentChar.isMain then
+		local makeMainBtn = InfinityUIFramework:CreateButton(panel, "Set as Main", 100, 20, function()
+			InfinityCharacterManager:MarkAsMain(InfinityCharacterManager:GetCharacterKey(currentChar.name, currentChar.realm))
+		end)
+		makeMainBtn:SetPoint("TOPRIGHT", -20, y)
+	end
 	y = y - 20
 	
 	local charType = currentChar.isMain and "MAIN" or "TWINK"

@@ -1,0 +1,188 @@
+local ForeverCoreHostChunk = function(...) local _, addon = ...
+
+-- A class, not a reference, so ns.SavedTable keeps its overloads for the files that own a data table.
+---@class LegacyForeverNamespace
+local ns = addon
+
+if ns.broken then
+	return
+end
+
+-- What the addon keeps between sessions, and the only file that names LegacyForeverDB. Switches are read and
+-- written by their saved key alone; where a key sits in the saved table, what it defaults to and who hears
+-- about a change stay in here. The toc loads the saved variables before any file runs
+-- (LoadSavedVariablesFirst), but Forever's beta client can start without them, so every access makes the
+-- table it needs.
+---@class LegacySaved
+local Saved = {}
+ns.Saved = Saved
+
+-- Every switch's saved key: the top-level switches, then the ones under zoneCompletion (DEFAULTS below).
+---@alias LegacySwitchKey
+---| 'showTracker'
+---| 'showAreas'
+---| 'showOutlines'
+---| 'showEntrances'
+---| 'whatsNew'
+---| 'map'
+---| 'tracker'
+---| 'mapCollapsed'
+---| 'trackerCollapsed'
+---| 'count_areas'
+---| 'count_taxis'
+---| 'count_dungeons'
+---| 'count_raids'
+---| 'count_legacy'
+---| 'count_reputations'
+---| 'count_quests'
+---| 'accountQuests'
+
+-- Every switch's default. A saved switch stays nil until the player changes it, and nil reads as the
+-- default here, so an old save file and a new option always agree.
+---@type LegacyDefaults
+local DEFAULTS = {
+	-- The shading is the quickest way to see what a zone still hides.
+	showAreas = true,
+	showTracker = true,
+	-- The terrain fill names each area's real ground, but only where the client's terrain has it, so it waits
+	-- to be asked for.
+	showOutlines = false,
+	-- Many map addons already mark every entrance, so the player can hide Legacy's to avoid a second icon there.
+	showEntrances = true,
+	-- One chat line after an update, never on a first install.
+	whatsNew = true,
+	zoneCompletion = {
+		-- The map is on so the feature is visible; the tracker takes screen space, so it waits to be asked.
+		map = true,
+		tracker = false,
+		mapCollapsed = false,
+		trackerCollapsed = false,
+		-- Only Legacy objectives count: areas (each an "Explore <zone>" step toward Explorer), Spelunker
+		-- dungeons, Conqueror raids and the zone's other Legacy steps. No Legacy challenge asks for flight
+		-- paths, these reputations or quests, so they wait under "What counts" to be ticked.
+		count_areas = true,
+		count_taxis = false,
+		count_dungeons = true,
+		count_raids = true,
+		count_legacy = true,
+		count_reputations = false,
+		count_quests = false,
+		accountQuests = false,
+	},
+}
+
+---@return LegacySavedVariables
+---@type LegacySavedVariables?
+local cleared
+local function Root()
+	LegacyForeverDB = LegacyForeverDB or {}
+	local root = LegacyForeverDB
+	-- Every switch read comes through here, so the dead keys are cleared once per saved table, not per read.
+	if cleared ~= root then
+		cleared = root
+		-- The addon suggestions and their switches are gone, so what they kept is dead data.
+		root.companions = nil
+		root.suggestFamily = nil
+		root.familyDismissed = nil
+		-- Forever Leaderboards is gone, so the peer tables it kept are dead data.
+		root.peerStats = nil
+		root.sharedStats = nil
+	end
+	return root
+end
+
+-- A table of the addon's own data in the saved variables. Its owner (the tracked list, the flight path
+-- records) reads and writes it; callers look it up each time rather than holding on to it.
+---@overload fun(key: 'tracked'): LegacyTrackingKey[]
+---@overload fun(key: 'flightPaths'): table<string, LegacyFlightRecord>
+---@param key 'tracked'|'flightPaths'
+---@return LegacyTrackingKey[]|table<string, LegacyFlightRecord>
+function ns.SavedTable(key)
+	local root = Root()
+	root[key] = root[key] or {}
+	return root[key]
+end
+
+-- The old tracker table this addon kept before ForeverCore owned the column, once, while it attaches as a section.
+-- The host copies what it can into ForeverCoreDB, then the key goes so a later version never offers it again.
+---@return ForeverTrackerLegacySettings?
+function Saved.LegacyTrackerSettings()
+	return Root().trackerHost
+end
+
+function Saved.ClearLegacyTrackerSettings()
+	Root().trackerHost = nil
+end
+
+-- Where a switch is saved and where its default is declared: the top-level switches beside the data,
+-- every other key (the zone completion surfaces, collapse states and "count_" .. category) under
+-- zoneCompletion, as save files have always had them.
+---@param key LegacySwitchKey
+---@return table<string, boolean> saved
+---@return table<string, boolean> defaults
+local function Home(key)
+	local root = Root()
+	if type(DEFAULTS[key]) == "boolean" then
+		return root, DEFAULTS
+	end
+	root.zoneCompletion = root.zoneCompletion or {}
+	return root.zoneCompletion, DEFAULTS.zoneCompletion
+end
+
+-- A switch's default; a key nothing declares is off.
+---@param key LegacySwitchKey
+---@return boolean
+function Saved.Default(key)
+	local _, defaults = Home(key)
+	return defaults[key] == true
+end
+
+-- A switch: what the player saved, its default while unset. Reading never writes the switch.
+---@param key LegacySwitchKey
+---@return boolean
+function Saved.Get(key)
+	local value = Home(key)[key]
+	if value == nil then
+		return Saved.Default(key)
+	end
+	return value
+end
+
+---@type (fun(key: LegacySwitchKey, value: boolean))[]
+local listeners = {}
+
+-- Called after every Set with the key and its new value, in the order registered. A listener picks the keys
+-- it draws from.
+---@param callback fun(key: LegacySwitchKey, value: boolean)
+function Saved.OnChange(callback)
+	listeners[#listeners + 1] = callback
+end
+
+-- Save a switch and tell the listeners, whoever asked: a menu, the Settings page, a collapse arrow.
+---@param key LegacySwitchKey
+---@param value boolean
+function Saved.Set(key, value)
+	Home(key)[key] = value
+	for _, callback in ipairs(listeners) do
+		ns.core.SafeCall("settings listener", callback, key, value)
+	end
+end
+
+-- Remember the running version, and return the one remembered before it (nil on a first install).
+---@param version string
+---@return string? last
+function Saved.SeenVersion(version)
+	local root = Root()
+	local last = root.lastVersion
+	root.lastVersion = version
+	return last
+end
+
+-- ForeverCore keeps the shared error journal under `errors` and the debug log under `log` in this addon's saved
+-- table, so the report lists earlier sessions' errors and the lines that led to them after a /reload. Attach also
+-- merges what the shared files saw before the saved variables arrived.
+do
+	ns.core.Attach(Root())
+end
+
+end local _, ForeverCoreHostNs = ... if type(ForeverCoreHostNs) == "table" and type(ForeverCoreHostNs.ForeverCoreHostChunks) == "table" then local chunks = ForeverCoreHostNs.ForeverCoreHostChunks chunks[#chunks + 1] = ForeverCoreHostChunk else return ForeverCoreHostChunk(...) end

@@ -1,0 +1,34 @@
+-- Every phrase Commissions Forever shows, with its English text: the template the Locales/<locale>.lua files follow.
+-- Each client language already has its file; to correct a line, edit that file (Locales/README.md).
+local _, ns = ...
+if GetLocale() ~= "deDE" then
+	return
+end
+local L = ns.L
+
+L["%s could not start. Reinstall %s to fix this."] = "%s could not start. Reinstall %s to fix this."
+L["%s needs ForeverCore. Install it from CurseForge, or choose Reinstall on ForeverCore in the CurseForge app."] = "%s needs ForeverCore. Install it from CurseForge, or choose Reinstall on ForeverCore in the CurseForge app."
+L["%s: %s are out of date. Update them to fix this."] = "%s: %s are out of date. Update them to fix this."
+L["%s: %s is out of date. Update it to fix this."] = "%s: %s is out of date. Update it to fix this."
+L["%s: ForeverCore is turned off. Enable it in the AddOns list to fix this."] = "%s: ForeverCore is turned off. Enable it in the AddOns list to fix this."
+L["%s: the installed ForeverCore is another addon (%s). Remove it and install ForeverCore from CurseForge."] = "%s: the installed ForeverCore is another addon (%s). Remove it and install ForeverCore from CurseForge."
+L["Commissions Forever"] = "Commissions Forever"
+L["Commissions Forever report"] = "Commissions Forever report"
+L["Commissions opens in the Professions window. Learn a profession to use it."] = "Commissions opens in the Professions window. Learn a profession to use it."
+L["Commissions opens in the Professions window. Open it from your spellbook."] = "Commissions opens in the Professions window. Open it from your spellbook."
+L["Commissions opens when combat ends."] = "Commissions opens when combat ends."
+L["Have"] = "Have"
+L["Install QuestieDB to find where your commissions are handed in."] = "Install QuestieDB to find where your commissions are handed in."
+L["Install QuestieDB to see your active turn-ins."] = "Install QuestieDB to see your active turn-ins."
+L["Install Shortest Path Forever to get a turn-in route."] = "Install Shortest Path Forever to get a turn-in route."
+L["Item %d"] = "Item %d"
+L["Material"] = "Material"
+L["Need"] = "Need"
+L["No quest in your log is a commission. Accept one, then try again."] = "No quest in your log is a commission. Accept one, then try again."
+L["No tracked materials found"] = "No tracked materials found"
+L["Open turn-in route"] = "Open turn-in route"
+L["QuestieDB cannot tell which of your quests are commissions. Update QuestieDB."] = "QuestieDB cannot tell which of your quests are commissions. Update QuestieDB."
+L["QuestieDB does not know where your commissions are handed in."] = "QuestieDB does not know where your commissions are handed in."
+L["Shortest Path Forever could not start the route."] = "Shortest Path Forever could not start the route."
+L["Turn-in"] = "Turn-in"
+L["Turn-ins recorded on this character: %d"] = "Turn-ins recorded on this character: %d"

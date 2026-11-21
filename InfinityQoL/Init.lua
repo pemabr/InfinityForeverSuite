@@ -36,24 +36,21 @@ local function InitializeQoL()
 		action = function() InfinityQoLUI:Toggle() end,
 	})
 	
-	InfinityUtils:Info("InfinityQoL initialized successfully", "InfinityQoL")
-	InfinityMessaging:Publish("qol_addon_loaded", { addon = "InfinityQoL" })
-end
-
-
-local function RegisterAddonWithInfinityManager()
 	if _G.InfinityAddonManager then
-		_G.InfinityAddonManager:RegisterAddon(ADDON_NAME, ADDON_VERSION, {
+		_G.InfinityAddonManager:RegisterAddon("InfinityQoL", "1.0.0", {
 			description = "Quality of Life",
 			author = "Infinity Suite Team",
 			category = "QoL",
 			enabled = true,
-			settings = {{}}
+			settings = {}
 		})
 	end
+	
+	InfinityUtils:Info("InfinityQoL initialized successfully", "InfinityQoL")
+	InfinityMessaging:Publish("qol_addon_loaded", { addon = "InfinityQoL" })
 end
 
-	local frame = CreateFrame("Frame")
+local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:SetScript("OnEvent", function(self, event, addonName)
 	if addonName == "InfinityCore" then

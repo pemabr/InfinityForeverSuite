@@ -1,0 +1,196 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+..\..\Blizzard_SharedXML\UI.xsd">
+
+	<!-- One macro in the scroll box. Rows are two lines: a 26-unit icon and the name above the summary. The selected
+	     row is a soft gold fill with a 2-unit bar on its left, not the auction house's bright row glow. -->
+	<Button name="MacroAssistRowTemplate" virtual="true" motionScriptsWhileDisabled="true">
+		<Size y="38"/>
+		<Layers>
+			<Layer level="BACKGROUND">
+				<Texture parentKey="Selected" setAllPoints="true" hidden="true">
+					<Color r="1" g="0.82" b="0.2" a="0.10"/>
+				</Texture>
+				<Texture parentKey="SelectedBar" hidden="true">
+					<Size x="2"/>
+					<Anchors>
+						<Anchor point="TOPLEFT" x="0" y="-3"/>
+						<Anchor point="BOTTOMLEFT" x="0" y="3"/>
+					</Anchors>
+					<Color r="1" g="0.82" b="0.2" a="1"/>
+				</Texture>
+				<Texture parentKey="Highlight" atlas="auctionhouse-ui-row-highlight" alpha="0.22" alphaMode="ADD" setAllPoints="true" hidden="true"/>
+			</Layer>
+			<Layer level="BORDER">
+				<Texture parentKey="IconFrame" file="Interface\Common\WhiteIconFrame">
+					<Size x="32" y="32"/>
+					<Anchors>
+						<Anchor point="LEFT" x="3" y="0"/>
+					</Anchors>
+					<Color r="0.45" g="0.45" b="0.45" a="1"/>
+				</Texture>
+			</Layer>
+			<Layer level="ARTWORK">
+				<Texture parentKey="Icon">
+					<Size x="26" y="26"/>
+					<Anchors>
+						<Anchor point="LEFT" x="6" y="0"/>
+					</Anchors>
+				</Texture>
+				<FontString parentKey="Name" inherits="GameFontHighlight" justifyH="LEFT" wordwrap="false">
+					<Anchors>
+						<Anchor point="TOPLEFT" x="40" y="-4"/>
+						<Anchor point="RIGHT" x="-6" y="0"/>
+					</Anchors>
+				</FontString>
+				<FontString parentKey="Summary" inherits="GameFontHighlightSmall" justifyH="LEFT" wordwrap="false">
+					<Anchors>
+						<Anchor point="TOPLEFT" x="40" y="-21"/>
+						<Anchor point="RIGHT" x="-6" y="0"/>
+					</Anchors>
+				</FontString>
+			</Layer>
+		</Layers>
+	</Button>
+
+	<!-- One recipe in the Recipes popup: the title on top, the level hint below when a spell is not learned. It has no
+	     icon because a recipe names spells rather than being one, and the row keeps the list's selected fill and bar. -->
+	<Button name="MacroAssistRecipeRowTemplate" virtual="true" motionScriptsWhileDisabled="true">
+		<Size y="34"/>
+		<Layers>
+			<Layer level="BACKGROUND">
+				<Texture parentKey="Selected" setAllPoints="true" hidden="true">
+					<Color r="1" g="0.82" b="0.2" a="0.10"/>
+				</Texture>
+				<Texture parentKey="SelectedBar" hidden="true">
+					<Size x="2"/>
+					<Anchors>
+						<Anchor point="TOPLEFT" x="0" y="-3"/>
+						<Anchor point="BOTTOMLEFT" x="0" y="3"/>
+					</Anchors>
+					<Color r="1" g="0.82" b="0.2" a="1"/>
+				</Texture>
+				<Texture parentKey="Highlight" atlas="auctionhouse-ui-row-highlight" alpha="0.22" alphaMode="ADD" setAllPoints="true" hidden="true"/>
+			</Layer>
+			<Layer level="ARTWORK">
+				<FontString parentKey="Title" inherits="GameFontHighlight" justifyH="LEFT" wordwrap="false">
+					<Anchors>
+						<Anchor point="TOPLEFT" x="8" y="-4"/>
+						<Anchor point="RIGHT" x="-22" y="0"/>
+					</Anchors>
+				</FontString>
+				<FontString parentKey="Note" inherits="GameFontHighlightSmall" justifyH="LEFT" wordwrap="false">
+					<Anchors>
+						<Anchor point="TOPLEFT" x="8" y="-21"/>
+						<Anchor point="RIGHT" x="-22" y="0"/>
+					</Anchors>
+				</FontString>
+			</Layer>
+		</Layers>
+	</Button>
+
+	<!-- One saved snapshot in the History list: the time on top, the one-line summary below. A section heading reuses
+	     the same button with the time hidden. -->
+	<Button name="MacroAssistHistoryRowTemplate" virtual="true" motionScriptsWhileDisabled="true">
+		<Size y="38"/>
+		<Layers>
+			<Layer level="BACKGROUND">
+				<Texture parentKey="Selected" setAllPoints="true" hidden="true">
+					<Color r="1" g="0.82" b="0.2" a="0.10"/>
+				</Texture>
+				<Texture parentKey="SelectedBar" hidden="true">
+					<Size x="2"/>
+					<Anchors>
+						<Anchor point="TOPLEFT" x="0" y="-3"/>
+						<Anchor point="BOTTOMLEFT" x="0" y="3"/>
+					</Anchors>
+					<Color r="1" g="0.82" b="0.2" a="1"/>
+				</Texture>
+				<Texture parentKey="Highlight" atlas="auctionhouse-ui-row-highlight" alpha="0.22" alphaMode="ADD" setAllPoints="true" hidden="true"/>
+			</Layer>
+			<Layer level="ARTWORK">
+				<FontString parentKey="Time" inherits="GameFontHighlightSmall" justifyH="LEFT" wordwrap="false">
+					<Anchors>
+						<Anchor point="TOPLEFT" x="8" y="-4"/>
+						<Anchor point="RIGHT" x="-6" y="0"/>
+					</Anchors>
+					<Color r="0.55" g="0.55" b="0.55" a="1"/>
+				</FontString>
+				<FontString parentKey="Summary" inherits="GameFontHighlight" justifyH="LEFT" wordwrap="false">
+					<Anchors>
+						<Anchor point="TOPLEFT" x="8" y="-20"/>
+						<Anchor point="RIGHT" x="-6" y="0"/>
+					</Anchors>
+				</FontString>
+			</Layer>
+		</Layers>
+	</Button>
+
+	<!-- One changed line in the Characters copy panel's diff. The scroll box sets the row's height from the wrapped
+	     FontString, and the panel gives it the bundled mono font so columns line up with the macro editor. -->
+	<Frame name="MacroAssistDiffRowTemplate" virtual="true">
+		<Layers>
+			<Layer level="ARTWORK">
+				<FontString parentKey="Text" inherits="GameFontHighlightSmall" justifyH="LEFT" wordwrap="true">
+					<Anchors>
+						<Anchor point="TOPLEFT" x="2" y="-1"/>
+						<Anchor point="TOPRIGHT" x="-2" y="-1"/>
+					</Anchors>
+				</FontString>
+			</Layer>
+		</Layers>
+	</Frame>
+
+	<!-- One icon in the picker: a 36-unit picture inside a 40-unit hit rect, the header's gold WhiteIconFrame when the
+	     icon is selected, and ButtonHilight-Square on hover. The picker builds these into each grid row. -->
+	<Button name="MacroAssistIconTemplate" virtual="true">
+		<Size x="40" y="40"/>
+		<Layers>
+			<Layer level="BACKGROUND">
+				<Texture parentKey="Gold" file="Interface\Common\WhiteIconFrame" hidden="true" setAllPoints="true"/>
+			</Layer>
+			<Layer level="ARTWORK">
+				<Texture parentKey="Icon">
+					<Size x="36" y="36"/>
+					<Anchors>
+						<Anchor point="CENTER"/>
+					</Anchors>
+				</Texture>
+				<FontString parentKey="Label" inherits="NumberFontNormal" justifyH="CENTER" wordwrap="false" hidden="true">
+					<Anchors>
+						<Anchor point="BOTTOM" x="0" y="1"/>
+					</Anchors>
+				</FontString>
+			</Layer>
+			<Layer level="HIGHLIGHT">
+				<Texture parentKey="Highlight" file="Interface\Buttons\ButtonHilight-Square" alphaMode="ADD" hidden="true">
+					<Size x="36" y="36"/>
+					<Anchors>
+						<Anchor point="CENTER"/>
+					</Anchors>
+				</Texture>
+			</Layer>
+		</Layers>
+	</Button>
+
+	<!-- One row of the picker's scroll box: a section heading, or one row of icon buttons. The row owns its headings;
+	     the picker creates and hides the icon buttons as the column count changes. -->
+	<Frame name="MacroAssistIconRowTemplate" virtual="true">
+		<Size y="24"/>
+		<Layers>
+			<Layer level="ARTWORK">
+				<FontString parentKey="Title" inherits="GameFontNormal" justifyH="LEFT" wordwrap="false">
+					<Anchors>
+						<Anchor point="TOPLEFT"/>
+						<Anchor point="RIGHT" x="-6" y="0"/>
+					</Anchors>
+				</FontString>
+				<FontString parentKey="Note" inherits="GameFontHighlightSmall" justifyH="RIGHT" wordwrap="false">
+					<Anchors>
+						<Anchor point="TOPRIGHT" x="0" y="1"/>
+					</Anchors>
+				</FontString>
+			</Layer>
+		</Layers>
+	</Frame>
+
+</Ui>

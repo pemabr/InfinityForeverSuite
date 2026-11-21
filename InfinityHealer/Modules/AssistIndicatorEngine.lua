@@ -88,7 +88,7 @@ function AssistIndicatorEngine:CreateAssistIndicator(frame)
     end
     
     -- Create assist highlight border
-    local assistBorder = CreateFrame("Frame", nil, frame)
+    local assistBorder = CreateFrame("Frame", nil, frame, BackdropTemplateMixin and "BackdropTemplate" or nil)
     assistBorder:SetAllPoints(frame)
     assistBorder:SetBackdrop({
         edgeFile = "Interface/Tooltips/UI-Tooltip-Border",

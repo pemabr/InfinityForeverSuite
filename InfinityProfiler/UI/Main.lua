@@ -16,7 +16,7 @@ function InfinityProfilerUI:CreateMainFrame()
 		return
 	end
 	
-	local frame = CreateFrame("Frame", "InfinityProfilerMainFrame", UIParent)
+	local frame = CreateFrame("Frame", "InfinityProfilerMainFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	frame:SetSize(900, 650)
 	frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
 	frame:SetBackdrop({
@@ -51,7 +51,7 @@ function InfinityProfilerUI:CreateMainFrame()
 	self:CreateTabs(frame)
 	
 	-- Main content area
-	local contentArea = CreateFrame("Frame", nil, frame)
+	local contentArea = CreateFrame("Frame", nil, frame, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	contentArea:SetSize(860, 550)
 	contentArea:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -60)
 	contentArea:SetBackdrop({

@@ -1,0 +1,540 @@
+local ForeverCoreHostChunk = function(...) -- Machine translated (2026-10-22); corrections welcome: https://github.com/cjber/adventure-guide-forever/issues/new?template=translation.yml
+local _, ns = ...
+if GetLocale() ~= "frFR" then
+	return
+end
+local L = ns.L
+L["%s could not start. Reinstall %s to fix this."] = "%s n'a pas pu démarrer. Réinstallez %s pour corriger cela." -- mt
+L["%s needs ForeverCore. Install it from CurseForge, or choose Reinstall on ForeverCore in the CurseForge app."] =
+	"%s nécessite ForeverCore. Installez-le depuis CurseForge ou choisissez Réinstaller pour ForeverCore dans l’application CurseForge." -- mt
+L["%s: %s are out of date. Update them to fix this."] =
+	"%s : %s ne sont plus à jour. Mettez-les à jour pour corriger cela." -- mt
+L["%s: %s is out of date. Update it to fix this."] = "%s : %s n'est plus à jour. Mettez-le à jour pour corriger cela." -- mt
+L["%s: ForeverCore is turned off. Enable it in the AddOns list to fix this."] =
+	"%s : ForeverCore est désactivé. Activez-le dans la liste des AddOns pour corriger cela." -- mt
+L["%s: the installed ForeverCore is another addon (%s). Remove it and install ForeverCore from CurseForge."] =
+	"%s : le ForeverCore installé est un autre addon (%s). Supprimez-le et installez ForeverCore depuis CurseForge." -- mt
+L["AFTER_PICK_UP"] = "une fois acceptée"
+L["ALL_SUGGESTIONS"] = "Toutes les suggestions"
+L["AUDIT_BUILD"] = "données de la version %s, version du client %s.%s"
+L["AUDIT_COUNTS"] = "%d quêtes dans les données, %d disponibles maintenant, %d terminées connues"
+L["AUDIT_NOT_READY"] =
+	"les quêtes terminées ne sont pas encore toutes chargées ; les chiffres ci-dessus peuvent être trop bas."
+L["AUDIT_QUESTIE_BUILDING"] = "Les quêtes de QuestieDB sont encore en cours de chargement."
+L["AUDIT_QUESTIE_UNUSED"] = "QuestieDB n’est pas utilisé : %s."
+L["AUDIT_SOURCE_BUNDLED"] =
+	"Données de quêtes indisponibles. Activez QuestieDB ; activez Questie pour les recommandations de quêtes à prendre."
+L["AUDIT_SOURCE_QUESTIE"] = "quêtes de QuestieDB %s"
+L["BACK_STOPS_ROUTE"] = "Arrête aussi l’itinéraire"
+L["BACK_TO_ALL"] = "Cliquez sur la flèche de retour pour voir toutes les suggestions"
+L["BATTLEGROUND_OPEN"] = "%s vous est ouvert"
+L["BATTLEGROUND_SUBLINE"] = "Un champ de bataille qui vous est ouvert"
+L["BATTLEMASTER_IN"] = "Maître de guerre à %s"
+L["BATTLEMASTER_QUEUE"] = "S’inscrire pour %s"
+L["BEGINS_STORY"] = "Commence une nouvelle histoire"
+L["BOOKS_ALLIANCE"] = "Livres en territoire de l'Alliance" -- mt
+L["BOOKS_HORDE"] = "Livres en territoire de la Horde" -- mt
+L["BOOKS_SMALLER_FIRST"] = "Zones les plus petites d'abord" -- mt
+L["BOOKS_THEN_LIBRARIAN"] = "%d livres, puis le bibliothécaire" -- mt
+L["BOOKS_THEN_LIBRARIAN_ONE"] = "1 livre, puis le bibliothécaire" -- mt
+L["BOOKS_HANDIN"] = "Remettez %d livres à %s" -- mt
+L["BOOKS_HANDIN_ONE"] = "Remettez 1 livre à %s" -- mt
+L["BOOKS_UNLOCATED"] = "Emplacement inconnu" -- mt
+L["BOOKS_TERRITORY_ALLIANCE"] = "Territoire de l'Alliance" -- mt
+L["BOOKS_TERRITORY_HORDE"] = "Territoire de la Horde" -- mt
+L["CALLING_QUESTS"] = "%d quêtes pour votre classe"
+L["CALLING_QUESTS_ONE"] = "1 quête pour votre classe"
+L["CALLING_TASK"] = "Une tâche pour votre classe : %s"
+L["CALLING_TRAINER"] = "Votre maître de classe a une tâche : %s"
+L["CARD_BY_BOAT"] = "%d min en bateau"
+L["CARD_BY_ZEPPELIN"] = "%d min en zeppelin"
+L["CARD_MINUTES"] = "%d min"
+L["CARRY_ADDED"] = "%d ajoutées par vous"
+L["CARRY_AWAY"] = "%d à rendre de l’autre côté de la mer"
+L["CARRY_EXPLANATION"] =
+	"Quêtes à rendre et objectifs inachevés de votre journal des quêtes, plus les quêtes ajoutées à l’itinéraire."
+L["CARRY_IN_PROGRESS"] = "%d en cours"
+L["CARRY_READY"] = "%d à rendre"
+L["CHAPTER"] = "Chapitre %d"
+L["CHAPTERS_DONE"] = "%d sur %d terminés"
+L["CHAPTER_OF"] = "Chapitre %d sur %d"
+L["THEN"] = "Ensuite : %s"
+L["CONTINUES_AT_LEVEL"] = "Continue à partir du niveau %d : %s"
+L["CHAIN_PROGRESS"] = "%s, %d sur %d"
+L["CHAPTER_QUEST"] = "%s : %s"
+L["CLEANUP"] = "Nettoyage : %s"
+L["CLEANUP_READY"] = "%d à rendre"
+L["CLEANUP_GREY"] = "%d grises"
+L["CLEANUP_ELSEWHERE"] = "%d ailleurs"
+L["CLEANUP_READY_HEADING"] = "À rendre :"
+L["CLEANUP_GREY_HEADING"] = "Grises :"
+L["CLEANUP_ELSEWHERE_HEADING"] = "Impossible à finir ici :"
+L["CLEANUP_MENU_TITLE"] = "Nettoyer mon journal"
+L["CLEANUP_RIGHT_CLICK"] = "Cliquez avec le bouton droit pour ouvrir sur la carte une quête grise ou ailleurs."
+L["CHOOSE_JOURNEY"] = "Choisir un autre voyage"
+L["CHOOSE_NEXT"] = "Choisissez votre prochain voyage"
+L["CLICK_TO_CHOOSE"] = "Cliquez pour choisir ce voyage"
+L["CLICK_TO_RESUME"] = "Cliquez pour reprendre l’itinéraire"
+L["CLICK_TRAVEL"] = "Cliquez pour voyager avec %s"
+L["CLICK_WAYPOINT"] = "Cliquez pour placer un point de passage"
+L["CLICK_WAYPOINT_STEP"] = "Cliquez pour placer un point de passage"
+L["CLOSES_WARNING"] = "Accepter %s ferme définitivement %s."
+L["CONTINUES_STORY"] = "Poursuit une histoire commencée"
+L["DO_THIS_NEXT"] = "À faire ensuite"
+L["DUMP_SAVED"] =
+	"disposition enregistrée. Tapez /reload, puis envoyez WTF\\Account\\<account>\\SavedVariables\\AdventureGuideForever.lua"
+L["DUNGEON_BOSSES_LOOT"] = "Boss et butin"
+L["DUNGEON_INSIDE"] = "%d de vos quêtes se terminent dans %s"
+L["DUNGEON_INSIDE_ONE"] = "1 de vos quêtes se termine dans %s"
+L["DUNGEON_LEFT_BEHIND"] = "%d quêtes de donjon restent à prendre"
+L["DUNGEON_LEFT_BEHIND_ONE"] = "1 quête de donjon reste à prendre"
+L["DUNGEON_LOOT_COMBAT"] = "Le butin des boss se chargera après le combat."
+L["DUNGEON_LOOT_INSTALL"] = "Installez AtlasLoot Classic et son module Donjons et raids pour voir les boss et le butin."
+L["DUNGEON_LOOT_UNKNOWN"] = "AtlasLoot ne connaît pas encore le butin des boss de ce donjon."
+L["DUNGEON_PICKUP"] = "Prendre"
+L["DUNGEON_QUESTS"] = "%d quêtes pour ce donjon"
+L["DUNGEON_QUESTS_ONE"] = "1 quête pour ce donjon"
+L["END_JOURNEY"] = "Terminer le voyage"
+L["ENTRANCE_UNKNOWN"] = "L’emplacement de l’entrée est inconnu."
+L["FROM_SKILLUP"] = "de SkillUp Forever"
+L["GO"] = "Y aller"
+L["GO_TO_ENTRANCE"] = "Aller à l’entrée"
+L["GROUP_BATTLEGROUNDS"] = "Champs de bataille"
+L["GROUP_CONTINUE"] = "Continuer"
+L["GROUP_DUNGEONS"] = "Donjons"
+L["GROUP_LIBRARY"] = "Livres de la bibliothèque" -- mt
+L["GROUP_MANY"] = "%d demandent un groupe"
+L["GROUP_NEED_DUNGEON"] = "Donjon : %s"
+L["GROUP_NEED_ELITE"] = "Élite : groupe conseillé"
+L["GROUP_NEED_RAID"] = "Raid : %s"
+L["GROUP_NEED_RAID_ANY"] = "Raid : groupe conseillé"
+L["GROUP_NEED_SIZE"] = "Groupe de %d"
+L["GROUP_ONE"] = "1 demande un groupe"
+L["GROUP_ZONES"] = "Destinations de quête"
+L["MORE_CARDS"] = "%d de plus : cliquez pour afficher"
+L["GUIDE_BACK"] = "Retour aux voyages"
+L["GUIDE_OPEN"] = "Voir le guide complet"
+L["GUIDE_OUTLINE"] = "Quête ultérieure · aperçu du guide"
+L["GUIDE_OUTLINE_INSIDE"] = "À prendre à l'intérieur · aperçu du guide"
+L["GUIDE_OUTLINE_TOOLTIP"] =
+	"Quêtes de cette zone. Le guide vérifie leur disponibilité avant de recommander de les prendre."
+L["GUIDE_PAGE"] = "%d / %d · %d prochaines étapes · %d quêtes ultérieures"
+L["HAND_IN_WHEN"] = "À rendre quand vous serez à %s"
+L["HAND_IN_WHEN_DONE"] = "une fois terminée"
+L["BEFORE_IT_RUNS_OUT"] = "avant que %s n'expire"
+L["BEFORE_ITEM_RUNS_OUT"] = "avant qu'un objet de quête n'expire"
+L["BEFORE_TIMER_RUNS_OUT"] = "avant la fin du temps imparti pour la quête"
+L["HELP_AUDIT"] = "/agf audit - comparer les données de quêtes avec le jeu"
+L["HELP_DUMP"] = "/agf dump - enregistrer la disposition du guide pour un rapport de bug"
+L["HELP_OPEN"] = "/agf - ouvrir le guide sur la carte du monde."
+L["HELP_REPORT"] = "/agf report - afficher un rapport à copier dans un rapport de bug"
+L["HELP_TRACKER"] = "/agf tracker - afficher les ancrages du suivi (en cas de chevauchement en combat)"
+L["HELP_WHERE"] = "/agf where - afficher l’arrêt actuel du guide, à copier dans un rapport d’arrêt erroné"
+L["HUB_HAND_IN"] = "%d à rendre"
+L["HUB_MORE"] = "%s et %d autres arrêts"
+L["HUB_MORE_ONE"] = "%s et 1 autre arrêt"
+L["HUB_MORE_QUESTS"] = "Et %d de plus"
+L["HUB_NPCS_MORE"] = "%s et %d de plus"
+L["HUB_PICK_UP"] = "%d à prendre"
+L["ITEM_LOADING"] = "Chargement de l’objet..."
+L["JOURNEY_CALLING"] = "Votre vocation"
+L["JOURNEY_CARRY"] = "Nettoyer mon journal"
+L["JOURNEY_TURNINS"] = "Rendre les quêtes uniquement" -- mt
+L["TURNINS_REASON"] = "Rendez les quêtes terminées sans en accepter de nouvelles" -- mt
+L["JOURNEY_TRACKED"] = "Mes quêtes suivies" -- mt
+L["TRACKED_QUESTS"] = "%d quêtes suivies" -- mt
+L["TRACKED_QUESTS_ONE"] = "1 quête suivie" -- mt
+L["TRACKED_REASON"] = "Les quêtes que vous suivez, dans le meilleur ordre" -- mt
+L["JOURNEY_CHOICES"] = "Choisissez une aventure"
+L["JOURNEY_CHOOSE"] = "Choisissez un voyage dans Activités pour commencer."
+L["JOURNEY_COMPLETE"] = "Voyage terminé"
+L["JOURNEY_INTO"] = "Le chemin vers %s"
+L["JOURNEY_NEXT_ZONE"] = "Direction %s"
+L["PROVIDER_CARD_HINT"] =
+	"Étapes de vos guides %s installés. Les histoires de zone et « Nettoyer mon journal » sont propres à Adventure Guide."
+L["JOURNEY_PAGE"] = "%d / %d"
+L["JOURNEY_PROGRESS_EMPTY"] = "Vos histoires terminées apparaîtront ici."
+L["JOURNEY_QUESTS"] = "Quêtes de ce voyage"
+L["JOURNEY_STORY"] = "Histoire : %s"
+L["LATER_LAPS"] = "dont %d lors de tours suivants"
+L["LEGACY_PROGRESS_LINK"] = "Ouvrir la carte pour la progression d’héritage"
+L["LEGACY_PROGRESS_NOTE"] =
+	"Les collections, l’exploration et l’achèvement des zones sont suivis par Legacy Forever."
+L["LEVELS"] = "%d-%d"
+L["LEVELS_FROM"] = "%d+"
+L["LIST_SEPARATOR"] = ", "
+L["LOADING"] = "Chargement de vos quêtes terminées..."
+L["LOG_FULL"] = "Journal presque plein : %d que vous pourriez abandonner"
+L["LOG_FULL_LIST"] = "Pour faire de la place dans votre journal, vous pourriez abandonner :"
+L["LOG_FULL_ONE"] = "Journal presque plein : 1 que vous pourriez abandonner"
+L["MENU_BACK"] = "Retour"
+L["MENU_BATTLEGROUNDS"] = "Champs de bataille"
+L["MENU_CHECKED"] = "[x] %s"
+L["MENU_DUNGEONS"] = "Donjons"
+L["MENU_GIVERS"] = "Afficher les donneurs de quêtes"
+L["MENU_MAP_PINS"] = "Afficher les repères sur la carte"
+L["MENU_MORE_SETTINGS"] = "Plus de réglages"
+L["MENU_QUESTS"] = "Quêtes"
+L["MENU_SUBMENU"] = "%s >"
+L["MENU_TRACKER"] = "Afficher dans le suivi des objectifs"
+L["MENU_UNCHECKED"] = "[ ] %s"
+L["MOMENT"] = "%s est maintenant de votre niveau"
+L["MOMENT_OPEN"] = "%s vous est ouvert"
+L["NEAR_YOUR_LEVEL"] = "proche de votre niveau"
+L["NEW_LAND"] = "%s · Niveaux %d-%d"
+L["NEXT"] = "Ensuite : %s"
+L["NEXT_CAMP"] = "Lieu suivant"
+L["NEXT_PAGE"] = "Suivant"
+L["NEXT_REASON_ASIDE"] = "Quelque chose d’utile à envisager en parallèle de votre aventure."
+L["NEXT_REASON_JOURNEY"] = "La prochaine étape de %s."
+L["NEXT_REASON_PROFESSIONS"] = "Vous remplissez les conditions pour cet apprentissage de métier."
+L["NEXT_REASON_TALENTS"] = "Dépenser vos points de talent rend votre personnage plus fort."
+L["NEXT_REASON_TRAINING"] = "Votre maître de classe a des sorts que vous pouvez apprendre."
+L["NEXT_RECIPES"] = "Prochaines recettes"
+L["NEXT_STEPS"] = "Prochaines étapes"
+L["NOT_INTERESTED"] = "Pas intéressé"
+L["NOT_OFFERED"] = "%s ignorée : le donneur de quêtes ne l’a pas proposée."
+L["NOT_THIS_QUEST"] = "Pas cette quête"
+L["NO_JOURNEY"] = "Le guide n’a pas de voyage pour vous ici ; cherchez le « ! » au-dessus des donneurs de quêtes."
+L["NPC_JOURNEY"] = "Adventure Guide : %s"
+L["OBJECTIVE_LINE"] = "- %s"
+L["OBJECTIVE_PROGRESS"] = "%d/%d"
+L["OPENS_CHAPTER_HERE"] = "Ouvre le chapitre suivant ici"
+L["OPEN_RECIPES"] = "Ouvrir les recettes"
+L["OPTIONAL"] = "optionnel"
+L["ORDER_CUSTOM"] = "Votre ordre"
+L["ORDER_DRAG"] = "Faites glisser pour changer l’ordre"
+L["ORDER_LATER"] = "À faire plus tard"
+L["ORDER_NEXT"] = "À faire ensuite"
+L["ORDER_RESET"] = "Revenir à l’ordre suggéré"
+L["ORDER_SOONER"] = "À faire plus tôt"
+L["OTHER_ADVENTURES"] = "Autres aventures"
+L["OVERVIEW_WHERE"] = "%s · niveau %d"
+L["PARTY_HAS"] = "quelqu’un de votre groupe l’a"
+L["PICK_UP"] = "Prendre des quêtes : %s"
+L["PIN_RETURN_STORY"] = "Clic droit pour un itinéraire depuis le début de l’histoire"
+L["PLACE"] = "%s, %s"
+L["POLESTAR_GUIDING"] = "Polestar vous guide"
+L["POLESTAR_TAKE_OVER"] = "Cliquez pour reprendre la main"
+L["PREVIOUS_PAGE"] = "Précédent"
+L["PROFESSION_BAR"] = "%d/%d"
+L["PROFESSION_CAP"] = "%s a atteint %d sur %d"
+L["PROFESSION_LEARN"] = "Vous pouvez apprendre %s"
+L["PROFESSION_LEARN_IN"] = "Vous pouvez apprendre %s à %s"
+L["PROFESSION_LINE"] = "%s · %s"
+L["PROFESSION_RANGE"] = "%d à %d"
+L["PROFESSION_RANGE_TITLE"] = "%d à %d · %s"
+L["PROFESSION_RANK"] = "Apprentissage %s disponible"
+L["PROFESSION_RANK_1"] = "Apprenti"
+L["PROFESSION_RANK_2"] = "Compagnon"
+L["PROFESSION_RANK_3"] = "Expert"
+L["PROFESSION_RANK_4"] = "Artisan"
+L["PROFESSION_RANK_IN"] = "Apprentissage %s à %s"
+L["PROFESSION_SLOT"] = "Un emplacement de métier est libre"
+L["PROFESSION_SLOT_IN"] = "maîtres à %s"
+L["PVP_BATTLEGROUND_LEVEL"] = "À partir du niveau %d"
+L["PVP_CAPPED"] = "Rang maximum atteint"
+L["PVP_GO_BATTLEMASTER"] = "Aller au maître de guerre"
+L["PVP_NEXT_REWARD"] = "Prochaine récompense : rang %d · %s"
+L["PVP_NO_BATTLEGROUNDS"] = "Aucun champ de bataille n’est disponible à votre niveau."
+L["PVP_NO_BATTLEMASTER"] = "Aucun emplacement de maître de guerre connu"
+L["PVP_RANK"] = "Rang %d"
+L["PVP_RANK_POINTS"] = "%d/%d points de rang"
+L["PVP_RANK_REWARD"] = "Rang %d · %s"
+L["PVP_UNAVAILABLE"] = "La progression de rang n’est pas disponible."
+L["PVP_UNRANKED"] = "Sans rang"
+L["QUESTIE_ABSENT"] = "il n’est pas chargé"
+L["QUESTIE_CONTRACT"] = "le guide ne sait pas lire sa version"
+L["QUESTIE_ENABLE"] = "Activez QuestieDB pour charger les données de quêtes."
+L["QUESTIE_FAILED"] = "sa lecture a échoué (%s)"
+L["QUESTIE_FIELD"] = "il lui manque %s"
+L["QUESTIE_FLAVOUR"] = "ce n’est pas l’édition WoW: Forever"
+L["QUESTIE_INSTALL"] = "Installez QuestieDB pour charger les données de quêtes."
+L["QUESTIE_POLICY"] = "Activez Questie pour les recommandations de quêtes disponibles."
+L["QUESTIE_ZONES"] = "il lui manque ses tables de zones"
+L["QUESTS_HERE"] = "%d quêtes ici"
+L["QUESTS_IN_PROGRESS"] = "quêtes en cours"
+L["QUESTS_NEAR"] = "%d quêtes proches de votre niveau"
+L["QUESTS_NEAR_ONE"] = "1 quête proche de votre niveau"
+L["QUEST_LEVEL"] = "[%d] %s"
+L["QUEST_VISIT_WARNING"] = "Visite de quête : %s. Cette zone est recommandée pour les niveaux %d-%d."
+L["READY_OF"] = "%d sur %d prêtes"
+L["READY_TO_HAND_IN"] = "à rendre"
+L["REAGENTS"] = "Composants"
+L["REAGENT_AUCTION"] = "Hôtel des ventes"
+L["REAGENT_CRAFT"] = "Le fabriquer"
+L["REAGENT_GATHER"] = "Le récolter"
+L["REAGENT_HAVE"] = "Vous en avez %d"
+L["REAGENT_NEED"] = "%d %s"
+L["REAGENT_VENDOR"] = "L’acheter à un marchand"
+L["REASON_CHAIN_GIVER"] = "Une suite de quêtes commence avec %s"
+L["REASON_GREY"] = "%d quêtes vont bientôt devenir grises"
+L["REASON_HANDS"] = "%s a besoin de bras"
+L["RECIPE_COUNT"] = "%s  ×%d"
+L["RECIPE_LEARNED"] = "apprise"
+L["RECIPE_TRAIN_AT"] = "à apprendre à %d"
+L["RECOMMENDED"] = "Recommandé"
+L["REPLACES_JOURNEY"] = "Remplace votre voyage actuel."
+L["REPORT_TITLE"] = "Rapport d’Adventure Guide"
+L["REST_HERE"] = "Se reposer à l’auberge ici"
+L["RESUME"] = "Là où vous en étiez : %s"
+L["RESUME_ADVENTURE"] = "Reprendre"
+L["RIGHT_CLICK_NOT_INTERESTED"] = "Clic droit si cela ne vous intéresse pas"
+L["ROUTE_PAUSED"] = "Itinéraire en pause. Cliquez sur le voyage pour reprendre."
+L["RXP_IMPORT"] = "Importer"
+L["RXP_NEXT"] = "Suivant"
+L["RXP_NO_GUIDE"] = "Choisissez un guide pour commencer."
+L["RXP_ORIGINAL"] = "Ouvrir la fenêtre d’origine de RestedXP"
+L["RXP_PREVIOUS"] = "Précédent"
+L["RXP_PROGRESS"] = "Étape %d sur %d"
+L["RXP_RECOMMENDATIONS"] = "Recommandations d’Adventure Guide"
+L["RXP_SELECT"] = "Choisir un guide"
+L["RXP_SETTINGS"] = "Réglages"
+L["RXP_SETUP_AGF"] = "Afficher les étapes de RestedXP dans Adventure Guide."
+L["RXP_SETUP_HIDDEN"] = "Masquer la fenêtre du guide et les repères de carte de RestedXP."
+L["RXP_SETUP_HIDDEN_SPF"] = "Masquer la fenêtre du guide, la flèche et les repères de carte de RestedXP."
+L["RXP_SETUP_NATIVE"] = "Garder sa fenêtre de guide, sa flèche, ses cibles et ses repères de carte."
+L["RXP_SETUP_NATIVE_TITLE"] = "RestedXP"
+L["RXP_SETUP_PROMPT"] = "RestedXP est installé. Choisissez où afficher ses guides."
+L["RXP_SETUP_SETTINGS"] = "Modifiable plus tard dans les réglages des add-ons."
+L["RXP_SETUP_SKILLUP"] = "SkillUp : les voyages d’équipement et d’achats sont disponibles."
+L["RXP_SETUP_SKILLUP_SPF"] = "SkillUp : les itinéraires d’équipement et d’achats utilisent Shortest Path."
+L["RXP_SETUP_SPF"] = "Utiliser Shortest Path pour les itinéraires et le guidage par boussole."
+L["RXP_SETUP_TITLE"] = "Affichage des guides"
+L["RXP_SKIP"] = "Passer : %s"
+L["RXP_SKIP_STEP"] = "Passer l’étape"
+L["RXP_STEP"] = "Étape %d"
+L["RXP_STICKY"] = "%s (en cours)"
+L["RXP_ONGOING"] = "En cours" -- mt
+L["RXP_MORE_STEP"] = "+1 étape de plus" -- mt
+L["RXP_MORE_STEPS"] = "+%d étapes de plus" -- mt
+L["RXP_TITLE"] = "Guides RestedXP"
+L["SEARCH_NONE"] = "Aucune quête ne correspond à votre recherche."
+L["SEARCH_QUESTS"] = "Rechercher des quêtes"
+L["SEPARATOR"] = " · "
+L["SETTINGS_GROUP_INTERFACE"] = "Interface"
+L["SETTINGS_GROUP_MAP"] = "Carte"
+L["SETTINGS_GROUP_ROUTE"] = "Itinéraire"
+L["SETTINGS_GROUP_TRACKER"] = "Suivi des objectifs"
+L["SETTINGS_OPEN"] = "Ouvrir"
+L["SETTING_AUTO_START"] = "Lancer l’itinéraire automatiquement"
+L["SETTING_AUTO_START_TOOLTIP"] =
+	"Le guide envoie l’itinéraire du voyage choisi à Shortest Path dès qu’il est prêt : la ligne apparaît sur la carte à la connexion et après un /reload sans cliquer sur « Y aller ». « Arrêter » l’efface toujours jusqu’à ce que vous choisissiez à nouveau un voyage."
+L["SETTING_DUNGEONS_DEFAULT"] = "Inclure les donjons par défaut"
+L["SETTING_DUNGEONS_DEFAULT_TOOLTIP"] =
+	"Suggère des quêtes de donjon à un personnage dès votre première connexion avec le guide installé. Modifiable à tout moment depuis le menu des réglages du guide."
+L["SETTING_FOLLOW_QUEST"] = "Suivre votre quête actuelle"
+L["SETTING_FOLLOW_QUEST_TOOLTIP"] =
+	"Quand vous entrez dans la zone de la quête vers laquelle mène l’itinéraire, le guide sélectionne cette quête pour que la carte affiche sa zone. Il ne change jamais une quête que vous avez sélectionnée vous-même."
+L["SETTING_GIVERS"] = "Afficher les donneurs de quêtes sur la carte"
+L["SETTING_GIVERS_TOOLTIP"] =
+	"Un « ! » sur la carte du monde au-dessus de chaque personnage ayant une quête que vous pouvez prendre maintenant. Demande aussi les repères d’itinéraire sur la carte."
+L["SETTING_GUIDE_TRACKS"] = "Suivre les quêtes du guide RestedXP" -- mt
+L["SETTING_GUIDE_TRACKS_TOOLTIP"] =
+	"Pendant que vous suivez un guide RestedXP, le suivi des objectifs affiche aussi les quêtes que nomment ses étapes en cours. Les quêtes que vous suivez vous-même restent toujours suivies." -- mt
+L["SETTING_JOURNEY_WATCH"] = "Suivre les quêtes du voyage" -- mt
+L["SETTING_JOURNEY_WATCH_TOOLTIP"] =
+	"Pendant qu'un voyage mène, le suivi des objectifs affiche aussi les quêtes de votre journal sur lesquelles il travaille, puis les retire quand il passe à la suite. Les quêtes que vous suivez vous-même restent toujours suivies." -- mt
+L["SETTING_LOCK_TRACKER"] = "Verrouiller le suivi"
+L["SETTING_LOCK_TRACKER_TOOLTIP"] = "Garde le suivi Forever partagé là où vous l'avez placé."
+L["SETTING_MAP_PINS"] = "Afficher les repères d’itinéraire sur la carte"
+L["SETTING_MAP_PINS_TOOLTIP"] =
+	"Les étapes numérotées de l’itinéraire sur la carte du monde quand leur zone est affichée, et les donneurs de quêtes s’ils sont aussi activés. Le guide ouvert montre toujours un aperçu de son itinéraire."
+L["SETTING_PARTY_QUESTS"] = "Privilégier les quêtes de votre groupe"
+L["SETTING_PARTY_QUESTS_TOOLTIP"] =
+	"En groupe, les étapes des quêtes qu’a aussi quelqu’un de votre groupe comptent comme un peu plus proches, pour que vous les fassiez plutôt ensemble."
+L["SETTING_POLESTAR_ASIDE"] = "S’effacer quand Polestar guide"
+L["SETTING_POLESTAR_ASIDE_TOOLTIP"] =
+	"Tant que Polestar suit un guide, le guide ne lance aucun itinéraire et ne place aucune marque sur la carte. Le suivi indique que Polestar vous guide ; cliquez dessus pour reprendre la main."
+L["SETTING_QUEST_LEVEL"] = "Niveau de quête maximum au-dessus du vôtre"
+L["SETTING_QUEST_LEVEL_ONE"] = "%s niveau"
+L["SETTING_QUEST_LEVEL_TOOLTIP"] =
+	"Choisissez le niveau de quête le plus élevé que le guide recommande par rapport à votre niveau. La valeur par défaut, +2, évite les quêtes orange et rouges. Une quête de votre journal au-dessus reste hors de l'itinéraire jusqu'à ce que votre niveau la rattrape ou qu'elle soit prête à être rendue."
+L["SETTING_QUEST_LEVEL_VALUE"] = "%s niveaux"
+L["SETTING_ROUTE_ORDER"] = "Itinéraire optimisé (bêta)"
+L["SETTING_ROUTE_ORDER_TOOLTIP"] =
+	"Désactivé : l’itinéraire va à la chose la plus proche, étape par étape, simple et prévisible. Activé : un ordre expérimental qui commence par le chapitre de l’histoire, regroupe le travail d’une ville et garde ses suggestions précédentes stables."
+L["SETTING_OUTGROWN"] = "Afficher les zones et donjons dépassés"
+L["SETTING_OUTGROWN_TOOLTIP"] = "Garder dans les choix les zones et donjons dont les quêtes sont grises."
+L["SETTING_RXP"] = "Utiliser les guides RestedXP"
+L["SETTING_RXP_TOOLTIP"] =
+	"Ajoute le guide RestedXP actuel à vos cartes de voyage, à la carte et au suivi. RestedXP fait avancer les étapes du guide ; Shortest Path Forever gère les déplacements. RestedXP reste installé et contrôle la progression du guide."
+L["SETTING_STEP_SOUND"] = "Son à la fin d’une étape"
+L["SETTING_STEP_SOUND_TOOLTIP"] = "Joue un court son une fois quand vous terminez une étape de l’itinéraire."
+L["SETTING_TITLE_ROUTE"] = "Les voyages lancent l’itinéraire"
+L["SETTING_TITLE_ROUTE_TOOLTIP"] =
+	"Choisir un voyage dans le guide, ou cliquer sur le titre de l’étape actuelle dans le suivi des objectifs, lance l’itinéraire, avec Shortest Path Forever s’il est chargé et sinon un point de passage sur la carte. Cliquer à nouveau sur le voyage choisi l’arrête."
+L["SETTING_TRACKER"] = "Afficher la section du suivi"
+L["SETTING_TRACKER_BACKGROUND"] = "Fond du suivi"
+L["SETTING_TRACKER_TOOLTIP"] =
+	"Une courte section « Adventure Guide » au-dessus de vos quêtes dans le suivi des objectifs, pour l’étape actuelle."
+L["SETTING_TRACK_ROUTE"] = "Le titre du suivi suit les quêtes"
+L["SETTING_TRACK_ROUTE_TOOLTIP"] =
+	"Cliquer sur le titre du guide dans le suivi des objectifs suit chaque quête de l’itinéraire présente dans votre journal, jusqu’à la limite du suivi."
+L["SETTING_TRAINING_REMINDERS"] = "Me rappeler d’apprendre les sorts de classe"
+L["SETTING_TRAINING_REMINDERS_TOOLTIP"] =
+	"Suggère des visites au maître de classe et ajoute l’apprentissage de sorts aux voyages. Vous choisissez les sorts à apprendre ; acheter chaque sort est facultatif."
+L["SETTING_UPGRADES"] = "Signaler les récompenses meilleures" -- mt
+L["SETTING_UPGRADES_TOOLTIP"] =
+	"Quand une quête propose des récompenses au choix, une flèche verte signale chacune qui surpasse ce que vous portez à cet emplacement : votre type d’armure, une caractéristique principale utile à votre classe et un niveau d’objet supérieur. Rien n’est choisi à votre place. Si Pawn est installé, c’est Pawn qui les signale." -- mt
+L["SETTING_WANDERER"] = "Vagabond : seulement nommer les lieux"
+L["SETTING_WANDERER_TOOLTIP"] =
+	"Le guide nomme où aller ensuite et vous laisse trouver le chemin : pas de point de passage, pas d’itinéraire avec Shortest Path Forever et aucune marque sur la carte."
+L["SETTING_WARN_CLOSING"] = "Avertir avant qu’une quête en ferme une autre"
+L["SETTING_WARN_CLOSING_TOOLTIP"] =
+	"Quand un donneur de quêtes propose une quête qui en fermerait une autre définitivement, indique dans la discussion les quêtes que vous perdriez, avant d’accepter."
+L["SETTING_WHATS_NEW"] = "Nouveautés après une mise à jour"
+L["SETTING_WHATS_NEW_TOOLTIP"] =
+	"Une ligne dans la discussion la première fois que vous vous connectez après une mise à jour du guide."
+L["SET_HEARTH"] = "Liez votre pierre de foyer à %s"
+L["SHIFT_ADD"] = "Maj-clic pour l’ajouter à votre itinéraire"
+L["SHIFT_ADD_START"] = "Maj-clic pour ajouter cette quête à votre itinéraire"
+L["SHIFT_REMOVE"] = "Maj-clic pour la retirer de votre itinéraire"
+L["SHIFT_REMOVE_START"] = "Maj-clic pour retirer cette quête de votre itinéraire"
+L["SHORTEST_PATH"] = "Shortest Path"
+L["SHOW_AGAIN"] = "Afficher à nouveau : %s"
+L["SHOW_ON_MAP"] = "Voir sur la carte"
+L["SHOW_QUEST"] = "Afficher la quête"
+L["SIDEBAR_COLLAPSED"] =
+	"Le guide s'ouvre dans le journal de quêtes à côté de la carte du monde. Cliquez sur la flèche en bas à droite de la carte pour afficher le journal de quêtes."
+L["SIDEBAR_MAXIMIZED"] =
+	"Le guide s'ouvre dans le journal de quêtes à côté de la carte du monde. Cliquez sur le bouton à côté de la croix de fermeture de la carte pour la réduire et afficher le journal de quêtes."
+L["SKILLUP_NONE"] =
+	"Aucun métier d’artisanat à faire progresser. Apprenez-en un auprès d’un maître et il apparaîtra ici."
+L["SKILLUP_OUTDATED"] =
+	"Vos prochains points de compétence viennent de SkillUp Forever. Mettez-le à jour et ils apparaîtront ici."
+L["SKIP"] = "Passer pour l’instant"
+L["SKIPPED"] = "Passées (%d)"
+L["SKIP_STEP"] = "Passer cette étape pour l’instant"
+L["STARTS_AFTER_COMBAT"] = "L’itinéraire commencera à la fin du combat"
+L["STARTS_WITH"] = "Commence par %s"
+L["START_ADVENTURE"] = "Commencer"
+L["STEP_BATTLEMASTER"] = "Rendez visite au maître de guerre à %s"
+L["STEP_COLLECT"] = "Collecter %s · %s"
+L["STEP_DEFEAT"] = "Vaincre %s · %s"
+L["STEP_NUMBERED"] = "%d. %s"
+L["STEP_OBJECTIVE"] = "Accomplir les objectifs · %s"
+L["STEP_PICKUP"] = "Prendre : %s"
+L["STEP_SHARED_OBJECTIVES"] = "Accomplir %d objectifs · %s"
+L["STEP_TOWN"] = "Visiter %s : %s"
+L["STEP_WORK"] = "Accomplir %s · %s"
+L["STOP"] = "Arrêter"
+L["STOPS"] = "%d arrêts"
+L["STOPS_ONE"] = "1 arrêt"
+L["STOP_VISIT"] = "Arrêt %d : %s"
+L["STORY_COMPLETE"] = "Histoire terminée"
+L["SUGGESTED"] = "Suggéré"
+L["TAB_ACTIVITIES"] = "Activités"
+L["TAB_JOURNEYS"] = "Voyage"
+L["TAB_PROFESSIONS"] = "Métiers"
+L["TAB_PROGRESS"] = "Progression"
+L["TAB_PVP"] = "JcJ"
+L["TALENT_POINT"] = "Vous avez 1 point de talent à dépenser"
+L["TALENT_POINTS"] = "Vous avez %d points de talent à dépenser"
+L["TITLE"] = "Adventure Guide"
+L["TODAY_MORE"] = "+%d de plus"
+L["TOWN_COUNTS"] = "Prendre %d, rendre %d"
+L["TOWN_GIVER"] = "%s : %s"
+L["TOWN_HANDINS"] = "Rendre %d"
+L["TOWN_PICKUPS"] = "Prendre %d"
+L["TOWN_SKIP_GIVER"] = "Passer ce donneur de quêtes"
+L["TRACKER_DRAG_TITLE"] = "Suivi Forever"
+L["TRACKER_DRAG_TOOLTIP"] = "Glisser pour déplacer"
+L["TRACKER_LOADING"] = "Chargement des données de quêtes..."
+L["TRACKER_LOCKED_TOOLTIP"] = "Le suivi est verrouillé. Désactivez Verrouiller le suivi pour le déplacer."
+L["TRACKER_PAUSED"] = "Itinéraire en pause. Cliquez sur le titre pour reprendre." -- mt
+L["TRACKER_SHOW_WHERE"] = "Réactivez-le dans Options > AddOns > Adventure Guide, sous Suivi des objectifs." -- mt
+L["TRACKER_UNATTACHED"] =
+	"impossible d’ajouter une section au suivi des objectifs ; merci de le signaler avec /agf audit."
+L["TRAINER"] = "Rendez visite à votre maître de classe"
+L["TRAINER_IN"] = "Rendez visite à votre maître de classe à %s"
+L["TRAINER_LINE"] = "%s · %s"
+L["TRAINER_SPELL"] = "1 nouveau sort"
+L["TRAINER_SPELLS"] = "%d nouveaux sorts"
+L["TRAIN_IN"] = "Apprentissage à %s"
+L["TRAVEL"] = "%s · %d min"
+L["TRAVEL_ABOUT"] = "À environ %d min"
+L["TRAVEL_BOAT"] = "Bateau pour %s"
+L["TRAVEL_FLIGHT"] = "Voler vers %s"
+L["TRAVEL_LIFT"] = "Ascenseur pour %s"
+L["TRAVEL_NEW_FLIGHT_PATH"] = " · nouveau trajet aérien"
+L["TRAVEL_PASSAGE"] = "Passer vers %s"
+L["TRAVEL_PORTAL"] = "Portail vers %s"
+L["TRAVEL_TRAM"] = "Tram pour %s"
+L["TRAVEL_WAIT"] = " · %d min d’attente"
+L["TRAVEL_WALK"] = "Marcher jusqu’à %s"
+L["TRAVEL_ZEPPELIN"] = "Zeppelin pour %s"
+L["TURN_IN"] = "Rendre : %s"
+L["TWEAKS_OUTDATED"] = "Mettez à jour Tweaks Forever pour trouver les entrées des donjons."
+L["UNLISTED"] =
+	"Cette terre a des histoires que le guide ne connaît pas encore ; cherchez le « ! » au-dessus des donneurs de quêtes."
+L["UPDATED_TO"] = "mis à jour en %s. %s"
+L["WHATS_NEW"] = "Un voyage lancé dans Shortest Path survit à un /reload." -- mt
+L["WHY_ALLIANCE"] = "Alliance uniquement"
+L["WHY_BREADCRUMB"] = "Seulement jusqu’à ce que vous preniez %s"
+L["WHY_CHOSE"] = "Vous avez choisi %s à la place"
+L["WHY_COMPLETED"] = "Terminée : %s"
+L["WHY_DONE"] = "Vous l’avez déjà faite"
+L["WHY_EARLIER_QUEST"] = "une quête précédente"
+L["WHY_HORDE"] = "Horde uniquement"
+L["WHY_IN_LOG"] = "Dans votre journal des quêtes"
+L["WHY_LEVEL"] = "Niveau %d requis"
+L["WHY_NOT_OFFERED"] = "Le donneur de quêtes ne l’a pas proposée"
+L["WHY_NO_START"] = "Le guide ne sait pas où elle commence"
+L["WHY_ONE_OF"] = "Requiert l’une de : %s"
+L["WHY_PROVIDER"] = "Questie doit être prêt et confirmer que cette quête est disponible."
+L["WHY_REPEATABLE"] = "Les quêtes répétables ne sont pas suggérées"
+L["WHY_REPUTATION"] = "Dépend de votre réputation auprès de %s"
+L["WHY_REP_BELOW"] = "Seulement en dessous de %s auprès de %s"
+L["WHY_REP_MIN"] = "Requiert %s auprès de %s"
+L["WHY_SKILL"] = "Requiert %s %d"
+L["YOUR_CHOICE"] = "Votre choix"
+-- mt: Minimap button settings.
+-- mt: Issue composer and report window.
+L["HELP_ISSUE"] =
+	"/agf issue - signaler un bug ou demander une fonctionnalité avec un lien d’issue GitHub prêt à l’emploi" -- mt
+L["SETTING_HIDE_QUESTIE_TRACKER"] = "Désactiver le suivi de Questie" -- mt
+L["SETTING_HIDE_QUESTIE_TRACKER_TOOLTIP"] =
+	"Tant que cette section s'affiche, le suivi de quêtes de Questie est désactivé, pour que vos quêtes n'apparaissent pas deux fois. Désactivez cette option pour rendre son suivi à Questie." -- mt
+L["QUESTIE_TRACKER_RELOAD"] = "Le suivi de Questie revient après un /reload." -- mt
+L["QUEST_AREAS_OFF"] = "Les zones de quête sont masquées" -- mt
+L["QUEST_AREAS_SHOW"] = "Cliquez pour afficher les zones de quête bleues du jeu sur la carte" -- mt
+L["QUEST_AREAS_TOOLTIP"] =
+	"Les zones de quête bleues de la carte montrent où chaque objectif s'accomplit. Les types d'objectif Questie et pfQuest de Questie les désactivent." -- mt
+L["JOURNEY_NEXT"] = "En route vers %s"
+L["SETTING_AUTO_NEXT_ZONE"] = "Commencer la zone suivante quand une zone est terminée"
+L["SETTING_AUTO_NEXT_ZONE_TOOLTIP"] =
+	"Quand un voyage de zone se termine après avoir rendu une quête, le guide choisit la zone suivante pour votre niveau dans la même liste. Si ce voyage vous guidait déjà, son itinéraire démarre aussi. Désactivez cette option pour vous arrêter à Voyage terminé et choisir vous-même le prochain voyage."
+L["SETTING_NPC_HIGHLIGHT"] = "Mettre en évidence le prochain PNJ de quête"
+L["SETTING_NPC_HIGHLIGHT_TOOLTIP"] =
+	"Quand une étape parle à un PNJ qui donne ou rend une quête, une petite flèche rebondit au-dessus de sa plaque de nom et un bouton de cible apparaît sous le suivi. Désactivez cette option pour masquer les deux. Le guide ne change jamais vos réglages de plaque de nom."
+L["NPC_HIGHLIGHT_HINT"] =
+	"Les plaques de nom amies sont désactivées : activez-les dans les options d'interface pour voir où aller."
+
+-- mt: Information only (#715).
+L["SETTING_INFORMATION_ONLY"] = "Informations seulement : sans itinéraires" -- mt
+L["SETTING_INFORMATION_ONLY_TOOLTIP"] =
+	"Gardez les voyages et les informations de quête sans lancer d’itinéraires ni modifier les quêtes suivies. Cliquer sur une étape affiche ses quêtes sur la carte. Désactivez cette option pour réutiliser le planificateur." -- mt
+L["CLICK_SHOW_MAP"] = "Cliquer pour afficher cette étape sur la carte" -- mt
+
+L["MENU_HIDE_QUEST_MARKERS"] = "Masquer les marqueurs de quête du jeu" -- mt
+L["SETTING_HIDE_QUEST_MARKERS_TOOLTIP"] =
+	"Désactivez cette option pour garder les marqueurs de quête et les zones de quête bleues du jeu sur la carte, à côté des marqueurs de votre itinéraire." -- mt
+
+L["TRAINER_STOPS"] = "Étapes chez les maîtres" -- mt
+L["VISIT_TRAINER"] = "Rendre visite à %s" -- mt
+
+L["CHOSEN_TRAINER"] = "Maître choisi" -- mt
+
+L["TRACKER_QUEST_AREAS_SHOW"] = "Afficher les zones de quête" -- mt
+L["TRACKER_NOTE_HIDE"] = "Masquer cette note" -- mt
+L["TRACKER_NOTE_OPTIONS"] = "Clic droit pour les options" -- mt
+L["TRACKER_TAKE_OVER"] = "Reprendre le contrôle de l’itinéraire" -- mt
+
+L["TRACKER_HINT_SHOW_QUEST"] = "afficher la quête" -- mt
+L["TRACKER_HINT_OPEN_GUIDE"] = "ouvrir le guide" -- mt
+L["TRACKER_HINT_GO"] = "y aller" -- mt
+L["TRACKER_HINT_QUEST_AREAS"] = "afficher les zones de quête" -- mt
+L["TRACKER_HINT_TAKE_OVER"] = "reprendre le contrôle de l’itinéraire" -- mt
+
+end local _, ForeverCoreHostNs = ... if type(ForeverCoreHostNs) == "table" and type(ForeverCoreHostNs.ForeverCoreHostChunks) == "table" then local chunks = ForeverCoreHostNs.ForeverCoreHostChunks chunks[#chunks + 1] = ForeverCoreHostChunk else return ForeverCoreHostChunk(...) end

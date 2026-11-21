@@ -137,7 +137,7 @@ function PointHistoryAudit:UpdateIndexes(entry, entry_index)
     
     -- Update date index (by day)
     if self.config.index_by_date then
-        local day = os.date("%Y-%m-%d", entry.timestamp)
+        local day = date("%Y-%m-%d", entry.timestamp)
         if not history.date_index[day] then
             history.date_index[day] = {}
         end
@@ -203,8 +203,8 @@ function PointHistoryAudit:QueryByDate(startDate, endDate, maxResults)
     local results = {}
     
     -- Iterate through date range
-    local startTime = os.time({year=startDate.year, month=startDate.month, day=startDate.day, hour=0, min=0, sec=0})
-    local endTime = os.time({year=endDate.year, month=endDate.month, day=endDate.day, hour=23, min=59, sec=59})
+    local startTime = time({year=startDate.year, month=startDate.month, day=startDate.day, hour=0, min=0, sec=0})
+    local endTime = time({year=endDate.year, month=endDate.month, day=endDate.day, hour=23, min=59, sec=59})
     
     for i, entry in ipairs(self.db.point_history.entries or {}) do
         if entry.timestamp >= startTime and entry.timestamp <= endTime then
@@ -339,7 +339,7 @@ function PointHistoryAudit:ExportHistory(playerName)
     output = output .. "Total entries: " .. #history .. "\n\n"
     
     for _, entry in ipairs(history) do
-        local dateStr = os.date("%Y-%m-%d %H:%M:%S", entry.timestamp)
+        local dateStr = date("%Y-%m-%d %H:%M:%S", entry.timestamp)
         output = output .. dateStr .. " | " .. entry.action .. " | " .. tostring(entry.amount)
         output = output .. " | " .. entry.reason .. "\n"
     end
@@ -359,7 +359,7 @@ function PointHistoryAudit:GetStatus()
         total_dkp_distributed = stats.total_dkp_distributed or 0,
         total_gp_distributed = stats.total_gp_distributed or 0,
         player_index_entries = self:CountIndexEntries(self.db.point_history.player_index),
-        last_updated = os.date("%Y-%m-%d %H:%M:%S", stats.last_updated or 0),
+        last_updated = date("%Y-%m-%d %H:%M:%S", stats.last_updated or 0),
     }
 end
 
@@ -391,7 +391,7 @@ if not IsTestingLua then
                 local history = PointHistoryAudit:GetPlayerHistory(args, 30)
                 print("Point history for " .. args .. " (last 30 days):")
                 for _, entry in ipairs(history) do
-                    local dateStr = os.date("%Y-%m-%d %H:%M", entry.timestamp)
+                    local dateStr = date("%Y-%m-%d %H:%M", entry.timestamp)
                     print("  " .. dateStr .. " | " .. entry.action .. " | " .. tostring(entry.amount))
                 end
             else

@@ -2,6 +2,15 @@
 -- Handles secure sharing of game data between guild members
 -- Implements sanitization to prevent personal information leaks
 
+local function TableContains(tbl, value)
+	for _, v in ipairs(tbl) do
+		if v == value then
+			return true
+		end
+	end
+	return false
+end
+
 local DataSharing = {
 	sharedData = {
 		quests = {},
@@ -227,7 +236,7 @@ function DataSharing:StoreReceivedQuestData(questID, data, sender)
 	else
 		-- Update existing, add contributor
 		if not existing.contributors then existing.contributors = {} end
-		if not table.contains(existing.contributors, sender) then
+		if not TableContains(existing.contributors, sender) then
 			table.insert(existing.contributors, sender)
 		end
 		existing.lastUpdated = time()
@@ -245,7 +254,7 @@ function DataSharing:StoreReceivedMobData(mobID, data, sender)
 		InfinityData:StoreMob(mobID, merged)
 	else
 		if not existing.contributors then existing.contributors = {} end
-		if not table.contains(existing.contributors, sender) then
+		if not TableContains(existing.contributors, sender) then
 			table.insert(existing.contributors, sender)
 		end
 		existing.lastUpdated = time()
@@ -264,7 +273,7 @@ function DataSharing:StoreReceivedDropData(itemID, data, sender)
 		InfinityData:StoreDrop(itemID, merged)
 	else
 		if not existing.contributors then existing.contributors = {} end
-		if not table.contains(existing.contributors, sender) then
+		if not TableContains(existing.contributors, sender) then
 			table.insert(existing.contributors, sender)
 		end
 		existing.lastUpdated = time()
@@ -283,7 +292,7 @@ function DataSharing:StoreReceivedNodeData(nodeID, data, sender)
 		InfinityData:StoreNode(nodeID, merged)
 	else
 		if not existing.contributors then existing.contributors = {} end
-		if not table.contains(existing.contributors, sender) then
+		if not TableContains(existing.contributors, sender) then
 			table.insert(existing.contributors, sender)
 		end
 		existing.lastUpdated = time()

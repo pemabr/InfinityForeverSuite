@@ -3,6 +3,7 @@
 -- Stores and indexes all quest information for fast lookups
 
 local QuestDatabaseEngine = {}
+_G.QuestDatabaseEngine = QuestDatabaseEngine
 QuestDatabaseEngine.enabled = false
 QuestDatabaseEngine.db = nil
 QuestDatabaseEngine.quests = {}

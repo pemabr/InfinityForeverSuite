@@ -1,0 +1,10 @@
+## Interface: 11509, 20506, 38002, 120100
+## Title: Infinity Roster Manager
+## Notes: Guild roster management with member tracking
+## Author: Infinity Suite
+## Version: 1.0.0
+## Parent: InfinityCore
+## SavedVariables: InfinityRosterDB
+## OptionalDeps: InfinityCore
+
+Init.lua

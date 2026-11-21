@@ -36,24 +36,21 @@ local function InitializeGuide()
 		action = function() InfinityGuideUI:Toggle() end,
 	})
 	
-	InfinityUtils:Info("InfinityGuide initialized successfully", "InfinityGuide")
-	InfinityMessaging:Publish("guide_addon_loaded", { addon = "InfinityGuide" })
-end
-
-
-local function RegisterAddonWithInfinityManager()
 	if _G.InfinityAddonManager then
-		_G.InfinityAddonManager:RegisterAddon(ADDON_NAME, ADDON_VERSION, {
+		_G.InfinityAddonManager:RegisterAddon("InfinityGuide", "1.0.0", {
 			description = "In-game guides",
 			author = "Infinity Suite Team",
 			category = "Guide",
 			enabled = true,
-			settings = {{}}
+			settings = {}
 		})
 	end
+	
+	InfinityUtils:Info("InfinityGuide initialized successfully", "InfinityGuide")
+	InfinityMessaging:Publish("guide_addon_loaded", { addon = "InfinityGuide" })
 end
 
-	local frame = CreateFrame("Frame")
+local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:SetScript("OnEvent", function(self, event, addonName)
 	if addonName == "InfinityCore" then

@@ -81,7 +81,7 @@ function Decay:ScheduleNextDecay()
     end
     
     -- Check every hour if it's time to decay
-    self.decay_timer = C_Timer.NewLoopingTimer(3600, function()
+    self.decay_timer = C_Timer.NewTicker(3600, function()
         if Decay:IsTimeForDecay() then
             Decay:ApplyDecay()
         end

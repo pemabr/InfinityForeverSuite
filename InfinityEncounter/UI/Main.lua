@@ -2,9 +2,10 @@
 -- Encounter window and status display
 
 local InfinityEncounterUI = {}
+_G.InfinityEncounterUI = InfinityEncounterUI
 
 function InfinityEncounterUI:Initialize()
-    self.frame = CreateFrame("Frame", "InfinityEncounterMainFrame", UIParent)
+    self.frame = CreateFrame("Frame", "InfinityEncounterMainFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
     self.frame:SetSize(400, 300)
     self.frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     self.frame:SetBackdrop({
@@ -17,7 +18,7 @@ function InfinityEncounterUI:Initialize()
     self.frame:SetBackdropBorderColor(0.8, 0.8, 0.8, 1)
     
     -- Title
-    local title = self.frame:CreateFontString(nil, "ARTWORK", "GameFontBold")
+    local title = self.frame:CreateFontString(nil, "ARTWORK", (GameFontBold and "GameFontBold" or "GameFontNormalLarge"))
     title:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 10, -10)
     title:SetText("Infinity Encounter")
     
@@ -34,12 +35,12 @@ function InfinityEncounterUI:Initialize()
     self.status_text:SetText("No encounter active")
     
     -- Abilities section
-    self.abilities_frame = CreateFrame("Frame", nil, self.frame)
+    self.abilities_frame = CreateFrame("Frame", nil, self.frame, BackdropTemplateMixin and "BackdropTemplate" or nil)
     self.abilities_frame:SetSize(380, 100)
     self.abilities_frame:SetPoint("TOPLEFT", self.status_text, "BOTTOMLEFT", 0, -20)
     
     -- Timer section
-    self.timer_frame = CreateFrame("Frame", nil, self.frame)
+    self.timer_frame = CreateFrame("Frame", nil, self.frame, BackdropTemplateMixin and "BackdropTemplate" or nil)
     self.timer_frame:SetSize(380, 50)
     self.timer_frame:SetPoint("TOPLEFT", self.abilities_frame, "BOTTOMLEFT", 0, -10)
     

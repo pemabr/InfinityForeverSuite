@@ -3,6 +3,7 @@
 -- Broadcasts heals to group and receives incoming heal announcements
 
 local HealCommunicationEngine = {}
+_G.HealCommunicationEngine = HealCommunicationEngine
 HealCommunicationEngine.enabled = false
 HealCommunicationEngine.db = nil
 HealCommunicationEngine.incoming_heals = {}

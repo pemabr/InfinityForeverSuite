@@ -23,7 +23,7 @@ function InfinityGuildUI:Create()
 	local title = InfinityUIFramework:CreateLabel(frame, 
 		INFINITY_COLORS.PRIMARY .. "Guild Manager" .. INFINITY_COLORS.RESET)
 	title:SetPoint("TOP", 0, -10)
-	title:SetFont("Fonts/FRIZQT__.TTF", 14)
+	title:SetFont("Fonts/FRIZQT__.TTF", 14, "")
 	
 	-- Close button
 	local closeBtn = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
@@ -63,9 +63,7 @@ end
 
 function InfinityGuildUI:ShowTab(frame, tabName)
 	-- Clear previous content
-	for i = 1, frame.contentArea:GetNumChildren() do
-		frame.contentArea:GetChild(i):Hide()
-	end
+	InfinityUtils:ClearContainer(frame.contentArea)
 	
 	if tabName == "roster" then
 		self:ShowRosterTab(frame)

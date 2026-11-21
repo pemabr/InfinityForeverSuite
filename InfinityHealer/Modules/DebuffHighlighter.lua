@@ -340,7 +340,7 @@ end
 
 --- Create debuff highlight frame
 function DebuffHighlighter:CreateDebuffFrame(parent, debuff)
-	local frame = CreateFrame("Frame", nil, parent)
+	local frame = CreateFrame("Frame", nil, parent, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	frame:SetSize(20, 20)
 	frame:SetBackdrop({
 		bgFile = "Interface/Tooltips/UI-Tooltip-Background",
@@ -391,7 +391,7 @@ function DebuffHighlighter:UpdateDebuffFrame(frame, unitToken)
 	
 	-- Create new container if needed
 	if not frame.debuffContainer then
-		frame.debuffContainer = CreateFrame("Frame", nil, frame)
+		frame.debuffContainer = CreateFrame("Frame", nil, frame, BackdropTemplateMixin and "BackdropTemplate" or nil)
 		frame.debuffContainer:SetPoint("BOTTOMLEFT", frame, "TOPLEFT", 0, 2)
 	end
 	

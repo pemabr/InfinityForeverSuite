@@ -1,0 +1,29 @@
+local ForeverCoreHostChunk = function(...) ---@type string, LegacyForeverNamespace
+local addonName, ns = ...
+local L = ns.L
+
+if ns.broken then
+	return
+end
+
+-- One chat line after an update: the new version and ns.WHATS_NEW. A first install stays quiet (there is no
+-- version to compare with), and so does a checkout, whose version the packager never filled in. A maintenance
+-- release (a core sync) has no headline in CHANGELOG.md, so an update to it says nothing new but still moves the
+-- remembered version on.
+function ns.WhatsNew()
+	local version = C_AddOns.GetAddOnMetadata(addonName, "Version")
+	if not version or version:find("^@") then
+		return
+	end
+	-- Forever's beta client can start without the saved variables loaded; that reads as a first install.
+	local last = ns.Saved.SeenVersion(version)
+	if last and last ~= version and ns.Saved.Get("whatsNew") and version == ns.WHATS_NEW_VERSION then
+		ns.Print(L["updated to %s. %s"]:format(version, ns.WHATS_NEW))
+	end
+end
+
+local login = CreateFrame("Frame")
+login:RegisterEvent("PLAYER_LOGIN")
+login:SetScript("OnEvent", ns.WhatsNew)
+
+end local _, ForeverCoreHostNs = ... if type(ForeverCoreHostNs) == "table" and type(ForeverCoreHostNs.ForeverCoreHostChunks) == "table" then local chunks = ForeverCoreHostNs.ForeverCoreHostChunks chunks[#chunks + 1] = ForeverCoreHostChunk else return ForeverCoreHostChunk(...) end

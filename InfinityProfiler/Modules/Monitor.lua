@@ -163,7 +163,7 @@ function InfinityProfilerMonitor:ExportReportAsText()
 	local text = ""
 	
 	text = text .. "┌─ INFINITY PROFILER REPORT ─────────────────────┐\n"
-	text = text .. string.format("│ Time: %s\n", os.date("%Y-%m-%d %H:%M:%S", report.timestamp))
+	text = text .. string.format("│ Time: %s\n", date("%Y-%m-%d %H:%M:%S", report.timestamp))
 	text = text .. string.format("│ Total Addons: %d\n", report.systemMetrics.addonCount)
 	text = text .. "├────────────────────────────────────────────────┤\n"
 	

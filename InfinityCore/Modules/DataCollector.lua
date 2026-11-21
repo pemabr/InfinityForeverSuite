@@ -41,7 +41,9 @@ function DataCollector:Initialize()
 	frame:RegisterEvent("QUEST_ACCEPTED")
 	frame:RegisterEvent("QUEST_COMPLETE")
 	frame:RegisterEvent("QUEST_TURN_IN")
-	frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+	if InfinityUtils:CanUseCombatLogEvent() then
+		pcall(frame.RegisterEvent, frame, "COMBAT_LOG_EVENT_UNFILTERED")
+	end
 	frame:RegisterEvent("LOOT_OPENED")
 	frame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 	
@@ -59,7 +61,7 @@ function DataCollector:Initialize()
 		elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
 			DataCollector:OnCombatLogEvent(...)
 		elseif event == "LOOT_OPENED" then
-			DataCollector:OnLootOpened(...)
+			DataCollector:OnLootOpened()
 		elseif event == "ZONE_CHANGED_NEW_AREA" then
 			DataCollector:OnZoneChanged()
 		end
@@ -239,9 +241,10 @@ function DataCollector:OnLootOpened()
 			
 			if itemId then
 				if not self.database.seenDrops[itemId] then
+					local itemName, _, itemRarity = InfinityUtils:GetItemInfo(itemId)
 					self.database.seenDrops[itemId] = {
-						name = GetItemInfo(itemId),
-						rarity = select(3, GetItemInfo(itemId)),
+						name = itemName,
+						rarity = itemRarity,
 						timestamp = GetServerTime(),
 					}
 					

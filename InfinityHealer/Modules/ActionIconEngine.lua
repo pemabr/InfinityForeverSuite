@@ -42,7 +42,7 @@ function ActionIconEngine:CreateActionIcon(parent, width, height)
     end
     
     -- Create icon frame
-    local icon = CreateFrame("Frame", nil, parent)
+    local icon = CreateFrame("Frame", nil, parent, BackdropTemplateMixin and "BackdropTemplate" or nil)
     icon:SetSize(width or self.config.icon_size, height or self.config.icon_size)
     
     -- Create texture for icon

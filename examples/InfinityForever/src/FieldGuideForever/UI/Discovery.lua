@@ -1,0 +1,409 @@
+local ForeverCoreHostChunk = function(...) ---@type string, FGNamespace
+local _, ns = ...
+
+if ns.broken then
+	return
+end
+
+local L = ns.L
+
+-- What a kill shows. A first kill is announced the way the client announces an explored area: one yellow line in
+-- UIErrorsFrame, with the page-turn sound and a New tag in the journal. The big moments (a rare's first kill, a shiny,
+-- a mastered species, a zone with every creature recorded) take the client's own achievement toast
+-- (Mainline/AlertFrameSystems.xml:173), queued through an addon-owned container:
+-- two on screen, six waiting.
+--
+-- Core calls in from the kill handler, which can run in combat, so a record is only noted here and everything shown
+-- waits for the next frame. Nothing here touches a secure frame: the toasts come from this addon's own AlertFrame
+-- pool.
+---@class FGDiscovery
+local Discovery = {}
+ns.Discovery = Discovery
+
+local TEMPLATE = "AchievementAlertFrameTemplate"
+local ACHIEVEMENT_SOUND = 12891 -- the achievement-gained chime; not in SOUNDKIT
+-- At most this many toasts from one burst of kills; the rest of a big pull is left to the journal.
+Discovery.BURST_TOASTS = 3
+-- A burst names this many new creatures and counts the rest.
+local NAMED_IN_LINE = 2
+
+-- Biggest first: one kill shows only its biggest milestone, and a capped burst keeps the biggest ones.
+local PRIORITY = { shiny = 1, gold = 2, silver = 3, zone = 4, mastered = 5 }
+
+local HEADINGS = {
+	shiny = "Shiny found",
+	gold = "Gold found",
+	silver = "Silver found",
+	mastered = "Mastered",
+	zone = "Zone complete",
+}
+
+---@class FGToast
+---@field kind string
+---@field name string
+---@field icon string
+---@field speciesId? integer
+---@field zone? FGZone
+
+---@class FGToastFrame : Button
+---@field Background Texture
+---@field Unlocked FontString
+---@field Name FontString
+---@field GuildName FontString
+---@field GuildBanner Texture
+---@field GuildBorder Texture
+---@field Icon Frame|{Texture: Texture, Overlay: Texture}
+---@field Shield Frame
+---@field glow Texture
+---@field shine Texture
+---@field id integer?
+---@field fgfToast FGToast?
+---@field fgfHooked boolean?
+
+---@type { species: FGSpecies, zone: FGZone, result: FGRecordResult }[]
+local pending = {}
+local flushScheduled = false
+
+---@return FGOptions
+local function Options()
+	return ns.db and ns.db.options or {}
+end
+
+local function Sound(kit)
+	if PlaySound and SOUNDKIT and SOUNDKIT[kit] then
+		PlaySound(SOUNDKIT[kit])
+	end
+end
+
+---@param speciesId integer?
+---@param zone FGZone?
+function Discovery.Open(speciesId, zone)
+	local window = ns.Window
+	if not window then
+		return
+	end
+	zone = zone or (speciesId and ns.SpeciesZone[speciesId])
+	window.Show()
+	window.SetTab("creatures")
+	for index, entry in ipairs(ns.Zones or {}) do
+		if entry == zone then
+			window.SelectZone(index)
+			break
+		end
+	end
+	if speciesId then
+		window.SelectSpecies(speciesId)
+	end
+end
+
+-- AlertFrame_OnClick has already dismissed the toast on a right click; a left click opens what it names.
+---@param frame FGToastFrame
+---@param button string
+local function OnClick(frame, button)
+	local toast = frame.fgfToast
+	if button == "LeftButton" and toast then
+		ns.core.SafeCall("discovery toast", Discovery.Open, toast.speciesId, toast.zone)
+	end
+end
+
+-- AchievementAlertFrame_SetUp's two branches, reset on every use because the pool hands frames back in any state:
+-- the shiny takes the guild branch's art (its larger frame) without the guild's name and banner, the rest the
+-- standard art. The shield's points hide and the heading centres, as for an achievement already earned. The glow and
+-- shine layers stay hidden: the heading names the milestone instead.
+---@param frame FGToastFrame
+---@param guild boolean
+local function SetArt(frame, guild)
+	frame.Shield:Hide()
+	frame.GuildName:Hide()
+	frame.GuildBanner:Hide()
+	frame.GuildBorder:Hide()
+	frame.Background:SetAtlas(guild and "ui-achievement-guild-background" or "ui-achievement-alert-background", true)
+	frame.Icon.Overlay:SetAtlas(guild and "ui-achievement-guild-iconframe" or "ui-achievement-iconframe", true)
+	frame.glow:Hide()
+	frame.shine:Hide()
+	frame:SetHeight(guild and 104 or 101)
+	frame.Icon.Overlay:ClearAllPoints()
+	frame.Icon.Overlay:SetPoint("CENTER", guild and 0 or -1, guild and 0 or 1)
+	frame.Icon:ClearAllPoints()
+	frame.Icon:SetPoint("TOPLEFT", guild and 0 or -4, guild and -25 or -15)
+	frame.Icon.Texture:ClearAllPoints()
+	frame.Icon.Texture:SetPoint("CENTER", guild and -1 or 0, guild and -2 or 0)
+	frame.Unlocked:ClearAllPoints()
+	frame.Unlocked:SetPoint("TOP", guild and 0 or 27, guild and -38 or -23)
+end
+
+---@param frame FGToastFrame
+---@param toast FGToast
+local function SetUp(frame, toast)
+	frame.id = nil
+	frame.fgfToast = toast
+	if not frame.fgfHooked then
+		frame:HookScript("OnClick", OnClick)
+		frame.fgfHooked = true
+	end
+	SetArt(frame, toast.kind == "shiny")
+	frame.Unlocked:SetText(L[HEADINGS[toast.kind]])
+	frame.Name:SetText(toast.name)
+	frame.Icon.Texture:SetTexture(toast.icon)
+	if PlaySound then
+		PlaySound(ACHIEVEMENT_SOUND)
+	end
+end
+
+-- AlertFrames.lua:544 loads the achievement UI before its own toasts: AchievementAlertFrameTemplate's Shield child
+-- calls AchievementShield_OnLoad from the load-on-demand Blizzard_AchievementUI, so a toast built without it warns.
+local function LoadAchievementUI()
+	if AchievementFrame_LoadUI then
+		AchievementFrame_LoadUI()
+	elseif C_AddOns and C_AddOns.LoadAddOn then
+		C_AddOns.LoadAddOn("Blizzard_AchievementUI")
+	end
+end
+
+---@type table?
+local system
+
+-- Create before the three startup events: AlertContainerMixin's readiness callback only observes future events.
+---@class FGToastAnchor : Frame
+---@field AddQueuedAlertFrameSubSystem function
+local anchor = CreateFrame("Frame", "FieldGuideForeverToastAnchor", UIParent, "AlertContainerTemplate")
+---@cast anchor FGToastAnchor
+-- AlertContainerTemplate declares no size (Mainline/AlertFrames.xml:12), and the client resolves no rect for a sizeless
+-- single-point frame, which would leave the container and every toast anchored to it unrendered. Take the 10x10 box
+-- AlertFrame's own XML (lines 18-20) gives the game's container.
+anchor:SetSize(10, 10)
+anchor:Show()
+
+-- AlertFrameQueueMixin:AdjustAnchors anchors each queued alert's BOTTOM to the frame before it with this gap, so the
+-- first real toast's bottom sits this far above the container's TOP.
+local ALERT_GAP = 10
+-- The first real toast's bottom sits this far above the bottom action bars' container's top.
+local TOAST_GAP = 8
+
+-- The sample takes exactly the rectangle AdjustAnchors gives the first real toast.
+---@type FGToastFrame?
+local mover
+local function AnchorSample(sample)
+	sample:ClearAllPoints()
+	sample:SetPoint("BOTTOM", anchor, "TOP", 0, ALERT_GAP)
+end
+
+local function Place()
+	anchor:ClearAllPoints()
+	local point = Options().toastPoint
+	if point then
+		anchor:SetPoint(point[1], UIParent, point[2], point[3], point[4])
+	elseif BottomManagedFrameContainer then
+		-- The anchor's top is the first toast's bottom less the queue gap: TOAST_GAP above the container's top.
+		anchor:SetPoint("TOP", BottomManagedFrameContainer, "TOP", 0, TOAST_GAP - ALERT_GAP)
+	else
+		-- Take AlertFrame's place, so the first toast lands exactly where the game's own first toast does.
+		anchor:SetPoint("TOP", AlertFrame, "TOP", 0, 0)
+	end
+	if mover then
+		AnchorSample(mover)
+	end
+end
+
+-- The sample uses the same native art as a milestone, without its animation, sound or journal click.
+local function CreateMover()
+	LoadAchievementUI()
+	local sample = CreateFrame("Button", "FieldGuideForeverToastMover", UIParent, TEMPLATE)
+	---@cast sample FGToastFrame
+	SetArt(sample, false)
+	-- A placement sample stays until dismissed, including after the pointer leaves it.
+	sample:SetScript("OnEnter", nil)
+	sample:SetScript("OnLeave", nil)
+	sample:SetMovable(true)
+	sample:SetClampedToScreen(true)
+	AnchorSample(sample)
+	sample.Unlocked:SetText(L["Move toasts"])
+	sample.Name:SetText(L["Drag to move. Right-click to reset."])
+	sample.Name:SetWidth(230)
+	sample.Icon.Texture:SetTexture(ns.icon)
+	sample:RegisterForDrag("LeftButton")
+	sample:Hide()
+	table.insert(UISpecialFrames, "FieldGuideForeverToastMover")
+
+	local dragging = false
+	local function FinishDrag()
+		if not dragging then
+			return
+		end
+		dragging = false
+		sample:StopMovingOrSizing()
+		-- Where the sample's bottom ended up is where the first toast's bottom goes: the anchor's TOP is one gap
+		-- above it, saved relative to UIParent's bottom left with the sample's centre for the horizontal position.
+		local x = sample:GetCenter()
+		local bottom = sample:GetBottom()
+		if x and bottom then
+			Options().toastPoint = { "TOP", "BOTTOMLEFT", x, bottom - ALERT_GAP }
+		end
+		Place()
+	end
+	sample:SetScript("OnDragStart", function()
+		if not InCombatLockdown() then
+			dragging = true
+			sample:StartMoving()
+		end
+	end)
+	sample:SetScript("OnDragStop", FinishDrag)
+	sample:SetScript("OnHide", FinishDrag)
+	sample:SetScript("OnClick", function(_, button)
+		if button == "RightButton" then
+			FinishDrag()
+			Options().toastPoint = nil
+			Place()
+		end
+	end)
+	sample:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+	return sample
+end
+
+function Discovery.HideToastMover()
+	if mover then
+		mover:Hide()
+	end
+end
+
+function Discovery.ToggleToastMover()
+	if mover and mover:IsShown() then
+		mover:Hide()
+	elseif not InCombatLockdown() then
+		mover = mover or CreateMover()
+		mover:Show()
+	end
+end
+
+ns.On("PLAYER_LOGIN", Place)
+ns.On("PLAYER_REGEN_DISABLED", Discovery.HideToastMover)
+-- Register the queue at the first milestone. The achievement system's global stands for its template being loaded.
+local function System()
+	if not system and AlertFrame and AchievementAlertSystem then
+		LoadAchievementUI()
+		system = anchor:AddQueuedAlertFrameSubSystem(TEMPLATE, SetUp, 2, 6)
+	end
+	return system
+end
+
+---@param zone FGZone
+---@return boolean
+local function ZoneComplete(zone)
+	local progress = ns.Model.ZoneProgress(ns.GetCharacterState(false), zone.species)
+	return progress.total > 0 and progress.catalogued == progress.total
+end
+
+---@param result FGRecordResult
+---@return string?
+local function SpeciesMilestone(result)
+	if result.firstShiny then
+		return "shiny"
+	elseif result.firstGold then
+		return "gold"
+	elseif result.firstSilver then
+		return "silver"
+	elseif result.rank == 4 and result.previousRank < 4 then
+		return "mastered"
+	end
+	return nil
+end
+
+---@param species FGSpecies
+---@param kind string
+---@return FGToast
+local function SpeciesToast(species, kind)
+	local name = species.name
+	if kind == "shiny" then
+		name = string.format(L["Shiny %s!"], species.name)
+	end
+	return { kind = kind, name = name, icon = ns.Art.SpeciesIcon(species.name, species.id), speciesId = species.id }
+end
+
+---@param names string[]
+---@return string
+local function DiscoveryLine(names)
+	if #names == 1 then
+		return string.format(L["New creature recorded: %s"], names[1])
+	end
+	local shown = {}
+	for index = 1, math.min(#names, NAMED_IN_LINE) do
+		shown[index] = names[index]
+	end
+	local line = string.format(L["New creatures recorded: %s"], table.concat(shown, L[", "]))
+	if #names > NAMED_IN_LINE then
+		line = string.format(L["%s and %d more"], line, #names - NAMED_IN_LINE)
+	end
+	return line
+end
+
+local function Flush()
+	flushScheduled = false
+	local records = pending
+	pending = {}
+	local options = Options()
+	local toastsOn = options.milestoneToasts ~= false
+	---@type FGToast[]
+	local toasts = {}
+	local names = {}
+	---@type table<FGZone, true>
+	local zonesDone = {}
+	for _, record in ipairs(records) do
+		local species, zone, result = record.species, record.zone, record.result
+		local kind = SpeciesMilestone(result)
+		if kind then
+			toasts[#toasts + 1] = SpeciesToast(species, kind)
+		end
+		if result.newlyDiscovered then
+			-- A first kill that earns a toast is told by the toast; the line is for the rest.
+			if not (kind and toastsOn) then
+				names[#names + 1] = species.name
+			end
+			if not zonesDone[zone] and ZoneComplete(zone) then
+				zonesDone[zone] = true
+				toasts[#toasts + 1] = {
+					kind = "zone",
+					name = string.format(L["%s: every creature recorded"], L[zone.name]),
+					icon = ns.icon,
+					zone = zone,
+				}
+			end
+		end
+	end
+	if #names > 0 and options.discoveryText ~= false and UIErrorsFrame then
+		UIErrorsFrame:AddMessage(DiscoveryLine(names), 1, 1, 0, 1)
+		Sound("IG_ABILITY_PAGE_TURN")
+	end
+	if #toasts == 0 or not toastsOn then
+		return
+	end
+	table.sort(toasts, function(a, b)
+		return PRIORITY[a.kind] < PRIORITY[b.kind]
+	end)
+	local alerts = System()
+	for index = 1, math.min(#toasts, Discovery.BURST_TOASTS) do
+		if alerts then
+			alerts:AddAlert(toasts[index])
+		end
+	end
+end
+
+ns.OnRecord(function(species, zone, result)
+	pending[#pending + 1] = { species = species, zone = zone, result = result }
+	if not flushScheduled then
+		flushScheduled = true
+		C_Timer.After(0, function()
+			ns.core.SafeCall("discovery", Flush)
+		end)
+	end
+end)
+
+-- The journal showing a species is the player having seen it: its New tag goes.
+hooksecurefunc(ns.Detail, "Show", function(species)
+	local state = species and ns.GetCharacterState(false)
+	if state and state.unseen and state.unseen[species.id] then
+		state.unseen[species.id] = nil
+		ns.List.ClearNew(species.id)
+	end
+end)
+
+end local _, ForeverCoreHostNs = ... if type(ForeverCoreHostNs) == "table" and type(ForeverCoreHostNs.ForeverCoreHostChunks) == "table" then local chunks = ForeverCoreHostNs.ForeverCoreHostChunks chunks[#chunks + 1] = ForeverCoreHostChunk else return ForeverCoreHostChunk(...) end

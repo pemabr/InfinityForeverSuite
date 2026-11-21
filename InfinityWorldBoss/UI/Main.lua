@@ -16,7 +16,11 @@ function InfinityWorldBossUI:Initialize()
 	local frame = CreateFrame("Frame", "InfinityWorldBossFrame", UIParent, "BasicFrameTemplate")
 	frame:SetSize(500, 400)
 	frame:SetPoint("CENTER", UIParent, "CENTER")
-	frame:SetTitle("Infinity World Boss Tracker")
+	if frame.SetTitle then
+		frame:SetTitle("Infinity World Boss Tracker")
+	elseif frame.TitleText then
+		frame.TitleText:SetText("Infinity World Boss Tracker")
+	end
 	
 	-- Status summary
 	local statusText = frame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
@@ -48,8 +52,9 @@ function InfinityWorldBossUI:Initialize()
 	self.statusText = statusText
 	self.scrollFrame = scrollFrame
 	
-	-- Initial refresh
+	-- Initial refresh and keep hidden until toggled via /worldboss
 	self:RefreshTimerList()
+	frame:Hide()
 	
 	return frame
 end
@@ -156,7 +161,7 @@ function InfinityWorldBossUI:Hide()
 	end
 end
 
--- Auto-update timer display every 5 seconds
+-- Auto-update timer display every 5 seconds while visible
 function InfinityWorldBossUI:StartAutoUpdate()
 	local updateFrame = CreateFrame("Frame")
 	local lastUpdate = 0
@@ -164,7 +169,9 @@ function InfinityWorldBossUI:StartAutoUpdate()
 	updateFrame:SetScript("OnUpdate", function(self, elapsed)
 		lastUpdate = lastUpdate + elapsed
 		if lastUpdate >= 5 then
-			InfinityWorldBossUI:RefreshTimerList()
+			if InfinityWorldBossUI.mainFrame and InfinityWorldBossUI.mainFrame:IsShown() then
+				InfinityWorldBossUI:RefreshTimerList()
+			end
 			lastUpdate = 0
 		end
 	end)

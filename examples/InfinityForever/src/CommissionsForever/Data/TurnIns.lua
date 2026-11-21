@@ -1,0 +1,88 @@
+local ForeverCoreHostChunk = function(...) local _, ns = ...
+
+-- Item IDs are client data. Active quest objectives, including the variable Logistics Assignment
+-- requirements and individual Craftsman's Writ recipes, come from the live quest log.
+ns.TurnIns = {
+	{
+		key = "argentDawn",
+		reputationFactions = { "ARGENT_DAWN" },
+		sourceItems = {
+			22600,
+			22601,
+			22602,
+			22603,
+			22604,
+			22605,
+			22606,
+			22607,
+			22608,
+			22609,
+			22610,
+			22611,
+			22612,
+			22613,
+			22614,
+			22615,
+			22616,
+			22617,
+			22618,
+			22620,
+			22621,
+			22622,
+			22623,
+			22624,
+		},
+		faction = "Argent Dawn",
+		items = { 12844 }, -- Argent Dawn Valor Token, used to obtain a Craftsman's Writ.
+	},
+	{
+		key = "cenarionCircle",
+		reputationFactions = { "CENARION_CIRCLE" },
+		faction = "Cenarion Circle",
+		items = {}, -- Logistics assignments come from the active quest log, not a guessed briefing item.
+		-- The briefing items that start this category's assignments, which QuestieDB's classifier matches.
+		sourceItems = {
+			20806,
+			20807,
+			20939,
+			20940,
+			21257,
+			21258,
+			21259,
+			21260,
+			21261,
+			21262,
+			21263,
+			21264,
+			21265,
+			21378,
+			21379,
+			21380,
+			21381,
+			21382,
+			21384,
+			21385,
+			21514,
+		},
+	},
+	{
+		key = "thoriumBrotherhood",
+		reputationFactions = { "THORIUM_BROTHERHOOD" },
+		faction = "Thorium Brotherhood",
+		items = { 11370, 17012, 11382, 17010, 17011 },
+	},
+	{
+		key = "timbermawHold",
+		reputationFactions = { "TIMBERMAW_HOLD" },
+		faction = "Timbermaw Hold",
+		items = { 21377, 21383, 20741, 20742 }, -- Headdress Feather, Spirit Beads, Deadwood and Winterfall Ritual Totems.
+	},
+	{
+		key = "morrowgrain",
+		reputationFactions = { "DARNASSUS", "THUNDER_BLUFF" },
+		faction = "Morrowgrain research",
+		items = { 11040, 11018 }, -- Morrowgrain and Un'Goro Soil.
+	},
+}
+
+end local _, ForeverCoreHostNs = ... if type(ForeverCoreHostNs) == "table" and type(ForeverCoreHostNs.ForeverCoreHostChunks) == "table" then local chunks = ForeverCoreHostNs.ForeverCoreHostChunks chunks[#chunks + 1] = ForeverCoreHostChunk else return ForeverCoreHostChunk(...) end

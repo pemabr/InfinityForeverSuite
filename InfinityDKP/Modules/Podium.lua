@@ -99,7 +99,7 @@ function Podium:CreateFrame()
     scroll:SetSize(self.config.width - 25, self.config.height - 60)
     scroll:SetPoint("TOPLEFT", frame, "TOPLEFT", 4, -30)
     
-    local content = CreateFrame("Frame", nil, scroll)
+    local content = CreateFrame("Frame", nil, scroll, BackdropTemplateMixin and "BackdropTemplate" or nil)
     content:SetSize(self.config.width - 40, 10)
     scroll:SetScrollChild(content)
     
@@ -170,7 +170,7 @@ function Podium:Refresh()
         
         local row = content[idx]
         if not row then
-            row = CreateFrame("Frame", nil, content)
+            row = CreateFrame("Frame", nil, content, BackdropTemplateMixin and "BackdropTemplate" or nil)
             row:SetSize(content:GetWidth(), 20)
             content[idx] = row
         end
@@ -192,7 +192,7 @@ function Podium:Refresh()
         name:SetPoint("TOPLEFT", row, "TOPLEFT", 35, 0)
         
         -- Class color
-        local class_name = GetPlayerClass(standing.name)
+        local _, class_name = UnitClass(standing.name)
         if class_name then
             local class_colors = RAID_CLASS_COLORS[class_name]
             if class_colors then

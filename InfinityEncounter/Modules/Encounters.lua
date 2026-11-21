@@ -12,7 +12,7 @@ InfinityEncounterMgr.callbacks = {}
 function InfinityEncounterMgr:GetCurrentBoss()
     -- Scan for boss units
     for _, unitID in ipairs({"boss1", "boss2", "boss3", "boss4", "target", "focus"}) do
-        if UnitExists(unitID) and UnitIsRaidBoss(unitID) then
+        if UnitExists(unitID) and InfinityUtils:IsRaidBoss(unitID) then
             local name = UnitName(unitID)
             local health = UnitHealth(unitID)
             local maxHealth = UnitHealthMax(unitID)

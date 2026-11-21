@@ -3,6 +3,7 @@
 -- Tracks available, active, and completed quests
 
 local QuestTrackingEngine = {}
+_G.QuestTrackingEngine = QuestTrackingEngine
 QuestTrackingEngine.enabled = false
 QuestTrackingEngine.db = nil
 QuestTrackingEngine.active_quests = {}

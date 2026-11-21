@@ -17,11 +17,11 @@ function InfinityConsumables:ScanInventory()
 	self.inventory = {}
 	
 	for bag = 0, 4 do
-		for slot = 1, GetContainerNumSlots(bag) do
-			local itemID = GetContainerItemID(bag, slot)
+		for slot = 1, InfinityUtils:GetBagSlots(bag) do
+			local itemID = InfinityUtils:GetBagItemID(bag, slot)
 			if itemID then
-				local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType, itemSubType = GetItemInfo(itemID)
-				local itemCount = select(2, GetContainerItemInfo(bag, slot))
+				local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType, itemSubType = InfinityUtils:GetItemInfo(itemID)
+				local _, itemCount = InfinityUtils:GetBagItemInfo(bag, slot)
 				
 				if itemType == "Consumable" or itemType == "Food & Drink" then
 					if not self.inventory[itemID] then

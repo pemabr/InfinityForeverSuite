@@ -1,0 +1,24 @@
+local ForeverCoreHostChunk = function(...) local _, ns = ...
+
+if ns.broken then
+	return
+end
+
+local SkillUp = {}
+ns.SkillUp = SkillUp
+
+---@param recipeID integer
+---@param crafts? integer
+---@return {itemID: integer, count: number}[]?
+function SkillUp.RequiredMaterials(recipeID, crafts)
+	local api = SkillUpForever and SkillUpForever.API
+	if type(api) ~= "table" or type(api.RequiredMaterials) ~= "function" then
+		return nil
+	end
+	local ok, result = pcall(api.RequiredMaterials, recipeID, crafts or 1)
+	return ok and type(result) == "table" and result or nil
+end
+
+return SkillUp
+
+end local _, ForeverCoreHostNs = ... if type(ForeverCoreHostNs) == "table" and type(ForeverCoreHostNs.ForeverCoreHostChunks) == "table" then local chunks = ForeverCoreHostNs.ForeverCoreHostChunks chunks[#chunks + 1] = ForeverCoreHostChunk else return ForeverCoreHostChunk(...) end

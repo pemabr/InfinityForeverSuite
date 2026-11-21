@@ -8,6 +8,7 @@ InfinityDataManager = {
 }
 
 -- Register a data source (called by feature addons)
+-- Supports RegisterSource(sourceName, updateCallback) and RegisterSource(sourceName, initialDataTable)
 function InfinityDataManager:RegisterSource(sourceName, updateCallback)
 	-- Input validation
 	if type(sourceName) ~= "string" or sourceName == "" then
@@ -15,14 +16,18 @@ function InfinityDataManager:RegisterSource(sourceName, updateCallback)
 		return false
 	end
 	
-	if updateCallback and type(updateCallback) ~= "function" then
+	local initialData = {}
+	if type(updateCallback) == "table" then
+		initialData = InfinityUtils:DeepCopy(updateCallback)
+		updateCallback = nil
+	elseif updateCallback and type(updateCallback) ~= "function" then
 		InfinityUtils:Warning("RegisterSource: updateCallback must be a function or nil", "DataManager")
 		return false
 	end
 	
 	if not self.cache[sourceName] then
 		self.cache[sourceName] = {
-			data = {},
+			data = initialData,
 			lastUpdate = nil,
 			callback = updateCallback,
 			enabled = false,
@@ -55,20 +60,29 @@ function InfinityDataManager:SetSourceEnabled(sourceName, enabled)
 end
 
 -- Update data from a source
-function InfinityDataManager:UpdateSourceData(sourceName, data)
+-- Supports both UpdateSourceData(sourceName, data) and UpdateSourceData(sourceName, key, data)
+function InfinityDataManager:UpdateSourceData(sourceName, keyOrData, maybeData)
 	if type(sourceName) ~= "string" or sourceName == "" then
 		InfinityUtils:Warning("UpdateSourceData: sourceName must be a non-empty string", "DataManager")
 		return false
 	end
 	
 	if not self.cache[sourceName] then
-		InfinityUtils:Warning("UpdateSourceData: source not registered: " .. sourceName, "DataManager")
-		return false
+		self:RegisterSource(sourceName)
 	end
+	
+	local data = maybeData ~= nil and maybeData or keyOrData
 	
 	-- Data can be any type, we'll handle it safely
 	local success = pcall(function()
-		self.cache[sourceName].data = InfinityUtils:DeepCopy(data)
+		if maybeData ~= nil then
+			if type(self.cache[sourceName].data) ~= "table" then
+				self.cache[sourceName].data = {}
+			end
+			self.cache[sourceName].data[keyOrData] = InfinityUtils:DeepCopy(maybeData)
+		else
+			self.cache[sourceName].data = InfinityUtils:DeepCopy(keyOrData)
+		end
 		self.cache[sourceName].lastUpdate = InfinityUtils:GetTimeStamp()
 	end)
 	

@@ -4,6 +4,18 @@
 local ADDON_NAME = "InfinityPerformanceAnalytics"
 local ADDON_VERSION = "1.0.0"
 
+local function RegisterAddonWithInfinityManager()
+	if _G.InfinityAddonManager then
+		_G.InfinityAddonManager:RegisterAddon(ADDON_NAME, ADDON_VERSION, {
+			description = "Track and analyze combat statistics",
+			author = "Infinity Suite Team",
+			category = "Analytics",
+			enabled = true,
+			settings = {{}}
+		})
+	end
+end
+
 -- Modules are loaded via .toc file, so InfinityPerformanceAnalyticsMeter and InfinityPerformanceAnalyticsUI globals are already created
 
 local function InitializeAnalytics()
@@ -38,7 +50,7 @@ local function InitializeAnalytics()
 						end
 					elseif subcommand == "start" then
 						if _G.InfinityPerformanceAnalyticsMeter and _G.InfinityPerformanceAnalyticsMeter.StartSession then
-							local sessionName = args[2] or ("Combat " .. os.date("%H:%M:%S"))
+							local sessionName = args[2] or ("Combat " .. date("%H:%M:%S"))
 							if _G.InfinityPerformanceAnalyticsMeter:StartSession(sessionName) then
 								_G.InfinityUtils:Info("Session started: " .. sessionName, ADDON_NAME)
 							end
@@ -72,11 +84,12 @@ local function InitializeAnalytics()
 		end)
 	end
 	
-	-- Hook into combat log events (safely)
-	pcall(function()
-		local eventFrame = CreateFrame("Frame")
-		eventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-		eventFrame:SetScript("OnEvent", function(self, event)
+	-- Hook into combat log events (safely, only on clients allowing legacy CLEU)
+	if _G.InfinityUtils and _G.InfinityUtils.CanUseCombatLogEvent and _G.InfinityUtils:CanUseCombatLogEvent() then
+		pcall(function()
+			local eventFrame = CreateFrame("Frame")
+			eventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+			eventFrame:SetScript("OnEvent", function(self, event)
 			if event == "COMBAT_LOG_EVENT_UNFILTERED" then
 				if not _G.InfinityPerformanceAnalyticsMeter or not _G.InfinityPerformanceAnalyticsMeter.currentSession then
 					return
@@ -95,26 +108,14 @@ local function InitializeAnalytics()
 				end
 			end
 		end)
-	end)
+		end)
+	end
 	
 	if _G.InfinityUtils then
 		_G.InfinityUtils:Info("Analytics addon loaded v" .. ADDON_VERSION, ADDON_NAME)
 	end
 end
 
-
--- Register with InfinityAddonManager if available
-local function RegisterAddonWithInfinityManager()
-	if _G.InfinityAddonManager then
-		_G.InfinityAddonManager:RegisterAddon(ADDON_NAME, ADDON_VERSION, {
-			description = "Track and analyze combat statistics",
-			author = "Infinity Suite Team",
-			category = "Analytics",
-			enabled = true,
-			settings = {}
-		})
-	end
-end
 -- Hook into addon loaded and InfinityCore ready events
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")

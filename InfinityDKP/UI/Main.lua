@@ -1,10 +1,11 @@
 -- Main UI
 -- DKP management interface
 
-local InfinityDKPUI = {}
+local InfinityDKPUI = _G.InfinityDKPUI or {}
+_G.InfinityDKPUI = InfinityDKPUI
 
 function InfinityDKPUI:Initialize()
-    self.frame = CreateFrame("Frame", "InfinityDKPMainFrame", UIParent)
+    self.frame = CreateFrame("Frame", "InfinityDKPMainFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
     self.frame:SetSize(600, 400)
     self.frame:SetPoint("CENTER", UIParent, "CENTER", 300, 0)
     self.frame:SetBackdrop({
@@ -17,7 +18,7 @@ function InfinityDKPUI:Initialize()
     self.frame:SetBackdropBorderColor(0.8, 0.8, 0.8, 1)
     
     -- Title
-    local title = self.frame:CreateFontString(nil, "ARTWORK", "GameFontBold")
+    local title = self.frame:CreateFontString(nil, "ARTWORK", (GameFontBold and "GameFontBold" or "GameFontNormalLarge"))
     title:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 10, -10)
     title:SetText("Infinity DKP Management")
     
@@ -27,7 +28,7 @@ function InfinityDKPUI:Initialize()
     closeBtn:SetScript("OnClick", function() self.frame:Hide() end)
     
     -- Tabs
-    local tabsFrame = CreateFrame("Frame", nil, self.frame)
+    local tabsFrame = CreateFrame("Frame", nil, self.frame, BackdropTemplateMixin and "BackdropTemplate" or nil)
     tabsFrame:SetSize(580, 30)
     tabsFrame:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -20)
     
@@ -43,7 +44,7 @@ function InfinityDKPUI:Initialize()
     end
     
     -- Content area
-    self.content = CreateFrame("Frame", nil, self.frame)
+    self.content = CreateFrame("Frame", nil, self.frame, BackdropTemplateMixin and "BackdropTemplate" or nil)
     self.content:SetSize(580, 320)
     self.content:SetPoint("TOPLEFT", tabsFrame, "BOTTOMLEFT", 0, -10)
     

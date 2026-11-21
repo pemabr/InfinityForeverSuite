@@ -37,28 +37,9 @@ function InfinityEncounterCD:TriggerCallback(event, ...)
 end
 
 function InfinityEncounterCD:DetectBoss()
-    local maxPlayers = GetNumGroupMembers()
-    local bossCount = 0
-    
-    for i = 1, maxPlayers do
-        local unitID = string.format("raid%d", i)
-        if UnitExists(unitID) and UnitIsPlayer(unitID) then
-            -- Detect if someone in raid is fighting a boss
-            if UnitCanAttack("player", unitID) and UnitLevel(unitID) > 0 then
-                bossCount = bossCount + 1
-                self.boss_units[unitID] = true
-            end
-        end
-    end
-    
-    -- Check if in raid combat
-    if UnitAffectingCombat("player") and bossCount > 0 then
-        return true
-    end
-    
-    -- Also check bosses in target/focus
-    for _, unitID in ipairs({"target", "focus", "boss1", "boss2", "boss3", "boss4"}) do
-        if UnitExists(unitID) and UnitIsRaidBoss(unitID) then
+    -- Check bosses in target/focus/boss frames
+    for _, unitID in ipairs({"boss1", "boss2", "boss3", "boss4", "target", "focus"}) do
+        if UnitExists(unitID) and InfinityUtils:IsRaidBoss(unitID) then
             self.boss_units[unitID] = true
             return true
         end
@@ -103,7 +84,7 @@ function InfinityEncounterCD:OnCombatLogEvent(...)
     
     -- Detect boss death
     if subevent == "UNIT_DIED" then
-        if bit.band(destFlags, COMBATLOG_OBJECT_RAIDTARGET) ~= 0 or UnitIsRaidBoss("target") then
+        if bit.band(destFlags or 0, COMBATLOG_OBJECT_RAIDTARGET) ~= 0 or InfinityUtils:IsRaidBoss("target") then
             table.insert(self.boss_deaths, {
                 name = destName,
                 time = GetTime(),
@@ -115,7 +96,14 @@ function InfinityEncounterCD:OnCombatLogEvent(...)
     
     -- Detect phase change patterns (ability usage)
     if subevent == "SPELL_CAST_SUCCESS" then
-        if UnitIsRaidBoss(sourceGUID) then
+        local isBoss = false
+        for _, unitID in ipairs({"boss1", "boss2", "boss3", "boss4", "target", "focus"}) do
+            if UnitExists(unitID) and UnitGUID(unitID) == sourceGUID and InfinityUtils:IsRaidBoss(unitID) then
+                isBoss = true
+                break
+            end
+        end
+        if isBoss then
             self:TriggerCallback("ability_cast", sourceName, spellName, spellID)
         end
     end

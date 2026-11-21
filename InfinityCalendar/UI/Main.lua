@@ -17,7 +17,7 @@ function InfinityCalendarUI:CreateMainFrame()
 		return
 	end
 	
-	local frame = CreateFrame("Frame", "InfinityCalendarFrame", UIParent)
+	local frame = CreateFrame("Frame", "InfinityCalendarFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	frame:SetSize(900, 700)
 	frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
 	frame:SetBackdrop({
@@ -70,7 +70,7 @@ function InfinityCalendarUI:CreateMainFrame()
 	todayBtn:SetPoint("TOPLEFT", frame, "TOPLEFT", 240, -55)
 	todayBtn:SetText("Today")
 	todayBtn:SetScript("OnClick", function()
-		local now = os.date("*t", time())
+		local now = date("*t", time())
 		InfinityCalendarUI.currentMonth = now.month
 		InfinityCalendarUI.currentYear = now.year
 		InfinityCalendarUI:RefreshDisplay()
@@ -85,7 +85,7 @@ function InfinityCalendarUI:CreateMainFrame()
 	end)
 	
 	-- Content area
-	local contentArea = CreateFrame("Frame", nil, frame)
+	local contentArea = CreateFrame("Frame", nil, frame, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	contentArea:SetSize(860, 600)
 	contentArea:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -100)
 	contentArea:SetBackdrop({
@@ -99,7 +99,7 @@ function InfinityCalendarUI:CreateMainFrame()
 	self.contentArea = contentArea
 	
 	-- Initialize date
-	local now = os.date("*t", time())
+	local now = date("*t", time())
 	self.currentMonth = now.month
 	self.currentYear = now.year
 	
@@ -130,7 +130,7 @@ function InfinityCalendarUI:DisplayMonthView()
 	-- Month header
 	local header = self.contentArea:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
 	header:SetPoint("TOP", self.contentArea, "TOP", 0, -20)
-	header:SetText(os.date("%B %Y", os.time({year = self.currentYear, month = self.currentMonth, day = 1})))
+	header:SetText(date("%B %Y", time({year = self.currentYear, month = self.currentMonth, day = 1})))
 	header:SetTextColor(0, 1, 0.5, 1)
 	
 	-- Day headers
@@ -143,8 +143,8 @@ function InfinityCalendarUI:DisplayMonthView()
 	end
 	
 	-- Get first day of month
-	local firstDay = os.time({year = self.currentYear, month = self.currentMonth, day = 1})
-	local firstDayOfWeek = os.date("%w", firstDay)
+	local firstDay = time({year = self.currentYear, month = self.currentMonth, day = 1})
+	local firstDayOfWeek = date("%w", firstDay)
 	
 	-- Get days in month
 	local daysInMonth = 31
@@ -169,7 +169,7 @@ function InfinityCalendarUI:DisplayMonthView()
 		dayText:SetText(tostring(day))
 		
 		-- Check for events on this day
-		local dayTime = os.time({year = self.currentYear, month = self.currentMonth, day = day})
+		local dayTime = time({year = self.currentYear, month = self.currentMonth, day = day})
 		local dayEnd = dayTime + 86400
 		local eventsOnDay = InfinityCalendarCore:GetEventsByDateRange(dayTime, dayEnd)
 		
@@ -226,11 +226,11 @@ end
 
 -- Display event details
 function InfinityCalendarUI:DisplayEventDetail()
-	if not self.selectedEvent then
+	local event = self.selectedEvent
+	if not event then
 		return
 	end
 	
-	local event = self.selectedEvent
 	local y = -20
 	
 	local function AddLine(label, value, color)
@@ -247,7 +247,7 @@ function InfinityCalendarUI:DisplayEventDetail()
 	AddLine("Type", event.type)
 	AddLine("Leader", event.leader)
 	AddLine("Location", event.location)
-	AddLine("Start", os.date("%Y-%m-%d %H:%M", event.startTime))
+	AddLine("Start", date("%Y-%m-%d %H:%M", event.startTime))
 	AddLine("Duration", string.format("%.0f minutes", event.duration / 60))
 	AddLine("Status", event.status, {1, 1, 0})
 	
@@ -327,3 +327,5 @@ function InfinityCalendarUI:ShowEventCreationDialog()
 	-- Placeholder for event creation dialog
 	InfinityUtils:Info("Event creation dialog would open here", "Calendar")
 end
+
+return InfinityCalendarUI

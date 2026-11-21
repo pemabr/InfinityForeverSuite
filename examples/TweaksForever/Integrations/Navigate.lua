@@ -1,0 +1,47 @@
+local ForeverCoreHostChunk = function(...) ---@type string, TFNamespace
+local _, ns = ...
+
+if ns.broken then
+	return
+end
+local L = ns.L
+
+-- Passed to Shortest Path Forever so it can tell our journeys apart from the player's own.
+local OWNER = "TweaksForever"
+
+-- Only the one function called is checked, so a newer Shortest Path that keeps version 1 still counts.
+---@return (fun(owner: string, map: integer, x: number, y: number, title?: string): boolean)?
+local function ShortestPath()
+	local addon = ShortestPathForever
+	local api = type(addon) == "table" and addon.API
+	if type(api) == "table" and api.version == 1 and type(api.Navigate) == "function" then
+		return api.Navigate
+	end
+end
+
+-- Shortest Path's journey when it takes one (it declines in combat, with journeys switched off or with no player
+-- position), else the game's own waypoint, else the place in chat, so a click always leaves the player a pointer.
+---@param uiMapID integer
+---@param x number
+---@param y number
+---@param title string
+function ns.Navigate(uiMapID, x, y, title)
+	local navigate = ShortestPath()
+	if navigate and navigate(OWNER, uiMapID, x, y, title) then
+		return
+	end
+	if C_Map.CanSetUserWaypointOnMap(uiMapID) then
+		C_Map.SetUserWaypoint(UiMapPoint.CreateFromCoordinates(uiMapID, x, y))
+		C_SuperTrack.SetSuperTrackedUserWaypoint(true)
+		return
+	end
+	local info = C_Map.GetMapInfo(uiMapID)
+	local place = ("%.1f, %.1f"):format(x * 100, y * 100)
+	if info then
+		ns.Print(L["%s is at %s in %s."]:format(title, place, info.name))
+	else
+		ns.Print(L["%s is at %s."]:format(title, place))
+	end
+end
+
+end local _, ForeverCoreHostNs = ... if type(ForeverCoreHostNs) == "table" and type(ForeverCoreHostNs.ForeverCoreHostChunks) == "table" then local chunks = ForeverCoreHostNs.ForeverCoreHostChunks chunks[#chunks + 1] = ForeverCoreHostChunk else return ForeverCoreHostChunk(...) end

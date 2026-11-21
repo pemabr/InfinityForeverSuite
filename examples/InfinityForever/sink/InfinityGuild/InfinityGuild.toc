@@ -1,0 +1,19 @@
+## Interface: 16001
+## Title: |cff00ccffInfinity|r Guild
+## Notes: Guild management, roster, and DKP tracking for the Infinity Suite.
+## Author: Infinity Suite Team
+## Version: 1.0.0
+## SavedVariables: InfinityInfinityGuildDB
+## Depends: InfinityCore
+## X-Category: Utility
+
+Localization\Localization.lua
+
+Modules\RosterManager.lua
+Modules\DKPTracker.lua
+Modules\MemberManagement.lua
+
+UI\MainUI.lua
+
+Init.lua
+

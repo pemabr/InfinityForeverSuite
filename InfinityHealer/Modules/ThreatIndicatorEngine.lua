@@ -227,8 +227,8 @@ end
 
 -- Register admin commands
 if not IsTestingLua then
-    SLASH_THREAT1 = "/threat"
-    SlashCmdList["THREAT"] = function(msg)
+    SLASH_HEALERTHREAT1 = "/healerthreat"
+    SlashCmdList["HEALERTHREAT"] = function(msg)
         local cmd, args = msg:match("^(%S*)%s*(.*)$")
         cmd = cmd or ""
         

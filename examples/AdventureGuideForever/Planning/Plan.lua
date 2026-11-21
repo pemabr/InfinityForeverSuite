@@ -1,0 +1,72 @@
+local ForeverCoreHostChunk = function(...) ---@type string, AGFNamespace
+local _, ns = ...
+
+if ns.broken then
+	return
+end
+local Model = ns.Model
+local State = ns.Planner.State
+local NONE = {}
+local FinishRoute = ns.Planner.Decoration.FinishRoute
+
+-- Follow the chosen journey, otherwise accepted quests or the first available journey.
+-- A default suggestion does not count as a player choice or start guidance.
+local function Route(journeys, prefs)
+	local chosen, accepted
+	for _, journey in ipairs(journeys) do
+		chosen = journey.key == prefs.journey and journey or chosen
+		accepted = journey.kind == "carry" and #journey.steps > 0 and journey or accepted
+	end
+	local route = chosen or accepted or journeys[1]
+	return {
+		journeys = journeys,
+		journey = route and route.key,
+		chosen = chosen ~= nil,
+		steps = route and route.steps or {},
+	}
+end
+
+---@param mapName? AGFMapName the client's (localised) name for a map; the data's English otherwise
+---@param instanceName? fun(id: integer): string? the client's name for an instance Map.ID; the data's otherwise
+---@param last? AGFRoute the route before, whose committed orders (`orders`) this one keeps to
+---@param inputs? AGFPlanInputs what the player's order and skips ask of this build; none of them when nil
+function Model.Plan(data, player, completed, log, prefs, mapName, instanceName, last, inputs)
+	State.skippedSeen, State.committedOrders, State.planDocks, State.heldHere, State.camps, State.held =
+		{}, {}, { data = data }, last and last.here, prefs.camps, inputs and inputs.held or nil
+	local forget = inputs and inputs.forget or NONE
+	for key, order in pairs(last and last.orders or NONE) do
+		State.committedOrders[key] = not forget[key] and order or nil
+	end
+	local lead = last and last.lead or prefs.lead
+	local left = last and last.left or prefs.left
+	local journeys, stranded = Model.Journeys(
+		data,
+		player,
+		completed,
+		log,
+		prefs,
+		mapName,
+		instanceName,
+		inputs and inputs.skippedQuests,
+		lead,
+		left,
+		inputs and inputs.dungeonEntrances
+	)
+	local route = Route(journeys, prefs)
+	local story = journeys[1]
+	route.lead = story and story.kind == "story" and story.zone or nil
+	route.left = lead and lead ~= route.lead and lead or left
+	route.skipped, State.skippedSeen, route.stranded = State.skippedSeen, nil, stranded or nil
+	route.orders, State.committedOrders, State.planDocks, State.heldHere, State.camps, State.held =
+		State.committedOrders, nil, nil, nil, nil, nil
+	FinishRoute(data, player, completed, log, route, last, prefs)
+	local head = route.steps[1]
+	route.here = head and head.here and head.key or nil
+	return route
+end
+
+ns.Planner.Plan = {
+	Route = Route,
+}
+
+end local _, ForeverCoreHostNs = ... if type(ForeverCoreHostNs) == "table" and type(ForeverCoreHostNs.ForeverCoreHostChunks) == "table" then local chunks = ForeverCoreHostNs.ForeverCoreHostChunks chunks[#chunks + 1] = ForeverCoreHostChunk else return ForeverCoreHostChunk(...) end

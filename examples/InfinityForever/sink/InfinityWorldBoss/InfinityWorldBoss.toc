@@ -1,0 +1,11 @@
+## Interface: 11200
+## Title: Infinity World Boss
+## Notes: World boss respawn tracking with notifications and guild sharing
+## Author: Infinity Forever
+## Version: 1.0.0
+## Dependencies: InfinityCore, InfinityDataCollector
+
+Core\WorldBossCore.lua
+Modules\Timers.lua
+UI\Main.lua
+Init.lua

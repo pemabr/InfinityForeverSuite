@@ -1,0 +1,722 @@
+# Changelog
+
+What changed in each release, in the terms someone chasing Legacy points would notice. Dates are UTC.
+
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the versions follow
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html). The entries are prose rather than bare
+Added/Fixed lists: what matters about a release is why the map or tracker now shows something different.
+
+Each version's entry is also its release notes on GitHub, CurseForge and Wago. Older entries are kept
+verbatim rather than rewritten as the addon moves. API changes other addons' authors need go under an
+optional `### For addon authors` subsection after a version's player bullets.
+
+## [2.5.5] - 2026-11-20
+
+### Fixed
+
+- The zone section in the tracker remembers whether you collapsed it, with or without a separate ForeverCore. With only Legacy's own ForeverCore, the saved state was applied before Legacy had finished loading (#606).
+
+## [2.5.4] - 2026-11-20
+
+<!-- forever-core-sync -->
+
+- Ships with the same shared code as your other Forever addons, so they keep working together.
+
+## [2.5.3] - 2026-11-20
+
+### Changed
+
+- **Legacy Forever carries ForeverCore inside itself.** It now works with ForeverCore turned off or uninstalled, and your ForeverCore settings carry over. You no longer need to install ForeverCore separately. If you have it installed, you can keep it or remove it. (cjber/forever-core#801)
+- **The dungeon and raid entrance row now says what it does.** "Show dungeon and raid entrances" (World map settings and the Legacy map menu) hides Legacy's pins on entrances when you turn it off, and the Legacy map menu still lists them.
+- **"What's new after an update" sits on the Legacy settings page itself.** Its one-row Updates page is gone.
+- **The World map page's zone completion row reads "Zone completion on the map"**, pairing with "Zone completion in the tracker".
+
+### Fixed
+
+- **Stop tracking all from the Legacy header.** Right-clicking the Legacy section header in the objective tracker now offers Stop tracking all when challenges are tracked, so the whole section can be cleared without opening each challenge.
+- **Attach to quest tracker says what it does.** Its tooltip now explains that on keeps the shared Forever tracker under the quest tracker and off moves it to the left, the same words every Forever addon shows (cjber/forever-core#910).
+- **/lf says why Legacy Forever stopped.** While Legacy Forever cannot start, typing /lf repeats the line naming the fix instead of reading "Unknown command".
+
+## [2.5.2] - 2026-11-19
+
+### Fixed
+
+- **Stratholme: Live tracks again.** The Spelunker challenge's Stratholme: Live wing shows and tracks on the current WoW: Forever client, which now counts the Balnazzar encounter instead of the creature kill.
+
+### Changed
+
+- **Needs ForeverCore 1.15.3**, where every tracker section fits its lines and the column lays itself out again when Edit Mode moves the game's quest tracker.
+- When ForeverCore is missing or out of date, /lf answers with the line that says how to fix it instead of "Unknown command".
+
+## [2.5.1] - 2026-11-18
+
+<!-- forever-core-sync -->
+
+- Ships with the same shared code as your other Forever addons, so they keep working together.
+
+## [2.5.0] - 2026-11-18
+
+<!-- discord-image: docs/screenshots/tracker.png -->
+
+### Changed
+
+- **No more suggestions for my other addons.** The Forever addons settings page, the "Suggest my other Forever addons" map menu entry and the Shortest Path and Adventure Guide lines in pin and zone tooltips are gone, following ForeverCore 1.15.0.
+- **Needs ForeverCore 1.15.0**, where the shared column sits left of the game's quest tracker. Drag a section heading to move it; right-click a heading for "Lock the tracker".
+- Tracker menus match the Forever column: right-click a section or block for its actions and a Tracker submenu, including Hide this section. Both sections can be restored in the Objective tracker settings.
+- **Updates are published on CurseForge and GitHub.** Wago publishing has ended, so install and update from CurseForge. (cjber/forever-core#649)
+
+### Fixed
+
+- **A turned-off ForeverCore is named as the problem.** With ForeverCore turned off, Legacy Forever now says so at login, instead of naming every other Forever addon as out of date. (cjber/forever-core#816)
+- **The addon compartment entry says why Legacy Forever stopped.** While Legacy Forever cannot start, clicking its entry repeats the line naming the fix instead of raising a Lua error.
+
+## [2.4.3] - 2026-11-17
+
+<!-- forever-core-sync -->
+
+- Ships with the same shared code as your other Forever addons, so they keep working together.
+
+## [2.4.2] - 2026-11-16
+
+<!-- forever-core-sync -->
+
+- Legacy Forever now loads without ForeverCore and shows one line on screen when ForeverCore is missing, turned off or out of date, saying what to do. The line is translated into every language the addon ships.
+- Ships with the same shared code as your other Forever addons, so they keep working together.
+
+## [2.4.1] - 2026-11-16
+
+<!-- forever-core-sync -->
+
+- This is the last update published on Wago. Future updates come from CurseForge only. If you installed this addon through Wago or the WowUp Wago source, install it from CurseForge to keep getting updates; your settings stay.
+- Ships with the same shared code as your other Forever addons, so they keep working together.
+
+## [2.4.0] - 2026-11-16
+
+<!-- discord-image: docs/screenshots/account-quests.png -->
+
+- **Count quests finished by your other characters.** The optional "Count account quests" switch beside Quests uses account progress while keeping the quests eligible for your current character. It starts off, and clients without account quest progress keep character-only counts, thanks to cotijelucie for the idea.
+
+- **A collapsed tracker section no longer keeps its progress bar.** Collapsing a region left the bar drawn under the heading, over the rows beneath it, until the section was expanded again. It now hides with the rest of the section. Thanks to kowakowa93 for the report (#516).
+
+<!-- forever-core-sync -->
+
+- Ships with the same shared code as your other Forever addons, so they keep working together.
+
+## [2.3.11] - 2026-11-15
+
+<!-- discord-image: docs/screenshots/tracker.png -->
+
+- **A collapsed tracker section no longer keeps its progress bar.** Collapsing a region left the bar drawn under the heading, over the rows beneath it, until the section was expanded again. It now hides with the rest of the section. Thanks to kowakowa93 for the report (#516).
+
+<!-- forever-core-sync -->
+
+- Ships with the same shared code as your other Forever addons, so they keep working together.
+
+## [2.3.10] - 2026-11-14
+
+- **Routes keep working with Shortest Path Forever when its shared leaderboard features are removed.** Legacy did not recognise newer Shortest Path releases and behaved as if it were not installed: pins offered a waypoint, clicks skipped the plotted route and a journey no longer ended when you discovered the area. Older and newer Shortest Path releases both work now, so the route is plotted and ends as before.
+
+<!-- forever-core-sync -->
+
+- Ships with the same shared code as your other Forever addons, so they keep working together.
+
+## [2.3.9] - 2026-11-12
+
+<!-- forever-core-sync -->
+
+- Ships with the same shared code as your other Forever addons, so they keep working together.
+
+## [2.3.8] - 2026-11-12
+
+<!-- forever-core-sync -->
+
+- Ships with the same shared code as your other Forever addons, so they keep working together.
+
+## [2.3.7] - 2026-11-12
+
+- **Both discover switches now keep the dark fade, and the shading stays under every map marker.** With "Show undiscovered areas" and "Show where to discover areas" both on, each outlined area keeps its unexplored-ground shading under the terrain fill, so the map no longer loses the dark fade. The shading also takes the map's own fog-of-war layer instead of a level worked out per map, so Blizzard's dungeon entrances and other addons' markers such as Leatrix Maps always draw above it, including with Leatrix's reveal on and after zooming or reopening the map. Thanks to cotijelucie on Discord for the report and follow-up. (#485)
+
+## [2.3.6] - 2026-11-12
+
+<!-- forever-core-sync -->
+
+- Ships with the same shared code as your other Forever addons, so they keep working together.
+
+## [2.3.5] - 2026-11-12
+
+- **Terrain shading now follows each area's real ground with smooth native fades.** Clipped terrain data removes jagged corners and overfill, while areas without terrain data keep their map-art shading. Thanks to cotijelucie for the report and idea. (#474)
+- Ships with the same shared code as your other Forever addons, so they keep working together.
+
+## [2.3.4] - 2026-11-11
+
+<!-- forever-core-sync -->
+
+- Ships with the same shared code as your other Forever addons, so they keep working together.
+
+## [2.3.3] - 2026-11-11
+
+- **The players who helped are on the Thanks page.** Settings, Forever addons, Thanks lists everyone whose report or idea shipped in Legacy Forever, ranked by how much they gave. (#448)
+
+## [2.3.2] - 2026-11-11
+
+- **Undiscovered areas shade above Leatrix Maps' unexplored tint again.** With Leatrix Maps' *Show unexplored areas* on, its tint covered the shading of the area under your cursor, because the last version moved the shading down to sit just above the map art. With Leatrix's reveal on, the shading now sits directly above its tint, so the map reads Leatrix's tint, then the shading, then every marker. Without it, the shading stays below other addons' markers as in the last version. Thanks to Lûca [Luutsa] on Discord for the report (#470).
+- Ships with the same shared code as your other Forever addons, so they keep working together.
+
+## [2.3.1] - 2026-11-11
+
+<!-- forever-core-sync -->
+
+- Ships with the same shared code as your other Forever addons, so they keep working together.
+
+## [2.3.0] - 2026-11-11
+
+<!-- discord-image: docs/screenshots/outlines.png -->
+
+- **The map can now show where each undiscovered area really is.** A new World map switch, "Show where to discover areas", sits beside "Show undiscovered areas" and starts off. Turned on, each area the game has terrain for glows soft gold along its real ground instead of being shaded from the map art, with the Legacy shield at the point nearest you and a tooltip naming the area, the zone's areas left, the distance in yards and the click hint. Clicking travels to the area; with Shortest Path Forever installed it picks the outline point it can reach soonest, and the journey ends by itself once you walk in. Areas with no terrain data, and every area while the switch is off, keep the shading they had (#459). Thanks to cotijelucie on Discord for the idea.
+- **Other addons' map markers show above the undiscovered-area shading.** The shading and the terrain glow sat at Blizzard's exploration frame level (about 2,000), so markers other addons draw on the map canvas, such as Leatrix Maps' points of interest, were drawn under it. They now sit directly above the map art, below every pin. Thanks to cotijelucie on Discord for the report (#464).
+
+## [2.2.0] - 2026-11-11
+
+- **Tells you which addon to update.** If another Forever addon you have installed is older than this one and stops it starting, the message now names that addon, so you know exactly what to update.
+- **Forever Leaderboards are gone.** The leaderboard tab, the `/lf leaderboard` and `/lf stats` commands, the map menu entry and the sharing switch are all removed. Guild and group stat sharing has stopped, so nothing is sent to other players. Your flight-path records stay on this character.
+
+### For addon authors
+
+- **`LegacyForever.API` is now version 2, minor 0.** `Leaderboard(limit)` is removed with Forever Leaderboards. Every other member keeps its contract, so callers that use only those need no change beyond their version check.
+
+## [2.1.3] - 2026-11-11
+
+- **Works again after updating.** Updating to the last version could leave the addon switched off in the game's AddOns list with "ForeverCore: missing", because the update did not bring Forever Core with it. Forever Core now comes inside this addon's download again, from CurseForge, Wago or GitHub alike, so updating is all it takes (cjber/shortest-path-forever#731).
+
+### For addon authors
+
+- **`LegacyForever.API` is now listed by `ForeverCore.APIKit.Addons()`.** On ForeverCore 1.3.2 or later the API hands its table to the shared kit once at load, so another addon finds it in the one suite-wide list instead of naming the global, with this addon's `version` and `minor` beside it. What the API answers does not change and neither does its minor, and a core from before the kit's `Publish` loads exactly as it did (#438).
+
+## [2.1.2] - 2026-11-11
+
+- **Forever Core now installs alongside it.** Forever Core is on CurseForge, so the CurseForge app installs and updates it with this addon instead of the addon carrying its own copy. On Wago, install Forever Core from its own page.
+
+## [2.1.1] - 2026-11-11
+
+- **The Legacy data now names Forever build 1.60.1.70888.** `Data/Legacy.lua` is regenerated from the newer client build's achievements, criteria and world map tables. Every challenge, reward and located objective the map shows is identical to the previous build, so what you are chasing does not change.
+
+## [2.1.0] - 2026-11-11
+
+<!-- discord-image: docs/screenshots/tracker.png -->
+
+### For addon authors
+
+- **`LegacyForever.API` is minor 3: a challenge can be tracked from another addon, and a read can ask about the zone the player is in.** `IsTracked(key)` and `SetTracked(key, tracked)` take the same `key` as a `Targets` row, and a tracking change reaches `Subscribe` callbacks as `tracked` on the next frame, whether the player ticked the Legacy map menu or another addon asked. A `ZoneSummary` or `Targets` call with no map now answers the zone the player is in and `nil, "none"` on a continent, `Targets` can leave its `limit` out, and each target row carries its `achievementName` and, when the game reports one, its Legacy `points` (#373).
+
+## [2.0.2] - 2026-11-10
+
+- **Forever Core now comes in the same download.** This addon needs Forever Core, and until Forever Core has its own CurseForge page every Forever addon's download carries a copy of it, so the addon loads with nothing else to install.
+
+## [2.0.1] - 2026-11-10
+
+- **Zone completion's quest counts no longer stall the login frame, and no longer wait on Questie for the whole session.** The first read walks every quest QuestieDB holds, about fifteen fields each plus its prerequisites, so it now runs a slice a frame instead of all at once in the frame after entering the world and again when Questie finished starting. If Questie loads and never reports ready, quests are read from QuestieDB as it stands after a minute rather than leaving "Waiting for Questie to finish loading." up for good, and the line a missing or unsupported database shows now names QuestieDB, where the count comes from (#394).
+- **A dungeon entrance says what to install when AtlasLoot has no Dungeons & Raids module to read.** AtlasLoot keeps that data in a module it loads on demand; the map pin's tooltip asked for it while drawing, and when the module was missing or disabled it showed no recommended levels and no reason. The load now happens after the frame and only once, its public tables are checked before use, and the tooltip shows the same install line as without AtlasLoot (#394).
+
+### For addon authors
+
+- **`LegacyForever.API` is minor 2: `Subscribe` calls on the next frame with a table naming what changed.** A callback receives a fresh table with `progress` set on every change, as before in any zone, and `zone`, `summary` and `targets` set to `true` for what changed in the player's zone, at most once per burst of game events, and a callback added by another callback waits for the next burst. Code that relied on the synchronous call with no arguments needs to read again on the next frame. `Targets` also answers `nil, "loading"` before the game has reported the player, as `ZoneSummary` already did. `docs/api.md` lists the change names, each read's reasons and the minor history (#373).
+
+## [2.0.0] - 2026-11-10
+<!-- discord-image: docs/screenshots/tracker.png -->
+
+- **Needs Forever Core.** The shared tracker column, bug report and leaderboards now come from one Forever Core addon that installs with it, so every Forever addon's tracker scale, lock and position stay in step. Your tracker settings carry over.
+- **The support buttons sit side by side.** The GitHub Sponsors and Ko-fi buttons in the store description are half size, so they take one line under the support sentence instead of two.
+
+## [1.1.5] - 2026-11-10
+
+- **Opening Legacy's options or its map no longer ends in a blocked-action error naming the addon.** The client refuses its own map and settings open requests when an addon makes them, so pressing Open on a section of Legacy's options page, `/lf`, the compartment button, the tracker's zone header or a zone-complete toast could leave you with an error instead of the page you asked for. All of them now open the way the client expects (cjber/forever-core#333).
+
+## [1.1.4] - 2026-11-09
+
+- **French reads as the French client does.** Legacy is now Héritage in every French line, as the game calls it, and Brainc3ll checked every line that was machine translated (#353).
+
+## [1.1.3] - 2026-11-09
+
+- **With the gamepad interface on, the map's Legacy menu no longer trips the client's protected `SetPreferredGamepadInteractTarget()`.** Legacy's menus were opened from its own code, so the gamepad frame manager took them into its focus under Legacy's taint, and closing them had the client's protected call refused. Under the gamepad interface the map button, `/lf` and the tracker's right-click menus now show "This menu needs mouse and keyboard." instead of opening; the map menu's switches are all in the addon's settings. Reported in game (#339).
+- **The Forever Leaderboards period menu works with a gamepad.** With the gamepad interface on, a press on it steps through this week or all time, for your guild and group or for players you've met, instead of opening a game menu that later had the client block `SetPreferredGamepadInteractTarget()` (cjber/forever-core#267).
+
+## [1.1.2] - 2026-11-08
+
+- **The Forever addons page opens with a gamepad.** With the gamepad interface on, the Forever addons settings page can be entered from the Options list (cjber/tweaks-forever#382).
+
+## [1.1.1] - 2026-11-08
+
+- **Tirisfal Glades counts Undercity as an exploration area.** Zone completion and the tracker now list all 18 areas for the zone, including Undercity, so the count matches the Legacy exploration challenge instead of stopping at 17. An area the game requires but has no current map overlay for is still counted, without a map shape. Reported on CurseForge by TheCheat54 (#332).
+
+## [1.1.0] - 2026-11-08
+
+- **The tracker can have a background.** Right-click any section's title in the Forever tracker and pick *Tracker background*: Off, or the game's tooltip fill at 25, 50, 75 or 100%, so quest text stays readable over bright ground. The choice is shared by every Forever addon in the column (cjber/forever-core#246).
+- **Closing the world map no longer blocks a controller's interact action.** The map layer heard the map close through a script that ran inside the game's own close, before the controller's bindings were cleared, so the addon's taint blocked interacting with the controller afterwards. It now listens for the close the way the game's controller support does. (cjber/adventure-guide-forever#493)
+
+## [1.0.33] - 2026-11-08
+
+- **The report keeps errors from earlier sessions.** An error Legacy caught before the last `/reload`, a blocked action or a Lua warning was forgotten when the client reloaded, so it could not be copied into a report once it was gone. The report now lists them under their own heading, with when each was first and last seen and the version, build and locale it happened on, and keeps the 50 most recent. It also carries Legacy's recent log lines, the steps that led up to a bug, and `/forever debug` turns on detailed lines for the session (cjber/forever-core#204, cjber/forever-core#206).
+
+## [1.0.32] - 2026-11-08
+
+- **The zone completion block on the world map clears the coordinates line.** When the least covered corner for the zone you were viewing was a bottom one, its counts row sat on Tweaks Forever's player coordinates along the bottom of the map. Both bottom corners now sit higher, so the block and its soft shade stay above that line.
+- **The zone completion section no longer goes missing when the objective tracker is full.** The section was laid out after Adventure Guide Forever's story and journey sections, and when they took all the room below your quests the tracker hid the zone section even though its header had been set. It now takes the first Forever slot in the tracker, above those sections, so it shows and they take whatever room is left.
+
+## [1.0.31] - 2026-11-08
+
+- **The zone completion corner is back on the world map.** The zone you're viewing shows its name, percent and counts in a corner of its map again, in the original look: a soft dark wash behind the text, the zone's name, a thin gold line and a row of counts. It sits in whichever corner of each zone's map leaves the zone itself clear, so it no longer covers the ground you're looking at; a click folds it to the name and line, and the fold is remembered. The zone's section in the objective tracker stays as it is, and "In the objective tracker" and "On the world map" are separate switches. Thanks to Lůca on Discord for the report.
+- **The Forever addons settings page no longer writes the client's bare `Text` name.** Its check box came from a Blizzard template under an unnamed page, so the label landed on a global another addon or the game could read as its own. The page is named now (cjber/forever-core#208).
+
+## [1.0.30] - 2026-11-07
+
+- **The Forever Leaderboards tab wears a game icon.** The Legacy tab now draws the game's own `Achievement_General` icon instead of the addon's, so it sits beside the other Forever tabs as if it came with the client. Everything else, from the TOC to the minimap button, keeps the addon's icon (cjber/forever-core#180).
+
+## [1.0.29] - 2026-11-07
+- **A locked tracker stays quiet until you hover it.** With *Lock the tracker* on, the Forever column's grip no longer shows the long "tracker is locked" sentence all the time, where it overlapped whatever sat below and ran off screen at an edge. The grip stays blank until the pointer is over it, and the sentence is in its tooltip. Thanks to MrFIXlT for the request (cjber/forever-core#193).
+
+## [1.0.28] - 2026-11-07
+- **Leaderboards show full names.** The Forever Leaderboards rows and tooltips show a player's first name and surname, such as "Dirtyjoke Lovetties", instead of one run-together word or the first name alone. (cjber/forever-core#179)
+
+## [1.0.27] - 2026-11-07
+- **The zone progress bar now wears the quest tracker's own bar, and the map corner is gone.** The zone's section in the objective tracker fills the game's blue quest bar with the percent centred in it, and its counts use the world map's own pins. The corner of the world map no longer covers the map; continent badges keep their completion in the tooltip.
+
+## [1.0.26] - 2026-11-07
+- **The Forever Leaderboards window opens.** `/flb` and `/forever` no longer raise a Lua error on first open: the list's rows now have a fixed height (cjber/forever-core#174).
+
+## [1.0.25] - 2026-11-07
+- **The flight-path leaderboard is part of the shared Forever Leaderboards window.** `/lf leaderboard` and `/lf stats` open that window on the Legacy tab, where you can switch between this week's progress and the all-time total, see your own row pinned in place and read the player-reported values without a line of chat. `/flb` opens the window too, and the unit tooltip shows the player's overall place across every installed Forever addon. Sharing is on unless you turn it off, through the window's Share my progress box, `/lf share off` or Flight-path records in Settings.
+
+## [1.0.24] - 2026-11-06
+- **You appear once on leaderboards with a two-part name.** A Forever name like Hel Io no longer shows twice, once as you and once as a reported player with the same value.
+
+## [1.0.23] - 2026-11-06
+- **The zone completion bar wears the Legacy panel's own progress bar.** The corner of the map and the zone's section in the tracker now fill the same recessed bar with the bronze frame that the Legacy panel uses, instead of a thin gold line, and the corner no longer paints a dark wash behind its text.
+
+## [1.0.22] - 2026-11-06
+- **The tracker column steps aside for EQ Objective Tracker.** EQ Objective Tracker hides the game's quest tracker and draws its own list in that same slot, so its quests and this addon's tracker section drew over each other and neither could be read. The section now asks EQOT where its list is through EQOT's public API and re-places itself below, above or beside it after every redraw, and reads EQOT's own frame the same way when that API is not there. Turn EQOT off and the column goes back where it was.
+
+## [1.0.21] - 2026-11-05
+- **The tracker header menu opens without a Lua error.** Forever's Blizzard_Menu can assert when a context menu is acquired, so the header's attach and lock switches now open through Legacy's own menu when it has one and fall back to Blizzard's otherwise. Nothing looks different, and a right click on the section header still attach, detaches or locks the tracker.
+
+## [1.0.20] - 2026-11-05
+- **Right-click the tracker header to attach, detach or lock it.** The section header in the quest tracker now opens a small menu with Attach to quest tracker and Lock the tracker, the same switches as in the settings, so moving the section no longer needs a trip to the options.
+
+## [1.0.19] - 2026-11-05
+- **Only an opened flight map adds to your flight-path history.** A taxi status change away from a flight master could record a path you had never visited; now the cumulative count grows only when you open a flight master's map.
+
+## [1.0.18] - 2026-11-05
+
+- **The Forever addons settings page ends with a Ko-fi link.** If the addons help you, its Copy link button shows the address, ready to paste into your browser. Nothing is locked behind it, and it shows nowhere else.
+
+## [1.0.17] - 2026-11-05
+
+- **Long challenge lists on the map menu scroll.** The zone's challenges and every level of No fixed location show 20 rows at a time and scroll the rest, instead of running off the bottom of the screen.
+
+## [1.0.16] - 2026-11-05
+
+- **The settings page opens without an error.** Its title asked the game for a font Forever does not have, which logged a Lua error each time the page was built; it now uses the font the game's own settings pages title with.
+
+## [1.0.15] - 2026-11-05
+
+- **The retired merge bot's workflow is gone.** The MergeLoop workflow, its config and its agent skill were removed from the repo, so nothing here waits on a bot that no longer runs. Nothing a player sees changes.
+
+## [1.0.14] - 2026-11-05
+
+- **The objective tracker column stays still as you enter and leave combat.** All Objectives and your quests keep their place at the top, and the Forever sections always follow below them, so nothing swaps order, jumps or loses a line when a fight starts or ends.
+
+## [1.0.13] - 2026-11-04
+
+- **Legacy data now names the 1.60.1.70790 build.** The challenge data is regenerated from the new Forever client build, so the addon carries the build it came from. The regenerated values match the previous build, so nothing a player sees changes.
+
+## [1.0.12] - 2026-11-04
+
+- **Legacy data now names the 1.60.1.70755 build.** The legacy challenge data is regenerated from the new Forever client build, so the addon's own data carries the build it came from. The regenerated values match the previous build, so nothing a player sees changes.
+
+## [1.0.11] - 2026-11-04
+
+- **World-map drawings share Forever Core's private canvas.** Pins, scale and right-click behaviour come from the shared canvas helper, which leaves Blizzard's map tables untouched.
+- **Screenshots keep their content on the data build.** Map metadata, tiles and overlays pin the generated data build while window chrome keeps the reviewed UI art build.
+
+## [1.0.10] - 2026-11-04
+
+- **Dungeon entrances follow the world map's filter.** Turning off Show instance entrances also hides Legacy's dungeon and raid pins, while exploration and completion information remain visible.
+
+- **The map menu stays beside the map's own controls.** Questie's and other Krowi map buttons stack on the left, so they no longer push Legacy's menu down an empty slot on the right.
+
+- **Exploration tooltips remain available with Leatrix Maps.** Revealed ground stays clear until you hover an unfinished area, which still highlights and shows its Legacy information.
+
+## [1.0.9] - 2026-11-03
+
+- **Preview screenshots use the pinned client art build.** The rendered scenes now take their window art from the repo's pinned UI art build through Forever Core's shared renderer, so a preview cannot show chrome the shipped client does not draw. Data generation stays on the client build it already targets.
+
+## [1.0.8] - 2026-11-03
+
+- **Compare observed flight paths with guild and group members.** `/lf leaderboard` ranks distinct paths observed at flight masters on the same client ruleset. Peer totals are player-reported. Sharing starts on; `/lf share off`, the map menu or Flight-path records in Settings stops sends and peer comparisons while keeping personal history. Unknown rulesets keep only your personal row.
+
+### For addon authors
+
+- **`API.Leaderboard(limit)`** adds a bounded ranked snapshot at API version 1, minor 1. Existing methods retain their contracts.
+
+## [1.0.7] - 2026-11-03
+
+- **Keep a cumulative record of observed flight paths.** A path already seen at a flight master stays in this character's history when it later appears unreachable. The map still shows the current state.
+
+## [1.0.6] - 2026-11-03
+
+- **Controls use the Forever asset set.** Buttons use the native gold-bordered family, and CI rejects legacy loose chrome in runtime UI and screenshot renderers.
+
+- **The map shading steps aside for Leatrix Maps.** With Leatrix Maps revealing the whole map, its own tiles are
+  already visible, so the black veil over undiscovered areas covered ground the player had asked to see. The shading
+  now stays off while Leatrix's reveal option is on, and comes back when it is off.
+
+## [1.0.5] - 2026-11-03
+
+- **Dungeon ranges use one difficulty colour.** Both ends use the lower level's colour, with correctly formed tooltip colour markup.
+
+## [1.0.4] - 2026-11-03
+
+- **Dungeon entrance tooltips show recommended levels.** With AtlasLoot installed, each known entrance shows its recommended range, coloured for your level. Wings sharing one entrance use a combined range; unknown ranges stay absent, thanks to overspark for the idea.
+
+## [1.0.3] - 2026-11-03
+
+- **The update message reflects the current release.** The chat notice no longer announces the first stable release after a newer update.
+
+## [1.0.2] - 2026-11-03
+
+- **Zone completion counts faster.** Working out a zone's percent no longer builds a fresh set of helper functions for every zone, so continent badges and progress notices take about a sixth less time.
+
+## [1.0.1] - 2026-11-03
+
+- **Legacy challenges and zone completion re-pinned to client build 1.60.1.70753.** The achievements the map and tracker count now come from the current client, so a challenge the build dropped is no longer listed as unfinished. Nothing else a player sees changes.
+
+## [1.0.0] - 2026-11-02
+
+- **Legacy Forever 1.0 is the first stable release, ready for the WoW: Forever launch.** The map pins, tracker and settings work as they did in 0.12.16; the version number now marks the addon as ready for everyday play, and the chat line after the update says so in every shipped language.
+
+## [0.12.16] - 2026-11-02
+
+- **Continent maps draw their zone badges faster.** A continent's badges used to build every zone's exploration objectives only to throw them away; they now skip them, so opening a continent map does about a tenth of the work.
+- **One unfinished objective reads in the singular.** The map button's tooltip said "1 unfinished Legacy objectives on this map."
+
+## [0.12.15] - 2026-11-02
+
+- **The report lines read in every shipped language.** The eleven phrases the `/lf issue` composer added were still English in German, Spanish, Korean, Portuguese, Russian and both Chinese files; they are translated now, so nothing in the report window falls back to English. `tools/typecheck.sh` runs the locale check with `--release` from now on, so an English line added without its translations fails the change that adds it.
+
+## [0.12.14] - 2026-11-01
+
+- **The French translation is rewritten end to end by Brainc3ll.** Every one of the addon's 111 phrases now
+  reads as native French, including the issue-report window, the tracker instructions and the `/lf` command
+  help; the previous machine-translated lines are gone. Two phrases the rewrite introduced with a grammar
+  slip (`/lf criteria` and the flight master hint) are corrected here.
+
+## [0.12.13] - 2026-10-30
+
+- **THIRD_PARTY.md credits more of the players behind the addon.** Its Ideas and contributors table gains rows for players whose reports, ideas or fixes shipped but were not yet credited there. Thanks to Mouchoir and DanielVafidis for what they reported, asked for and fixed.
+
+## [0.12.12] - 2026-10-30
+
+- **Legacy data regenerated for client build 1.60.1.70707.** Achievements, criteria and the completion tables are read against the newer Forever build; regenerating against it produces no player-visible change.
+
+## [0.12.11] - 2026-10-28
+
+- **Legacy data regenerated for client build 1.60.1.70685.** Achievements, criteria and the completion tables are read against the newer Forever build; regenerating against it produces no player-visible change.
+
+## [0.12.10] - 2026-10-28
+
+- **Legacy data regenerated for client build 1.60.1.70658.** Achievements, criteria and the
+  world map data are rebuilt from the newer Forever build.
+
+## [0.12.9] - 2026-10-27
+
+- **Legacy data regenerated for client build 1.60.1.70630.** Achievements, reputations, skills and dungeon wings are rebuilt from the new build, and the generator now reads the newest Forever build from wago.tools' `wowf` product as well as `wow_classic_beta`. wago lists 1.60.1.70630 only under `wowf`, so the daily refresh had been reporting itself already current and skipped regeneration.
+
+## [0.12.8] - 2026-10-26
+
+- **The README's map scene now draws its menu over the whole map frame, and the addon adopts the suite's
+  dead-code gate.** The mock used to clip the menu to part of the frame, so the screenshot is re-rendered and its
+  hash refreshed; `tools/deadcode.py` now scans the addon for namespace members no code reads, Lua files no TOC
+  loads and media nothing references, and runs as its own CI job. Nothing changes in game.
+
+## [0.12.7] - 2026-10-26
+
+- **The addon now ships the suite's shared settings-page code.** Forever Core's settings-page chrome (`UI/SettingsPage.lua`) and its spec are vendored byte for byte so the suite's shared-code drift gate covers this addon; Legacy keeps drawing its own settings page, so nothing changes in game.
+
+## [0.12.6] - 2026-10-24
+
+- The report keeps the same error details, now captured by Forever Core alongside the other shared report code.
+
+## [0.12.5] - 2026-10-24
+
+- **Report and issue text selects when focused.** Ctrl+C now copies the full report or issue link from either text box.
+
+## [0.12.4] - 2026-10-23
+
+- **The Forever addons link box selects its address without a Lua error.** Focusing the read-only box handed the client's own `isUserInput` flag to `HighlightText` as its start argument, so it raised *bad argument #2 to '?' (outside of expected range -2147483648 to 2147483647)* and left the address unselected. It now selects the whole address the way the game asks, from the shared link box the Forever addons all carry (#269).
+
+## [0.12.3] - 2026-10-23
+
+- **Report a bug or request a feature from the game.** `/lf issue` (also `/lf bug` and `/lf feature`) opens a composer: write what went wrong, pick Bug or Feature request, and the window hands you a ready-made GitHub issue link, selected so Ctrl+C and a paste opens the new issue with your words and the addon's system report already filled in. Copy report still puts the same text in your hands for Discord.
+
+## [0.12.2] - 2026-10-23
+
+- **The tracker hands Blizzard's objective frame back cleanly when you enter Edit Mode.** Legacy's own column now detaches instead of holding the native anchor, so dragging the objective tracker in Edit Mode no longer fights the addon, and leaving Edit Mode puts everything back where it was.
+
+## [0.12.1] - 2026-10-23
+
+- **Data checked against Forever 1.60.1.70532.** No Legacy objective was added, removed or moved in this build, so the map and tracker show the same objectives as before. Only the bundled data's build pin changed.
+
+## [0.12.0] - 2026-10-22
+
+- **Addon authors can read observed flight-path records.** `LegacyForever.API.Stats()` reports known taxi nodes recorded from this character's flight-master maps. It does not infer flight paths from zone exploration and does not share or claim realm-first records.
+
+## [0.11.7] - 2026-10-22
+
+- **A quest item in your bags clicks normally while the tracker is loaded.** Our tracker sections used to be handed to the game's own tracker manager, which marked the bag item click path insecure, so a click on an item in your bags could be turned into a blocked action while the Forever column was up. Each addon now parents its own sections and never calls the native manager, so the click path stays secure. Found in the shared tracker host and already released in SkillUp Forever 0.18.12 and Shortest Path Forever 1.21.10.
+
+## [0.11.6] - 2026-10-21
+
+- **Blizzard's *All Objectives* header stays where the game puts it.** Our column used to lift that header out of the objective tracker and hang it above the Forever rows; the game re-anchors it on every tracker update, so the two fought and left a stranded header with a blank band under it. Nothing of ours touches that header any more - no re-anchor, no show or hide, no reserved gap - so the column starts cleanly under the header and stays there through refreshes. Found in the shared tracker host and already released in Shortest Path Forever 1.21.8.
+
+## [0.11.5] - 2026-10-21
+
+- **The tracker no longer errors out when another Forever addon adds its own section.** With SkillUp Forever loaded, the two addons' tracker sections are sorted together, and a section that carries no ordering of its own was compared against ones that do, so the layout pass died with `attempt to compare nil with number` on every refresh. Sections that carry an order keep it, sections without one follow them in the order they were added, and the column draws every time. Found in the shared tracker host, reported against Shortest Path Forever by Torpdotorgx on CurseForge.
+
+## [0.11.4] - 2026-10-21
+
+- **The in-combat tracker keeps up with new objectives.** In combat the game's own tracker cannot be moved, so the Forever column fits itself into the height it was given when the fight began. A quest accepted or an objective completed mid-fight could then be cut off until combat ended, and a collapsed native header left an empty gap at the top of the column. The column now reserves header room only while the header is shown, grows to fit a section that gained lines, and keeps that taller height for the rest of the fight. Found in the suite's own review of the shared tracker host.
+
+## [0.11.3] - 2026-10-20
+
+- **Lock the tracker where you put it.** Detach the Forever column, drag it where you want it, then tick *Settings*, *Objective tracker*, *Lock the tracker*: the grip stops moving the column and hovering it says the tracker is locked instead of offering to move it. It is off by default, it only ever suppresses our own drag handler, so turning it on or off in combat cannot taint or move anything, and an existing character's saved settings gain the switch without losing their place. Thanks to Alex21xx for the request.
+
+## [0.11.2] - 2026-10-20
+
+- **Questie's quest tracker can be moved again.** With a Forever section in the tracker, Questie's quest list and the game's own quest tracker could no longer be dragged, and could vanish. A frame of ours sat between UIParent and Questie's list, and Questie's own drag code reads the list's corners and then clears its points mid-gesture, so a layout pass of ours landing in that window left it nothing to read. Nothing of ours is anchored to the list any more: it is watched through its own show, hide, drag-stop and size calls, the column holds its place while you drag or resize it, and it reflows once when you let go. Thanks to procque and Fareed on CurseForge, and to the Questie team for the report that named the cause in Questie/Questie#8076.
+
+## [0.11.1] - 2026-10-19
+
+- **No more Lua errors as the world map loads.** Since 0.11.0 the map button worked out its menu and its place before it was on the map, so every login and `/reload` raised two errors. It now waits for the map, and the button and its menu work as before.
+
+## [0.11.0] - 2026-10-18
+
+- **The map now shows which dungeons and raids you have already cleared.** A dungeon or raid entrance whose Legacy objective is finished is drawn faded, the way an explored area reads as explored, and its tooltip says *Already complete*; the ones still to do stay bright. *Show dungeon and raid entrances* still hides them all. Thanks to overspark, whose CurseForge comment on the entrance pins prompted it.
+- **Gamepad interface: the world map is only read.** The Legacy pins, the undiscovered-area shading, the map button and the zone's corner progress are now drawn on frames of Legacy Forever's own over the map, so the game's map no longer holds any of the addon's pins, data or buttons. With the gamepad interface on, the map walks its own pins and buttons from secure code every frame, and an addon's in that walk can block the game's controller actions. Everything works as before: tooltips, a mouse click to travel to an objective, a zone badge's click opening the zone, right-click to zoom out, and the entrance switch. Under the gamepad interface, a pin under the map cursor shows its tooltip; travelling there still takes a mouse click. Thanks to Polestar for the idea.
+
+### For addon authors
+
+- **`ForeverMapMarkers`.** The pins aren't the map's own any more, so `WorldMapFrame:EnumeratePinsByTemplate("LegacyForeverPinTemplate")` no longer finds them. `ForeverMapMarkers.LegacyForever(WorldMapFrame)` returns the shown pins as `{x, y, kind = "legacy"}` map fractions on the map being viewed.
+
+## [0.10.1] - 2026-10-17
+
+- **The tracker sections now move clear of Questie's quest list.** With Questie's tracker on, its list was drawn over the Forever sections. They now sit below Questie's list, or above or beside it when there isn't room, and follow it when it moves, grows or hides; your quest tracker keeps its own place. Thanks to deathmvp1 for the report and berserkerlxl for finding the cause.
+
+## [0.10.0] - 2026-10-17
+
+- **You can hide Legacy's dungeon and raid entrances on the world map.** Many map addons already mark every entrance, so Legacy's portal with its shield was a second icon in the same spot. Untick *Show dungeon and raid entrances* in the Legacy map menu, or on the World map page under Options > AddOns > Legacy Forever, and the entrance pins go at once. Everything else stays: other pins, the continent zone badges and the undiscovered-area shading. The map button still counts the entrances and its menu still lists them, so you can still track them. It's on by default; thanks to overspark for the idea.
+
+## [0.9.1] - 2026-10-17
+
+- **Data checked against Forever 1.60.1.70450.** No Legacy objective was added, removed or moved in this build, so the map and tracker show the same objectives as before. Only the bundled data's build pin changed.
+
+## [0.9.0] - 2026-10-16
+
+- **In your language.** Legacy Forever is now in German, Spanish (Spain and Latin America), Korean, Brazilian Portuguese, Russian, and Simplified and Traditional Chinese, using the game's own words for things like the objective tracker and flight masters. These are machine translated; corrections are welcome through the [translation issue form](https://github.com/cjber/legacy-forever/issues/new?template=translation.yml). The French is Brainc3ll's translation. French lines added since then, such as the Forever addons page and the `/lf report` window, are machine translated and end `-- mt` in the file. There's no Italian, because the WoW: Forever client has none.
+
+## [0.8.0] - 2026-10-16
+
+- **A Forever addons page in the settings.** It's under Legacy Forever in the AddOns settings. It lists my five WoW: Forever addons, each with one line on what it does. For the other four it shows whether you have it (on, installed but turned off, or not installed) and a *Copy link* button. That opens a small window with the addon's CurseForge address selected, to copy and open in your browser. The page also has *Suggest my other Forever addons*, which replaces "Suggest companion addons" and is in the Legacy map menu too. If you had the old option off, the new one starts off. The page and its link window are in French on a French client, whichever Forever addon loaded first. The *Hints and updates* page is now *Updates*.
+
+- **Zone completion suggests Adventure Guide Forever when you don't have it.** Hover the zone completion corner of the map, or the zone in the tracker, for a zone you haven't finished. Above the click hint, a grey line says "Adventure Guide Forever routes the quests left in this zone." A pin's Shortest Path Forever line follows the same option. It only shows while Shortest Path Forever isn't installed, so a pin no longer asks you to enable it when you've turned it off.
+
+- **The README now credits the people and addons behind Legacy Forever.** It names Brainc3ll for the French translation, the players who reported bugs or asked for features, and Polestar, which inspired some features. THIRD_PARTY.md has the full list.
+
+## [0.7.1] - 2026-10-16
+
+- **Your quest tracker goes back to its own spot when the Forever column is empty.** To fit the Forever sections above your quests, the addon moves the game's quest tracker. It kept holding it there when no section had anything to show or All Objectives was collapsed, which could leave the tracker mid-screen or over the minimap. Now the tracker goes straight back to where the game, Edit Mode or your UI addon put it, and Legacy Forever moves it again only once a section has something to show. The Forever addons share this tracker code and only the first one loaded runs it, so the fix applies once every Forever addon you use has updated.
+
+- **Collapsing All Objectives in combat hides the Forever sections at once.** During a fight they stayed on screen until combat ended. A Forever section that changes in combat now redraws in the space it already has, instead of keeping its old text. The game's quest tracker still isn't moved until combat ends.
+
+- **Data checked against Forever 1.60.1.70425.** No Legacy objective was added, removed or moved in this build, so the map and tracker show the same objectives as before. Only the bundled data's build pin changed.
+
+## [0.7.0] - 2026-10-15
+
+- **`/lf report` gives you something to paste into a bug report.** It opens a small window with the text already selected: your addon and game versions, your character and where you are, the `/lf audit` lines, your other addons, and any errors Legacy Forever caught this session. Press Ctrl+C and paste it. It fits in one message, and you don't need a /reload or a saved-variables file. The wrong objective form on GitHub asks for it.
+
+- **One error no longer stops the rest of an update.** When a setting, your progress or a zone's completion changes, the map, the tracker and the settings page update in turn. If one of them hits a Lua error, the rest still update. The error still reaches the game's error frame or BugSack, and `/lf report` lists it.
+
+- **No hitch when you open the map or the tracker draws straight after logging in with Quests counted.** The map's corner, its continent badges and the tracker's zone section no longer read every quest in Questie's database in one go on their first draw. Quests show as not known yet for a moment and fill in on the next frame, as the zone completion check at login already did.
+
+- **`/lf audit` lists unknown objectives in the same order each time**, so two audits are easy to compare.
+
+## [0.6.21] - 2026-10-15
+
+- **Data checked against Forever 1.60.1.70374.** The bundled data is unchanged apart from its build pin.
+
+- **Your quests stay below the Forever tracker with EllesmereUI and other UI suites.** When the game, Edit Mode or a UI addon put the quest tracker back in its saved spot, the Forever sections waited for the next quest event to restack, so your quests sat over them until then. The column now follows the quest tracker as soon as it moves, still without touching the game's own tracker code.
+
+## [0.6.20] - 2026-10-13
+
+- **No hitch on login from zone completion news.** Checking which zones you have just completed no longer builds QuestieDB's quest index the moment you enter the world; the check waits for the next frame and runs again once the quests are ready.
+
+- **Tracker lines while the game is still loading a name.** A challenge whose step or name the client has not loaded yet shows what is known, or is left out until it loads, instead of raising a Lua error.
+
+- **A detached tracker with nothing to show leaves the screen.** Its "Forever tracker" title hides with the empty column and comes back, where you left it, as soon as a section has something to show.
+
+## [0.6.19] - 2026-10-13
+
+- **Data checked against Forever 1.60.1.70338.** The bundled data is unchanged apart from its build pin.
+
+- **Tracker stays put when Edit Mode places it by its centre or bottom.** Attaching to the quest tracker no longer pushes it down the screen when it has been moved away from the default top-anchored spot.
+
+## [0.6.18] - 2026-10-09
+
+- **French translation.** Legacy Forever is available in French, contributed by Brainc3ll.
+
+- **How the Forever addons work together.** The README and store page list each of the other Forever addons and what it adds when installed alongside this one.
+
+## [0.6.17] - 2026-10-09
+
+- **Keep Blizzard's tracker methods intact.** The shared Forever tracker responds to objective and player events without wrapping native layout methods.
+
+- **Current completion data.** Legacy uses the latest Forever client data for newly added achievements and map areas.
+## [0.6.16] - 2026-10-08
+
+- **Shorter addon descriptions.** The README and store pages explain the features directly and keep the author and licence credits.
+
+- **Quest text stays on screen when the Forever tracker is smaller.** The native quest column and its header keep their full width at the edge of the screen.
+
+- **Shared tracker scaling.** Legacy follows the tracker scale selected in Shortest Path Forever.
+
+## [0.6.15] - 2026-10-07
+
+- **Quest objectives stay below the Forever tracker after reload.** The shared tracker no longer resizes Blizzard's quest container, which could move it over the addon sections.
+
+## [0.6.14] - 2026-10-07
+
+- **Data checked against Forever 1.60.1.70245.** The bundled game data is unchanged.
+
+## [0.6.13] - 2026-10-06
+
+- **Current game data.** Legacy objectives use the latest selected Forever client data, build 1.60.1.70235.
+
+## [0.6.12] - 2026-10-05
+
+- **Updated help text.** The description explains the current tracker controls and how the addon works alongside the other Forever addons.
+
+## [0.6.11] - 2026-10-05
+
+- **The tracker returns after Edit Mode is locked.** Hiding and locking Edit Mode without leaving it no longer keeps the Forever sections hidden.
+- **The tracker reads in game order.** The game's All Objectives header leads the shared column, the Forever sections follow it, and your quests stay below them. In combat the game keeps its quest list in its own slot, so the header and quests stay together and the Forever sections sit directly below them, keeping the tracker to one column.
+- **Progress updates read less from the game.** Killing something or discovering an area used to re-read every Legacy challenge and every zone's explored overlay; those are kept now, so the tracker and map redraw without the extra work.
+- **The data matches the current client build.** Dire Maul and Zul'Farrak are spelled as the game now spells them in a zone's dungeon list, and Coldridge Valley has its pin on the Dun Morogh map.
+
+## [0.6.10] - 2026-10-03
+
+- **A detached tracker keeps clear of your quests.** With Attach to quest tracker off, the Forever column could open on top of the quest list. Until you drag it, it now sits beside the quest tracker, level with its top; once dragged, it stays where you put it.
+- **The tracker setting says what it switches.** On the settings page, *In the objective tracker* read as if it hid everything Legacy puts in the tracker, but it only shows or hides the zone you're in. It is now *Zone completion in the tracker*, and its tooltip says the challenges you track keep their own Legacy section.
+
+## [0.6.9] - 2026-10-02
+
+- **The guides stay put in a fight.** In combat the game stretches its quest tracker and nudges it back on screen, which shoved the Forever sections sideways across the screen until the fight ended. They now stay stacked above the quest list.
+- **Opening the map no longer breaks it in a fight.** After `/lf`, a zone's tracker header or a completion toast had opened the world map, every later look at the map in combat raised a blocked-action warning and lost its quest markers until a reload. The map now opens cleanly and keeps its markers in combat.
+- **Say why the Legacy panel will not open.** Until the game unlocks its Legacy panel, the entries that open it are greyed out and show the game's own reason, in place of a button that did nothing.
+- **The map button clears Questie's.** With Questie installed, the Legacy button sat on top of its button in the map's top-right corner. It now takes the next place down.
+- **The what's-new setting fits the settings panel.** Its name was cut off with an ellipsis; it now reads *What's new after an update*.
+
+## [0.6.8] - 2026-10-01
+
+- **Keep guides clear of quests in combat.** Companion sections stay clear when the quest list grows during a fight. Detaching restores the quest tracker’s original Edit Mode position.
+
+## [0.6.7] - 2026-09-30
+
+- **Move the shared tracker.** Turn off Attach to quest tracker in Settings to drag all Forever sections together. The position survives `/reload`.
+
+- **Organise the source.** Group runtime modules by responsibility and update the manifest, tests and developer tools without changing client load order or behaviour.
+
+## [0.6.6] - 2026-09-30
+
+- **Development disclosure.** This release was developed with AI assistance. Changes were reviewed and checked with automated tests, linting and type checks; live verification remains ongoing.
+
+- **Find every option on the game's Options page.** Options > AddOns > Legacy Forever groups the map shading, zone completion and its "What counts" list into short pages behind an index, so nothing needs scrolling; the Legacy menu's quick toggles stay where they are.
+
+- **Keep tracker sections apart in combat.** Companion sections move above the protected quest tracker while fighting, then return to one column afterward, regardless of which addon loads first.
+
+## [0.6.5] - 2026-09-29
+
+- **Keep one tracker column.** Addon sections stack above the quest tracker regardless of which companion addon loads first, while keeping their frame pools separate from Blizzard's tracker.
+
+## [0.6.4] - 2026-09-28
+
+- **Map pins wait for combat to end.** Refreshing Legacy pins during combat no longer touches the protected map pin manager; stale pins hide and rebuild safely after combat.
+
+## [0.6.3] - 2026-09-28
+
+- **Separate addon tracking from Blizzard’s layout.** Addon sections now use their own frame pools and sit beside the quest tracker, avoiding the shared tracker registration implicated in Edit Mode aura errors.
+- **Check the client integration in CI.** Regression checks run against pinned Forever tracker source and reject native tracker registration.
+
+## [0.6.2] - 2026-09-27
+
+- **Tracker and map overlays avoid shared UI hooks.** Tracker registration waits for the game to finish loading, and area textures manage their own masks.
+
+## [0.6.1] - 2026-09-27
+
+- **`/lf` opens the world map with the Legacy menu showing**, where every option lives, and so does the addon compartment entry. `/lf help` lists the other commands.
+- **A new icon in the addon list and the compartment**: a gold trophy on the same frame as the other WoW: Forever addons, in place of the folded map.
+
+## [0.6.0] - 2026-09-25
+
+- **Ready for translation.** Every menu, tooltip and chat message the addon writes, apart from `/lf audit`, can now be translated, one file per language in the addon's `Locales` folder; translations are welcome on GitHub. Zone, achievement and objective names already came from the game in your language. Until a translation arrives, the rest reads in English as before.
+- **A pin's tooltip suggests Shortest Path Forever when you don't have it.** Under "Click to set a waypoint here." a grey line says installing it (or enabling it, if it is switched off in the addon list) would plot the whole route for you. Once it is loaded the line goes. Untick "Suggest companion addons" in the Legacy menu to hide it.
+- **One chat line after an update** says which version you now have and the main change. It stays quiet on a first install; untick "Tell me what's new after an update" in the Legacy menu to turn it off.
+
+## [0.5.0] - 2026-09-25
+
+- **Legacy tooltips go when the world map closes.** Closing the map while hovering an undiscovered area, a Legacy pin, the Legacy button or the zone completion corner used to leave its tooltip on screen, and an area could stay shaded as if still hovered. Each now clears when the map hides.
+- **Other addons can read Legacy Forever.** `LegacyForever.API` gives a zone's completion as you count it, its unfinished Legacy objectives, and a way to send you to one with Shortest Path Forever or the game's waypoint; [docs/api.md](docs/api.md) has the details.
+
+## [0.4.1] - 2026-09-25
+
+- **Coldridge Valley has its new name.** Forever renamed the Dun Morogh area Anvilmar to Coldridge Valley, and the map and tracker now use the new name when it is left to explore.
+- **Updated for Forever build 1.60.1.70009.** Nothing else moved.
+
+## [0.4.0] - 2026-09-25
+
+- **Left-click a Legacy pin to travel there.** With Shortest Path Forever installed and its journeys switched on, the click starts a journey to the pin, flights and boats included. Without it, or in combat, the click sets the game's own map waypoint instead. The pin's tooltip now ends with the click hint. Zone badges on continent maps still open the zone.
+- **Legacy Here is now Legacy Forever**, matching the other WoW: Forever addons. The addon folder is `LegacyForever`, the slash command is `/lf`, and settings start fresh under the new name.
+- **Dungeon and raid entrances keep their portal.** A Legacy step at an entrance used to replace the map's dungeon or raid icon with the Legacy shield. It now shows the portal with a small shield on its corner, so you can still see the entrance.
+- **The zone section in the objective tracker names what is left**, not just the counts. Under "Darkshore 77%" you now see the unexplored areas, missing dungeons and remaining Legacy steps by name, each with its icon, five at most with "..." after; the map tooltip still lists them all.
+- **The map button's count sits inside its Legacy shield**, in the game's gold lettering, and the shield is a little bigger so the number reads at a glance. Three-digit counts use a smaller size so they stay inside the shield.
+- **Ticking a zone's objective in the map menu tracks just that zone**, not the whole challenge. Ticking "Explore Felwood" adds Explorer to the tracker with one line under it, "0/12 Explore Felwood", counting up as you discover its areas; tick more zones and each gets its own line under the same challenge. A dungeon ticked from its zone's map shows that dungeon under its Spelunker challenge in the same way. Unticking a zone removes its line, and the challenge goes once nothing under it is tracked. Challenges ticked under "No fixed location", and anything you tracked before this version, still show every unfinished step.
+- **Zone completion counts only Legacy objectives out of the box**: areas explored, dungeons, raids and the zone's other Legacy objectives. Flight paths and local reputations at Friendly aren't part of any Legacy challenge, so they are now off until you tick them under "What counts"; if you already ticked or unticked either one, your choice stays. The toast for a zone reaching 100% now follows "What counts" as the percentage does, so the 100% you see is the one that earns it, and changing what counts never sets one off.
+- **Unticking "On the world map" under Zone completion now also hides the zone badges on continent maps**, straight away, and ticking it brings them back. Pins on a zone's own map, such as dungeon entrances, stay.
+- **Zone badges on continent maps are just the Legacy icon now**, with no number beside it, so the continent stays readable. Hover a badge for the count: its tooltip opens with how many Legacy objectives the zone has left, such as "3 Legacy objectives left", then the share of each challenge as before.
+- **Zone completion can count quests, with Questie installed.** Tick "Quests" under "What counts" and each zone counts the quests your character can take there, read from Questie's database, and lists the ones still to do when you hover. Repeatable, holiday, profession and dungeon quests are left out. It is off by default, and greyed out without Questie.
+
+## [0.3.0] - 2026-09-23
+
+- **Right-click a zone in the completion tracker for a menu**: open the map or hide the section, as on the Legacy section. A left click still opens the map.
+- **The collapsed zone box on the world map is only as wide as what it shows.** It used to keep the width of the counts it hides.
+- **No more "couldn't add a section to the objective tracker" warning after a slow login.** The section attached a moment later anyway; the check now waits until the game has built the tracker.
+- **A new icon in the addon list**, drawn to match the other WoW: Forever addons, so it is easy to spot beside them.
+
+## [0.2.0] - 2026-09-21
+
+- **Each zone shows how much of it you've done**, Guild Wars 2 style, as areas explored, flight paths learned, dungeons cleared for Legacy, the zone's other Legacy objectives and its local reputations at Friendly, with the rest listed on hover. It sits in the world map's corner for the zone you're viewing, and on continent maps it is in each zone badge's tooltip. Tick it in the map menu to also add the zone you're in to the objective tracker. Each collapses to just the zone and its percentage, and the map menu turns either off. "What counts" in the map menu drops any category from the count and the percentage. Flight paths count once you've opened a flight master on that continent, since that is the only place the game says which ones you know; until then they show as "?" with a note to visit one.
+- **Raids count toward zone completion**, once every boss is down, on any character. Onyxia's Lair counts in Dustwallow Marsh.
+- **A zone reaching 100% gets a toast and a sound**, in the game's own achievement style, with your continent's progress in chat. Click the toast to open that zone's map. Zones already complete when you log in stay quiet, and every category counts toward the toast whatever "What counts" shows.
+- **Continent progress** sits under each zone badge's summary on continent maps, as in "Kalimdor: 3 of 20 zones complete (15%)".
+- **The map menu shows each challenge with its map icon**: the Legacy icon for objectives pinned on the map, the compass for exploration, which the map shades rather than pins.
+- **Undiscovered areas are shaded instead of pinned.** Each area you haven't found is now shaded darker, in the area's own shape, the way unseen ground reads on a map, rather than having a Legacy icon dropped in its middle. Areas are big, and the shading shows where they start and end. It's on by default; "Show undiscovered areas" in the map menu turns it off. Exploration is never pinned now, and continent badges count only objectives with a place, such as bosses and dungeons. Map pin icons are a little larger.
+- **More dungeon objectives have a place.** 56 objectives that sat under "No fixed location" are now pinned at their dungeon's entrance, including Lord Valthalak Laid to Rest at Upper Blackrock Spire. The Novice Spelunker step "Ragefire Chasm or Hall of Thanes" is now pinned at Ragefire Chasm in Orgrimmar. Hall of Thanes, the Hyjal Summit and Barrow Deeps raid bosses, and Forever's other new dungeons stay under "No fixed location": the client data doesn't give their entrances yet, and no addon or database has them either.
+- **Counts on the map read more cleanly**, in the game's regular small font with a soft shadow instead of the heavy outlined numbers.
+- **`/lh audit`** now also checks the zone you're in against what the game reports for areas and flight paths, and runs even when no Legacy challenges are listed yet.
+
+## [0.1.0] - 2026-09-21
+
+First release.
+
+- **A Legacy button on the world map counts what is left.** It shows the unfinished Legacy objectives on the map you're viewing.
+- **Pins mark 493 undiscovered areas and dungeon entrances.** Area pins show how much of the zone is left and are off until turned on in the map menu.
+- **Challenges with no fixed location are listed separately**, since there is nowhere on the map to pin them.
+- **Tick a challenge in the map menu to track it.** It goes in a Legacy section of the objective tracker, with each unfinished step and its live progress.
+- **`/lh audit` checks the bundled data against the game.** The data is from Forever build 1.60.1.69913.

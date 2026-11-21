@@ -1,0 +1,80 @@
+local ForeverCoreHostChunk = function(...) ---@type string, AGFNamespace
+local _, ns = ...
+
+if ns.broken then
+	return
+end
+local MODULE = "AtlasLootClassic_DungeonsAndRaids"
+---@class AGFLootBoss
+---@field name string
+---@field npcID integer
+---@field items integer[]
+local Loot = {}
+local attemptedSource
+ns.DungeonLoot = Loot
+
+-- AtlasLoot resolves linked loot tables and difficulty inheritance through this public API. It is another addon's
+-- code, so every function this file calls is checked first: an older or newer copy degrades to the install line
+-- rather than erroring while a dungeon card draws.
+---@param instance integer
+---@return AGFLootBoss[]
+---@return string? hint
+function Loot.Bosses(instance)
+	local atlas = AtlasLoot
+	if type(atlas) ~= "table" or type(atlas.ItemDB) ~= "table" then
+		return {}, ns.L.DUNGEON_LOOT_INSTALL
+	end
+	local itemDB = atlas.ItemDB
+	if type(itemDB.Get) ~= "function" then
+		return {}, ns.L.DUNGEON_LOOT_INSTALL
+	end
+	local database = itemDB:Get(MODULE)
+	if type(database) ~= "table" then
+		local loader = atlas.Loader
+		if
+			attemptedSource ~= atlas
+			and not InCombatLockdown()
+			and type(loader) == "table"
+			and type(loader.LoadModule) == "function"
+		then
+			attemptedSource = atlas
+			loader:LoadModule(MODULE)
+			database = itemDB:Get(MODULE)
+		end
+	end
+	if type(database) ~= "table" then
+		return {}, InCombatLockdown() and ns.L.DUNGEON_LOOT_COMBAT or ns.L.DUNGEON_LOOT_INSTALL
+	end
+	local bosses = {}
+	local keys = {}
+	for key, content in pairs(database) do
+		if type(content) == "table" and content.InstanceID == instance and content.items then
+			keys[#keys + 1] = key
+		end
+	end
+	table.sort(keys)
+	local seen = {}
+	for _, key in ipairs(keys) do
+		local content = database[key]
+		for index, boss in ipairs(content.items) do
+			local npcID = type(boss.npcID) == "table" and boss.npcID[1] or boss.npcID
+			if type(npcID) == "number" and not seen[npcID] then
+				local ok, items = pcall(itemDB.GetItemTable, itemDB, MODULE, key, index, content.LoadDifficulty or 1)
+				local drops, dropped = {}, {}
+				if ok and type(items) == "table" then
+					for _, entry in ipairs(items) do
+						local id = entry[2]
+						if type(id) == "number" and id > 0 and not dropped[id] then
+							drops[#drops + 1], dropped[id] = id, true
+						end
+					end
+					seen[npcID] = true
+					bosses[#bosses + 1] = { name = boss.name, npcID = npcID, items = drops }
+				end
+			end
+		end
+	end
+	return bosses, #bosses == 0 and ns.L.DUNGEON_LOOT_UNKNOWN or nil
+end
+
+end local _, ForeverCoreHostNs = ... if type(ForeverCoreHostNs) == "table" and type(ForeverCoreHostNs.ForeverCoreHostChunks) == "table" then local chunks = ForeverCoreHostNs.ForeverCoreHostChunks chunks[#chunks + 1] = ForeverCoreHostChunk else return ForeverCoreHostChunk(...) end

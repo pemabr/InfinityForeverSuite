@@ -41,6 +41,10 @@ function InfinityUtils:Warning(message, source)
 	self:Log(INFINITY_LOG_LEVEL.WARNING, message, source)
 end
 
+function InfinityUtils:Warn(message, source)
+	self:Warning(message, source)
+end
+
 -- Error wrapper
 function InfinityUtils:Error(message, source)
 	self:Log(INFINITY_LOG_LEVEL.ERROR, message, source)
@@ -160,6 +164,153 @@ function InfinityUtils:GetQualityColor(quality)
 		[6] = "|cffe6cc80",	-- Artifact (tan)
 	}
 	return colors[quality] or "|cffffffff"
+end
+
+-- Hide all child frames and fontstring/texture regions of a container
+function InfinityUtils:ClearContainer(container)
+	if not container then
+		return
+	end
+	for _, child in ipairs({container:GetChildren()}) do
+		if child and child.Hide then
+			child:Hide()
+		end
+	end
+	for _, region in ipairs({container:GetRegions()}) do
+		if region and region.Hide then
+			region:Hide()
+		end
+	end
+end
+
+-- Cross-client boss unit check (Forever 1.60.1 lacks UnitIsRaidBoss)
+function InfinityUtils:IsRaidBoss(unit)
+	if type(unit) ~= "string" then
+		return false
+	end
+	if _G.UnitIsRaidBoss then
+		return _G.UnitIsRaidBoss(unit)
+	end
+	if not UnitExists(unit) then
+		return false
+	end
+	if unit:match("^boss%d+$") then
+		return true
+	end
+	return UnitClassification(unit) == "worldboss"
+end
+
+-- Cross-client container helpers (Forever 1.60.1 uses C_Container)
+function InfinityUtils:GetBagSlots(bag)
+	if C_Container and C_Container.GetContainerNumSlots then
+		return C_Container.GetContainerNumSlots(bag) or 0
+	end
+	if _G.GetContainerNumSlots then
+		return _G.GetContainerNumSlots(bag) or 0
+	end
+	return 0
+end
+
+function InfinityUtils:GetBagItemID(bag, slot)
+	if C_Container and C_Container.GetContainerItemID then
+		return C_Container.GetContainerItemID(bag, slot)
+	end
+	if _G.GetContainerItemID then
+		return _G.GetContainerItemID(bag, slot)
+	end
+	return nil
+end
+
+function InfinityUtils:GetBagItemLink(bag, slot)
+	if C_Container and C_Container.GetContainerItemLink then
+		return C_Container.GetContainerItemLink(bag, slot)
+	end
+	if _G.GetContainerItemLink then
+		return _G.GetContainerItemLink(bag, slot)
+	end
+	return nil
+end
+
+function InfinityUtils:GetBagItemInfo(bag, slot)
+	if C_Container and C_Container.GetContainerItemInfo then
+		local info = C_Container.GetContainerItemInfo(bag, slot)
+		if info then
+			return info.iconFileID, info.stackCount
+		end
+		return nil, nil
+	end
+	if _G.GetContainerItemInfo then
+		local texture, count = _G.GetContainerItemInfo(bag, slot)
+		return texture, count
+	end
+	return nil, nil
+end
+
+-- Cross-client item helpers (Forever 1.60.1 uses C_Item)
+function InfinityUtils:GetItemInfo(item)
+	if C_Item and C_Item.GetItemInfo then
+		return C_Item.GetItemInfo(item)
+	end
+	if _G.GetItemInfo then
+		return _G.GetItemInfo(item)
+	end
+	return nil
+end
+
+function InfinityUtils:GetItemStats(itemLink)
+	if C_Item and C_Item.GetItemStats then
+		return C_Item.GetItemStats(itemLink)
+	end
+	if _G.GetItemStats then
+		return _G.GetItemStats(itemLink)
+	end
+	return nil
+end
+
+function InfinityUtils:GetItemCount(item, includeBank, includeUses, includeReagentBank)
+	if C_Item and C_Item.GetItemCount then
+		return C_Item.GetItemCount(item, includeBank, includeUses, includeReagentBank) or 0
+	end
+	if _G.GetItemCount then
+		return _G.GetItemCount(item, includeBank, includeUses, includeReagentBank) or 0
+	end
+	return 0
+end
+
+function InfinityUtils:GetItemIDFromLink(itemLink)
+	if _G.GetItemInfoFromHyperlink then
+		return _G.GetItemInfoFromHyperlink(itemLink)
+	end
+	if type(itemLink) == "string" then
+		return tonumber(itemLink:match("item:(%d+)"))
+	end
+	return nil
+end
+
+function InfinityUtils:CanUseCombatLogEvent()
+	-- Midnight / Forever 1.60.1 blocks or restricts legacy COMBAT_LOG_EVENT_UNFILTERED
+	if _G.issecretvalue or _G.C_DamageMeter or _G.C_EncounterTimeline then
+		return false
+	end
+	if C_EventUtils and C_EventUtils.IsEventValid then
+		return C_EventUtils.IsEventValid("COMBAT_LOG_EVENT_UNFILTERED")
+	end
+	return true
+end
+
+function InfinityUtils:GetSpellNameByID(spellID)
+	if not spellID then return nil end
+	if C_Spell and C_Spell.GetSpellName then
+		return C_Spell.GetSpellName(spellID)
+	end
+	if C_Spell and C_Spell.GetSpellInfo then
+		local info = C_Spell.GetSpellInfo(spellID)
+		return info and info.name
+	end
+	if _G.GetSpellInfo then
+		return (_G.GetSpellInfo(spellID))
+	end
+	return nil
 end
 
 return InfinityUtils

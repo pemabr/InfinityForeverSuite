@@ -1,0 +1,42 @@
+local ForeverCoreHostChunk = function(...) ---@type string, FGNamespace
+local _, ns = ...
+
+if ns.broken then
+	return
+end
+
+-- Field Guide Forever's own lines in /fg report. They answer the questions a bug report usually starts with: how much
+-- this character has recorded, whether the catalogue loaded, and whether the two optional pieces are on. English
+-- throughout, like the report's field labels, so one report reads the same in every locale.
+
+---@param values? table
+---@return integer
+local function Count(values)
+	local total = 0
+	for _ in pairs(values or {}) do
+		total = total + 1
+	end
+	return total
+end
+
+---@return string[]
+function ns.ReportLines()
+	local state = ns.GetCharacterState and ns.GetCharacterState(false) or nil
+	local lines = { ("%d creatures recorded for this character"):format(Count(state and state.species)) }
+
+	local status = ns.QuestieDB and ns.QuestieDB.State and ns.QuestieDB.State() or ns.catalogueStatus or "not loaded"
+	lines[#lines + 1] = "QuestieDB catalogue: " .. tostring(status)
+
+	local attached = ForeverCore.TrackerHost.IsAttachedToQuestTracker()
+	local tracker = attached and "tracker section: attached" or "tracker section: detached"
+	if state and tonumber(state.tracked) then
+		tracker = tracker .. ", tracking a creature"
+	else
+		tracker = tracker .. ", nothing tracked"
+	end
+	lines[#lines + 1] = tracker
+
+	return lines
+end
+
+end local _, ForeverCoreHostNs = ... if type(ForeverCoreHostNs) == "table" and type(ForeverCoreHostNs.ForeverCoreHostChunks) == "table" then local chunks = ForeverCoreHostNs.ForeverCoreHostChunks chunks[#chunks + 1] = ForeverCoreHostChunk else return ForeverCoreHostChunk(...) end

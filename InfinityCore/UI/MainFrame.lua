@@ -9,8 +9,8 @@ function InfinityMainFrame:Create()
 	end
 	
 	-- Create basic frame without InfinityUIFramework dependency
-	local mainFrame = CreateFrame("Frame", "InfinityMainWindow", UIParent)
-	mainFrame:SetSize(500, 400)
+	local mainFrame = CreateFrame("Frame", "InfinityMainWindow", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
+	mainFrame:SetSize(640, 500)
 	mainFrame:SetPoint("CENTER")
 	mainFrame:SetMovable(true)
 	mainFrame:EnableMouse(true)
@@ -62,8 +62,8 @@ function InfinityMainFrame:Create()
 	
 	for i, tabName in ipairs(tabs) do
 		local tabBtn = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
-		tabBtn:SetSize(70, 20)
-		tabBtn:SetPoint("TOPLEFT", 10 + (i-1) * 75, -35)
+		tabBtn:SetSize(84, 22)
+		tabBtn:SetPoint("TOPLEFT", 12 + (i-1) * 88, -36)
 		tabBtn:SetText(tabName)
 		tabBtn:SetScript("OnClick", function()
 			self:ShowTab(mainFrame, tabName)
@@ -71,9 +71,9 @@ function InfinityMainFrame:Create()
 	end
 	
 	-- Content area
-	mainFrame.contentFrame = CreateFrame("Frame", nil, mainFrame)
-	mainFrame.contentFrame:SetSize(480, 320)
-	mainFrame.contentFrame:SetPoint("TOP", 0, -60)
+	mainFrame.contentFrame = CreateFrame("Frame", nil, mainFrame, BackdropTemplateMixin and "BackdropTemplate" or nil)
+	mainFrame.contentFrame:SetSize(610, 420)
+	mainFrame.contentFrame:SetPoint("TOP", 0, -68)
 	
 	-- Show overview by default
 	self:ShowTab(mainFrame, "Overview")
@@ -82,11 +82,10 @@ function InfinityMainFrame:Create()
 end
 
 function InfinityMainFrame:ShowTab(frame, tabName)
+	frame.currentTab = tabName
 	-- Clear previous content
 	frame.contentFrame:SetScript("OnUpdate", nil)
-	for i = 1, frame.contentFrame:GetNumChildren() do
-		frame.contentFrame:GetChild(i):Hide()
-	end
+	InfinityUtils:ClearContainer(frame.contentFrame)
 	
 	if tabName == "Overview" then
 		self:ShowOverviewTab(frame)
@@ -105,6 +104,12 @@ function InfinityMainFrame:ShowTab(frame, tabName)
 	end
 end
 
+function InfinityMainFrame:RefreshIfVisible()
+	if _G.InfinityMainWindow and _G.InfinityMainWindow:IsShown() then
+		self:ShowTab(_G.InfinityMainWindow, _G.InfinityMainWindow.currentTab or "Overview")
+	end
+end
+
 function InfinityMainFrame:ShowOverviewTab(frame)
 	local y = -10
 	
@@ -112,7 +117,7 @@ function InfinityMainFrame:ShowOverviewTab(frame)
 	local welcome = InfinityUIFramework:CreateLabel(frame.contentFrame, 
 		INFINITY_COLORS.PRIMARY .. "Welcome to Infinity Suite" .. INFINITY_COLORS.RESET)
 	welcome:SetPoint("TOPLEFT", 10, y)
-	welcome:SetFont("Fonts/FRIZQT__.TTF", 14)
+	welcome:SetFont("Fonts/FRIZQT__.TTF", 14, "")
 	
 	y = y - 30
 	
@@ -141,15 +146,21 @@ function InfinityMainFrame:ShowCharactersTab(frame)
 	local titleLabel = InfinityUIFramework:CreateLabel(frame.contentFrame, 
 		INFINITY_COLORS.PRIMARY .. "Your Characters" .. INFINITY_COLORS.RESET)
 	titleLabel:SetPoint("TOPLEFT", 10, y)
-	titleLabel:SetFont("Fonts/FRIZQT__.TTF", 14)
+	titleLabel:SetFont("Fonts/FRIZQT__.TTF", 14, "")
 	
 	y = y - 30
 	
 	-- Current character
-	local currentChar = InfinityCharacterManager:GetCurrentCharacter()
+	local currentChar = InfinityCharacterManager and InfinityCharacterManager:GetCurrentCharacter()
+	if not currentChar then
+		local pendingLabel = InfinityUIFramework:CreateLabel(frame.contentFrame,
+			INFINITY_COLORS.WARNING .. "Character data loading... (reopen after login)" .. INFINITY_COLORS.RESET)
+		pendingLabel:SetPoint("TOPLEFT", 10, y)
+		return
+	end
 	local currentLabel = InfinityUIFramework:CreateLabel(frame.contentFrame,
 		INFINITY_COLORS.SECONDARY .. currentChar.name .. INFINITY_COLORS.RESET .. 
-		" (Level " .. currentChar.level .. " " .. currentChar.class .. ")")
+		" (Level " .. currentChar.level .. " " .. tostring(currentChar.class) .. ")")
 	currentLabel:SetPoint("TOPLEFT", 10, y)
 	y = y - 20
 	
@@ -158,6 +169,14 @@ function InfinityMainFrame:ShowCharactersTab(frame)
 	local typeLabel = InfinityUIFramework:CreateLabel(frame.contentFrame,
 		"Status: " .. typeColor .. charType .. INFINITY_COLORS.RESET)
 	typeLabel:SetPoint("TOPLEFT", 10, y)
+	if not currentChar.isMain then
+		local makeCurMainBtn = InfinityUIFramework:CreateButton(frame.contentFrame, "Set Current as Main", 130, 20, function()
+			local key = InfinityCharacterManager:GetCharacterKey(currentChar.name, currentChar.realm)
+			InfinityCharacterManager:MarkAsMain(key)
+			self:ShowTab(frame, "Characters")
+		end)
+		makeCurMainBtn:SetPoint("TOPRIGHT", -20, y + 2)
+	end
 	y = y - 20
 	
 	if currentChar.linkedTo then
@@ -172,13 +191,13 @@ function InfinityMainFrame:ShowCharactersTab(frame)
 	-- All characters
 	local allTitle = InfinityUIFramework:CreateLabel(frame.contentFrame, "All Characters:")
 	allTitle:SetPoint("TOPLEFT", 10, y)
-	y = y - 20
+	y = y - 22
 	
 	local characters = InfinityCharacterManager:GetAllCharacters()
 	for i, char in ipairs(characters) do
-		if i > 8 then break end
+		if i > 10 or y < -360 then break end
 		
-		local charStr = char.name .. " - Level " .. char.level .. " " .. char.class
+		local charStr = char.name .. " - Level " .. char.level .. " " .. tostring(char.class)
 		if char.isMain then
 			charStr = charStr .. " " .. INFINITY_COLORS.SUCCESS .. "[MAIN]" .. INFINITY_COLORS.RESET
 		elseif char.linkedTo then
@@ -187,7 +206,16 @@ function InfinityMainFrame:ShowCharactersTab(frame)
 		
 		local charLabel = InfinityUIFramework:CreateLabel(frame.contentFrame, charStr)
 		charLabel:SetPoint("TOPLEFT", 20, y)
-		y = y - 15
+		
+		if not char.isMain then
+			local targetKey = InfinityCharacterManager:GetCharacterKey(char.name, char.realm)
+			local setMainBtn = InfinityUIFramework:CreateButton(frame.contentFrame, "Set Main", 80, 18, function()
+				InfinityCharacterManager:MarkAsMain(targetKey)
+				self:ShowTab(frame, "Characters")
+			end)
+			setMainBtn:SetPoint("TOPRIGHT", -20, y + 2)
+		end
+		y = y - 22
 	end
 	
 	-- Character stats
@@ -206,7 +234,7 @@ function InfinityMainFrame:ShowFeaturesTab(frame)
 	local titleLabel = InfinityUIFramework:CreateLabel(frame.contentFrame, 
 		INFINITY_COLORS.PRIMARY .. "Feature Modules" .. INFINITY_COLORS.RESET)
 	titleLabel:SetPoint("TOPLEFT", 10, y)
-	titleLabel:SetFont("Fonts/FRIZQT__.TTF", 14)
+	titleLabel:SetFont("Fonts/FRIZQT__.TTF", 14, "")
 	
 	y = y - 30
 	
@@ -218,25 +246,30 @@ function InfinityMainFrame:ShowFeaturesTab(frame)
 		INFINITY_FEATURES.GUIDE,
 		INFINITY_FEATURES.GEAR,
 		INFINITY_FEATURES.QOL,
+		INFINITY_FEATURES.DATA,
 	}
 	
 	for _, feature in ipairs(features) do
-		local isEnabled = InfinityStorageManager:IsFeatureEnabled(feature)
-		local status = isEnabled and INFINITY_COLORS.SECONDARY .. "✓ Enabled" or "|cffcccccc✗ Disabled"
+		local targetFeature = feature
+		local isEnabled = InfinityStorageManager:IsFeatureEnabled(targetFeature)
+		local nextState = not isEnabled
+		local status = isEnabled and INFINITY_COLORS.SECONDARY .. "Enabled" or "|cffccccccDisabled"
 		
 		local label = InfinityUIFramework:CreateLabel(frame.contentFrame, 
-			feature .. ": " .. status .. INFINITY_COLORS.RESET)
+			targetFeature .. ": " .. status .. INFINITY_COLORS.RESET)
 		label:SetPoint("TOPLEFT", 10, y)
 		
-		local toggleBtn = InfinityUIFramework:CreateButton(frame.contentFrame, isEnabled and "Disable" or "Enable", 70, 20, 
+		local toggleBtn = InfinityUIFramework:CreateButton(frame.contentFrame, isEnabled and "Disable" or "Enable", 80, 20, 
 			function()
-				InfinityStorageManager:SetFeatureEnabled(feature, not isEnabled)
-				InfinityMessaging:Publish(INFINITY_EVENTS.FEATURE_ENABLED, feature, not isEnabled)
+				InfinityStorageManager:SetFeatureEnabled(targetFeature, nextState)
+				if InfinityMessaging then
+					InfinityMessaging:Publish(INFINITY_EVENTS.FEATURE_ENABLED, targetFeature, nextState)
+				end
 				self:ShowTab(frame, "Features")
 			end)
-		toggleBtn:SetPoint("TOPRIGHT", -20, y - 2)
+		toggleBtn:SetPoint("TOPRIGHT", -20, y + 2)
 		
-		y = y - 25
+		y = y - 28
 	end
 end
 
@@ -246,7 +279,7 @@ function InfinityMainFrame:ShowAddonsTab(frame)
 	local titleLabel = InfinityUIFramework:CreateLabel(frame.contentFrame, 
 		INFINITY_COLORS.PRIMARY .. "Addon Manager" .. INFINITY_COLORS.RESET)
 	titleLabel:SetPoint("TOPLEFT", 10, y)
-	titleLabel:SetFont("Fonts/FRIZQT__.TTF", 14)
+	titleLabel:SetFont("Fonts/FRIZQT__.TTF", 14, "")
 	
 	y = y - 30
 	
@@ -280,8 +313,8 @@ function InfinityMainFrame:ShowAddonsTab(frame)
 			end)
 		toggleBtn:SetPoint("TOPRIGHT", -20, y - 2)
 		
-		y = y - 25
-		if y < -300 then break end
+		y = y - 22
+		if y < -370 then break end
 	end
 	
 	-- Summary
@@ -302,7 +335,7 @@ function InfinityMainFrame:ShowSettingsTab(frame)
 	local titleLabel = InfinityUIFramework:CreateLabel(frame.contentFrame, 
 		INFINITY_COLORS.PRIMARY .. "Global Settings" .. INFINITY_COLORS.RESET)
 	titleLabel:SetPoint("TOPLEFT", 10, y)
-	titleLabel:SetFont("Fonts/FRIZQT__.TTF", 14)
+	titleLabel:SetFont("Fonts/FRIZQT__.TTF", 14, "")
 	
 	y = y - 30
 	
@@ -343,6 +376,14 @@ function InfinityMainFrame:ShowSettingsTab(frame)
 	notifCheckbox:SetScript("OnClick", function(self)
 		InfinityStorageManager:SetProfile("notifications.enabled", self:GetChecked())
 	end)
+	
+	y = y - 40
+	local openBlizzBtn = InfinityUIFramework:CreateButton(frame.contentFrame, "Open Game AddOn Settings", 200, 24, function()
+		if _G.InfinitySettingsPanel and _G.InfinitySettingsPanel.OpenBlizzardSettings then
+			_G.InfinitySettingsPanel:OpenBlizzardSettings()
+		end
+	end)
+	openBlizzBtn:SetPoint("TOPLEFT", 10, y)
 end
 
 function InfinityMainFrame:ShowKeybindsTab(frame)
@@ -351,20 +392,53 @@ function InfinityMainFrame:ShowKeybindsTab(frame)
 	local titleLabel = InfinityUIFramework:CreateLabel(frame.contentFrame, 
 		INFINITY_COLORS.PRIMARY .. "Keybind Management" .. INFINITY_COLORS.RESET)
 	titleLabel:SetPoint("TOPLEFT", 10, y)
-	titleLabel:SetFont("Fonts/FRIZQT__.TTF", 14)
+	titleLabel:SetFont("Fonts/FRIZQT__.TTF", 14, "")
 	
 	y = y - 30
 	
 	local keybindData = InfinityCommandRegistry:GetKeybindUIData()
 	
 	for _, keybind in ipairs(keybindData) do
+		local actionName = keybind.action
 		local keyText = keybind.currentKey or "(unbound)"
 		local label = InfinityUIFramework:CreateLabel(frame.contentFrame, 
 			keybind.description .. ": " .. INFINITY_COLORS.SECONDARY .. keyText .. INFINITY_COLORS.RESET)
 		label:SetPoint("TOPLEFT", 10, y)
 		
-		y = y - 20
-		if y < -300 then break end
+		local bindBtn = InfinityUIFramework:CreateButton(frame.contentFrame, keybind.currentKey or "Set Key", 95, 20)
+		bindBtn:SetPoint("TOPRIGHT", -75, y + 2)
+		bindBtn:SetScript("OnClick", function(btn)
+			btn:SetText("Press Key...")
+			btn:EnableKeyboard(true)
+			btn:SetPropagateKeyboardInput(false)
+			btn:SetScript("OnKeyDown", function(selfBtn, key)
+				if key == "LSHIFT" or key == "RSHIFT" or key == "LCTRL" or key == "RCTRL" or key == "LALT" or key == "RALT" then
+					return
+				end
+				selfBtn:EnableKeyboard(false)
+				selfBtn:SetScript("OnKeyDown", nil)
+				if key == "ESCAPE" then
+					self:ShowTab(frame, "Keybinds")
+					return
+				end
+				local combo = ""
+				if IsAltKeyDown() then combo = combo .. "ALT-" end
+				if IsControlKeyDown() then combo = combo .. "CTRL-" end
+				if IsShiftKeyDown() then combo = combo .. "SHIFT-" end
+				combo = combo .. key
+				InfinityCommandRegistry:SetKeybind(actionName, combo)
+				self:ShowTab(frame, "Keybinds")
+			end)
+		end)
+		
+		local clearBtn = InfinityUIFramework:CreateButton(frame.contentFrame, "Clear", 50, 20, function()
+			InfinityCommandRegistry:SetKeybind(actionName, "")
+			self:ShowTab(frame, "Keybinds")
+		end)
+		clearBtn:SetPoint("TOPRIGHT", -20, y + 2)
+		
+		y = y - 24
+		if y < -360 then break end
 	end
 	
 	-- Reset button
@@ -382,7 +456,7 @@ function InfinityMainFrame:ShowDebugTab(frame)
 	local titleLabel = InfinityUIFramework:CreateLabel(frame.contentFrame, 
 		INFINITY_COLORS.PRIMARY .. "Debug Information" .. INFINITY_COLORS.RESET)
 	titleLabel:SetPoint("TOPLEFT", 10, y)
-	titleLabel:SetFont("Fonts/FRIZQT__.TTF", 14)
+	titleLabel:SetFont("Fonts/FRIZQT__.TTF", 14, "")
 	
 	y = y - 30
 	

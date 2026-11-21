@@ -1,0 +1,19 @@
+## Interface: 20506, 16001
+## Title: Guild Ladder DKP
+## Notes: DKP ledger, loot queue, auctions and raid awards. Companion to Guild Ladder.
+## Author: Skullcrank
+## Version: 1.6.0
+## OptionalDeps: GuildLadder, GuildLadderDKP_Bridge
+## SavedVariables: GuildLadderDKPDB
+
+Config.lua
+Core.lua
+Loot.lua
+Readiness.lua
+Stats.lua
+Podium.lua
+Probe.lua
+BiSData_TBC.lua
+BiSSources_TBC.lua
+BiS.lua
+UI.lua

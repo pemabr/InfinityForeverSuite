@@ -1,0 +1,40 @@
+## Interface: 100206
+## Title: Infinity Details (Combat Metrics)
+## Notes: Real-time DPS/HPS/threat analysis and performance breakdown
+## Author: Infinity Forever Suite
+## Version: 1.0.0
+## RequiredDeps: InfinityCore
+
+Core\Localization.lua
+Core\CombatParser.lua
+Core\ActorModel.lua
+Modules\CombatLogParserEngine.lua
+Modules\DPSCalculatorEngine.lua
+Modules\HPSCalculatorEngine.lua
+Modules\DamageCalculationEngine.lua
+Modules\HealingCalculationEngine.lua
+Modules\SegmentManagementEngine.lua
+Modules\ThreatTrackingEngine.lua
+Modules\ResourceTrackingEngine.lua
+Modules\DeathTrackingEngine.lua
+Modules\PlayerBreakdownEngine.lua
+Modules\SpellAnalysisEngine.lua
+Modules\TargetAnalysisEngine.lua
+Modules\TimelineAnalysisEngine.lua
+Modules\EncounterComparisonEngine.lua
+Modules\ReportGenerationEngine.lua
+Modules\WindowManagementEngine.lua
+Modules\ResourceBreakdownEngine.lua
+Modules\DataBrokerEngine.lua
+Modules\PluginSystemEngine.lua
+Modules\TimelineVisualizationEngine.lua
+Modules\BarRepresentationEngine.lua
+Modules\ViewEngineManager.lua
+Modules\Meters.lua
+Modules\Segments.lua
+Modules\Threat.lua
+Modules\Deaths.lua
+Modules\Reports.lua
+UI\Main.lua
+UI\Breakdown.lua
+Init.lua

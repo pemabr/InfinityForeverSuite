@@ -45,20 +45,21 @@ function InfinityDataCollectorHooks:OnGameEvent(event, ...)
 	if not InfinityDataCollectorCore:IsGatheringEnabled() then
 		return
 	end
-	
+
+	local args = {...}
 	pcall(function()
 		if event == "QUEST_LOG_UPDATE" then
 			self:GatherQuestLogData()
 		elseif event == "QUEST_DETAIL" then
-			self:GatherQuestDetails(...)
+			self:GatherQuestDetails(unpack(args))
 		elseif event == "LOOT_OPENED" then
 			self:GatherLootData()
 		elseif event == "UNIT_DIED" then
-			self:GatherMobDeathData(...)
+			self:GatherMobDeathData(unpack(args))
 		elseif event == "ENCOUNTER_START" then
-			self:GatherEncounterData("start", ...)
+			self:GatherEncounterData("start", unpack(args))
 		elseif event == "ENCOUNTER_END" then
-			self:GatherEncounterData("end", ...)
+			self:GatherEncounterData("end", unpack(args))
 		end
 	end)
 end

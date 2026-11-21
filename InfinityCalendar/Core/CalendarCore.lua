@@ -93,13 +93,11 @@ function InfinityCalendarCore:UpdateEvent(eventID, updates)
 	local event = self.events[eventID]
 	
 	for key, value in pairs(updates) do
-		if key == "id" or key == "createdAt" then
-			goto continue
+		if key ~= "id" and key ~= "createdAt" then
+			event[key] = value
 		end
-		event[key] = value
 	end
-	
-	::continue::
+
 	event.updatedAt = time()
 	
 	InformGuildOfChanges(event)
@@ -382,9 +380,9 @@ end
 
 -- Format event for display
 function InfinityCalendarCore:FormatEventDisplay(event)
-	local startDate = os.date("%Y-%m-%d %H:%M", event.startTime)
+	local startDate = date("%Y-%m-%d %H:%M", event.startTime)
 	local endTime = event.startTime + event.duration
-	local endDate = os.date("%H:%M", endTime)
+	local endDate = date("%H:%M", endTime)
 	
 	return string.format("%s - %s [%s] (%s participants)",
 		startDate, endDate, event.title, 
@@ -402,3 +400,5 @@ end
 function InformGuildOfChanges(event)
 	-- This will be implemented by the messaging module
 end
+
+return InfinityCalendarCore

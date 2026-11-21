@@ -131,20 +131,7 @@ local function InitializeWorldBoss()
 	print("  - Use /worldboss status for quick status")
 end
 
-
-local function RegisterAddonWithInfinityManager()
-	if _G.InfinityAddonManager then
-		_G.InfinityAddonManager:RegisterAddon(ADDON_NAME, ADDON_VERSION, {
-			description = "World bosses",
-			author = "Infinity Suite Team",
-			category = "Raid",
-			enabled = true,
-			settings = {{}}
-		})
-	end
-end
-
-	local frame = CreateFrame("Frame")
+local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 
 local addonLoaded = false

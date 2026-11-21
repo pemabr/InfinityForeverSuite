@@ -13,7 +13,7 @@ ThreatTracker.config = {
 	threatAlertThreshold = 80, -- Alert when >80% threat
 	criticalThreatThreshold = 95, -- Critical at >95%
 	colors = {
-		safe = {r = 0.2, g = 0.8, g = 0.2}, -- Green
+		safe = {r = 0.2, g = 0.8, b = 0.2}, -- Green
 		warning = {r = 1, g = 0.8, b = 0.2}, -- Yellow
 		critical = {r = 1, g = 0.2, b = 0.2}, -- Red
 	}
@@ -356,9 +356,11 @@ function ThreatTracker:NotifyFrameUpdate(unitToken)
 	
 	local threat = self:GetUnitThreat(unitToken)
 	for _, callback in ipairs(self.frameCallbacks) do
-		xpcall(callback, function(err)
+		xpcall(function()
+			callback(unitToken, threat)
+		end, function(err)
 			InfinityUtils:Warning("Frame callback error: " .. tostring(err), "Threat")
-		end, unitToken, threat)
+		end)
 	end
 end
 

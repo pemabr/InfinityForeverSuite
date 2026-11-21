@@ -74,7 +74,9 @@ local function InitializeDetails()
 	
 	-- Event handling
 	local combatFrame = CreateFrame("Frame")
-	combatFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+	if InfinityUtils:CanUseCombatLogEvent() then
+		pcall(combatFrame.RegisterEvent, combatFrame, "COMBAT_LOG_EVENT_UNFILTERED")
+	end
 	combatFrame:RegisterEvent("ENCOUNTER_START")
 	combatFrame:RegisterEvent("ENCOUNTER_END")
 	
@@ -112,31 +114,22 @@ local function InitializeDetails()
 		end
 	end)
 	
-	-- Update loop
+	-- Update loop (throttled to 10Hz)
 	local updateFrame = CreateFrame("Frame")
-	updateFrame:SetScript("OnUpdate", function()
-		Meters:Update()
-		UI:Update()
-		Breakdown:Update()
+	local updateElapsed = 0
+	updateFrame:SetScript("OnUpdate", function(_, elapsed)
+		updateElapsed = updateElapsed + (elapsed or 0)
+		if updateElapsed < 0.1 then return end
+		updateElapsed = 0
+		if Meters and Meters.Update then pcall(function() Meters:Update() end) end
+		if UI and UI.Update then pcall(function() UI:Update() end) end
+		if Breakdown and Breakdown.Update then pcall(function() Breakdown:Update() end) end
 	end)
 	
 	print("InfinityDetails loaded - Use /details for metrics")
 end
 
-
-local function RegisterAddonWithInfinityManager()
-	if _G.InfinityAddonManager then
-		_G.InfinityAddonManager:RegisterAddon(ADDON_NAME, ADDON_VERSION, {
-			description = "Combat statistics",
-			author = "Infinity Suite Team",
-			category = "Combat",
-			enabled = true,
-			settings = {{}}
-		})
-	end
-end
-
-	local frame = CreateFrame("Frame")
+local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 
 local addonLoaded = false

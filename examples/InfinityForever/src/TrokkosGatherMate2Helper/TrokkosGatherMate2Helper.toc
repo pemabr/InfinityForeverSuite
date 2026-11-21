@@ -1,0 +1,8 @@
+## Interface: 20505, 16001
+## Title: Trokkos GatherMate2 Filter Helper
+## Notes: Auto-disable/enable herbs and mining filters in GatherMate2 that are above/below player's Herbalism/Mining skill
+## Author: Trokko
+## Version: 1.537
+## SavedVariables: TrokkosGatherMate2HelperDB
+
+TrokkosGatherMate2Helper.lua

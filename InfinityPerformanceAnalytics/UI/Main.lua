@@ -4,11 +4,11 @@
 InfinityPerformanceAnalyticsUI = {}
 
 function InfinityPerformanceAnalyticsUI:CreateMainWindow()
-	if InfinityPerformanceAnalyticsMeterFrame then
-		return InfinityPerformanceAnalyticsMeterFrame
+	if _G.InfinityPerformanceAnalyticsMeterFrame then
+		return _G.InfinityPerformanceAnalyticsMeterFrame
 	end
 	
-	local frame = CreateFrame("Frame", "InfinityPerformanceAnalyticsMeterFrame", UIParent)
+	local frame = CreateFrame("Frame", "InfinityPerformanceAnalyticsMeterFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	frame:SetSize(400, 300)
 	frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
 	frame:SetBackdrop({
@@ -23,7 +23,11 @@ function InfinityPerformanceAnalyticsUI:CreateMainWindow()
 	frame:SetBackdropBorderColor(0.5, 0.5, 0.5, 0.9)
 	frame:SetMovable(true)
 	frame:SetResizable(true)
-	frame:SetMinResize(300, 200)
+	if frame.SetResizeBounds then
+		frame:SetResizeBounds(300, 200)
+	elseif frame.SetMinResize then
+		frame:SetMinResize(300, 200)
+	end
 	frame:EnableMouse(true)
 	frame:SetScript("OnMouseDown", function(self, button)
 		if button == "LeftButton" then
@@ -41,7 +45,7 @@ function InfinityPerformanceAnalyticsUI:CreateMainWindow()
 	title:SetText("Analytics")
 	
 	-- Tabs
-	local tabContainer = CreateFrame("Frame", nil, frame)
+	local tabContainer = CreateFrame("Frame", nil, frame, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	tabContainer:SetSize(380, 25)
 	tabContainer:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -35)
 	
@@ -66,7 +70,7 @@ function InfinityPerformanceAnalyticsUI:CreateMainWindow()
 	scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -70)
 	scrollFrame:SetSize(380, 215)
 	
-	local content = CreateFrame("Frame", nil, scrollFrame)
+	local content = CreateFrame("Frame", nil, scrollFrame, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	content:SetSize(380, 1)
 	scrollFrame:SetScrollChild(content)
 	
@@ -78,13 +82,15 @@ function InfinityPerformanceAnalyticsUI:CreateMainWindow()
 	local closeBtn = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
 	closeBtn:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -5, -5)
 	
-	InfinityMainFrame:RegisterTab("Analytics", frame)
+	if _G.InfinityMainFrame and _G.InfinityMainFrame.RegisterTab then
+		_G.InfinityMainFrame:RegisterTab("Analytics", frame)
+	end
 	
 	return frame
 end
 
 function InfinityPerformanceAnalyticsUI:ShowTab(tabName)
-	local frame = InfinityPerformanceAnalyticsMeterFrame
+	local frame = _G.InfinityPerformanceAnalyticsMeterFrame
 	if not frame then
 		return
 	end
@@ -105,13 +111,13 @@ function InfinityPerformanceAnalyticsUI:ShowTab(tabName)
 end
 
 function InfinityPerformanceAnalyticsUI:ShowDPSTab()
-	local frame = InfinityPerformanceAnalyticsMeterFrame
+	local frame = _G.InfinityPerformanceAnalyticsMeterFrame
 	local content = frame.content
 	
 	local topDealers = InfinityPerformanceAnalyticsMeter:GetTopDamageDealer(10)
 	
 	for i, player in ipairs(topDealers) do
-		local row = CreateFrame("Frame", nil, content)
+		local row = CreateFrame("Frame", nil, content, BackdropTemplateMixin and "BackdropTemplate" or nil)
 		row:SetSize(360, 20)
 		row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -(i-1) * 25)
 		
@@ -131,13 +137,13 @@ function InfinityPerformanceAnalyticsUI:ShowDPSTab()
 end
 
 function InfinityPerformanceAnalyticsUI:ShowHPSTab()
-	local frame = InfinityPerformanceAnalyticsMeterFrame
+	local frame = _G.InfinityPerformanceAnalyticsMeterFrame
 	local content = frame.content
 	
 	local topHealers = InfinityPerformanceAnalyticsMeter:GetTopHealer(10)
 	
 	for i, player in ipairs(topHealers) do
-		local row = CreateFrame("Frame", nil, content)
+		local row = CreateFrame("Frame", nil, content, BackdropTemplateMixin and "BackdropTemplate" or nil)
 		row:SetSize(360, 20)
 		row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -(i-1) * 25)
 		
@@ -157,13 +163,13 @@ function InfinityPerformanceAnalyticsUI:ShowHPSTab()
 end
 
 function InfinityPerformanceAnalyticsUI:ShowHistoryTab()
-	local frame = InfinityPerformanceAnalyticsMeterFrame
+	local frame = _G.InfinityPerformanceAnalyticsMeterFrame
 	local content = frame.content
 	
 	local history = InfinityPerformanceAnalyticsMeter:GetSessionHistory(10)
 	
 	for i, session in ipairs(history) do
-		local row = CreateFrame("Frame", nil, content)
+		local row = CreateFrame("Frame", nil, content, BackdropTemplateMixin and "BackdropTemplate" or nil)
 		row:SetSize(360, 20)
 		row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -(i-1) * 25)
 		

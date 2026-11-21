@@ -119,7 +119,7 @@ function HistoryUI:CreateFrame()
     scroll:SetSize(self.config.width - 25, self.config.height - 120)
     scroll:SetPoint("TOPLEFT", frame, "TOPLEFT", 4, -105)
     
-    local content = CreateFrame("Frame", nil, scroll)
+    local content = CreateFrame("Frame", nil, scroll, BackdropTemplateMixin and "BackdropTemplate" or nil)
     content:SetSize(self.config.width - 40, 10)
     scroll:SetScrollChild(content)
     
@@ -233,7 +233,7 @@ function HistoryUI:Refresh()
     for idx, tx in ipairs(transactions) do
         local row = content[idx]
         if not row then
-            row = CreateFrame("Frame", nil, content)
+            row = CreateFrame("Frame", nil, content, BackdropTemplateMixin and "BackdropTemplate" or nil)
             row:SetSize(content:GetWidth(), 20)
             content[idx] = row
         end

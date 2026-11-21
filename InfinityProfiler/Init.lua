@@ -123,10 +123,11 @@ local function InitializeProfiler()
 	
 	-- Hook into InfinityCore's addon registration
 	local originalRegisterAddon = _G.InfinityCore.RegisterAddon
-	function _G.InfinityCore:RegisterAddon(name, version, config)
-		local result = originalRegisterAddon(self, name, version, config)
+	function _G.InfinityCore:RegisterAddon(name, versionOrConfig, maybeConfig)
+		local result = originalRegisterAddon(self, name, versionOrConfig, maybeConfig)
 		if result then
-			ProfilerCore:RegisterAddon(name, version)
+			local ver = type(versionOrConfig) == "table" and (versionOrConfig.version or "1.0.0") or versionOrConfig
+			ProfilerCore:RegisterAddon(name, ver)
 		end
 		return result
 	end
@@ -136,20 +137,7 @@ local function InitializeProfiler()
 	_G.InfinityUtils:Info(string.format("Loaded %s v%s", addonName, addonVersion), addonName)
 end
 
-
-local function RegisterAddonWithInfinityManager()
-	if _G.InfinityAddonManager then
-		_G.InfinityAddonManager:RegisterAddon(ADDON_NAME, ADDON_VERSION, {
-			description = "Performance profiling",
-			author = "Infinity Suite Team",
-			category = "Tools",
-			enabled = true,
-			settings = {{}}
-		})
-	end
-end
-
-	local frame = CreateFrame("Frame")
+local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 
 local addonLoaded = false

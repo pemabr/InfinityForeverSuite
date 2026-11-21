@@ -1,0 +1,55 @@
+## Interface: 16001
+## Title: ForeverCore
+## Notes: Shared code the Forever addons need. Nothing to set up: each Forever addon uses it for its tracker column and settings.
+## Author: cjber
+## Version: 1.15.8
+## Category: Libraries
+## IconTexture: Interface\AddOns\ForeverCore\media\Icon
+## X-License: GPL-3.0-or-later
+## X-Website: https://github.com/cjber/forever-core
+## X-Curse-Project-ID: 1796337
+## SavedVariables: ForeverCoreDB
+## X-Forever-Core-Loader: 1
+
+Core\Loader.lua
+Begin.lua
+Core.lua
+Locales\enUS.lua
+Locales\deDE.lua
+Locales\esES.lua
+Locales\esMX.lua
+Locales\frFR.lua
+Locales\koKR.lua
+Locales\ptBR.lua
+Locales\ruRU.lua
+Locales\zhCN.lua
+Locales\zhTW.lua
+Data\Credits.lua
+Core\SafeCall.lua
+Core\Open.lua
+Core\OpenMap.lua
+Core\OpenSettings.lua
+Core\Log.lua
+Core\Capture.lua
+Core\Performance.lua
+Core\Text.lua
+Core\Character.lua
+UI\Art.lua
+UI\Report.lua
+UI\Credits.lua
+UI\SettingsPage.lua
+UI\SettingsSections.lua
+UI\TrackerLock.lua
+UI\TrackerOrder.lua
+UI\ContextMenu.lua
+UI\TrackerHost.lua
+UI\TrackerSection.xml
+UI\TrackerSection.lua
+UI\MapCanvas.lua
+Core\APIKit.lua
+Core\API.lua
+UI\QuestLogTabs.lua
+UI\ProfessionTabs.lua
+Expose.lua
+End.lua
+ForeverCoreReady.lua

@@ -34,24 +34,21 @@ local function InitializeNavigation()
 		end
 	end, {"navigate", "navigation"})
 	
-	InfinityUtils:Info("InfinityNavigation initialized successfully", "Navigation")
-	InfinityMessaging:Publish(INFINITY_EVENTS.FEATURE_ENABLED, "navigation", true)
-end
-
-
-local function RegisterAddonWithInfinityManager()
 	if _G.InfinityAddonManager then
-		_G.InfinityAddonManager:RegisterAddon(ADDON_NAME, ADDON_VERSION, {
+		_G.InfinityAddonManager:RegisterAddon("InfinityNavigation", "1.2.0", {
 			description = "Navigation tools",
 			author = "Infinity Suite Team",
 			category = "Navigation",
 			enabled = true,
-			settings = {{}}
+			settings = {}
 		})
 	end
+	
+	InfinityUtils:Info("InfinityNavigation initialized successfully", "Navigation")
+	InfinityMessaging:Publish(INFINITY_EVENTS.FEATURE_ENABLED, "navigation", true)
 end
 
-	local frame = CreateFrame("Frame")
+local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:SetScript("OnEvent", function(self, event, addonName)
 	if addonName == "InfinityNavigation" then

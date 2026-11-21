@@ -60,25 +60,22 @@ local function InitializeGuild()
 		end,
 	})
 	
+	if _G.InfinityAddonManager then
+		_G.InfinityAddonManager:RegisterAddon("InfinityGuild", "1.0.0", {
+			description = "Guild management",
+			author = "Infinity Suite Team",
+			category = "Guild",
+			enabled = true,
+			settings = {}
+		})
+	end
+	
 	InfinityUtils:Info("InfinityGuild initialized successfully", "InfinityGuild")
 	InfinityMessaging:Publish("guild_addon_loaded", { addon = "InfinityGuild" })
 end
 
 -- Hook into InfinityCore's initialization
-
-local function RegisterAddonWithInfinityManager()
-	if _G.InfinityAddonManager then
-		_G.InfinityAddonManager:RegisterAddon(ADDON_NAME, ADDON_VERSION, {
-			description = "Guild management",
-			author = "Infinity Suite Team",
-			category = "Guild",
-			enabled = true,
-			settings = {{}}
-		})
-	end
-end
-
-	local frame = CreateFrame("Frame")
+local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:SetScript("OnEvent", function(self, event, addonName)
 	if addonName == "InfinityCore" then

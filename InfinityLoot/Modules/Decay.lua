@@ -481,7 +481,7 @@ function InfinityLootDecay:IsAdminOnly()
 	end
 	
 	-- Check with InfinityLoot access control
-	if InfinityLootAccessControl and InfinityLootAccessControl:HasPermission then
+	if InfinityLootAccessControl and InfinityLootAccessControl.HasPermission then
 		return InfinityLootAccessControl:HasPermission(UnitName("player"), "configure_decay")
 	end
 	

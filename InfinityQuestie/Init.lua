@@ -96,20 +96,7 @@ local function InitializeQuestie()
 	print("InfinityQuestie loaded - Use /questie for quest tracking")
 end
 
-
-local function RegisterAddonWithInfinityManager()
-	if _G.InfinityAddonManager then
-		_G.InfinityAddonManager:RegisterAddon(ADDON_NAME, ADDON_VERSION, {
-			description = "Quest management",
-			author = "Infinity Suite Team",
-			category = "Quest",
-			enabled = true,
-			settings = {{}}
-		})
-	end
-end
-
-	local frame = CreateFrame("Frame")
+local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 
 local addonLoaded = false

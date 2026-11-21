@@ -2,9 +2,10 @@
 -- Attendance window
 
 local InfinityAttendanceUI = {}
+_G.InfinityAttendanceUI = InfinityAttendanceUI
 
 function InfinityAttendanceUI:Initialize()
-    self.frame = CreateFrame("Frame", "InfinityAttendanceMainFrame", UIParent)
+    self.frame = CreateFrame("Frame", "InfinityAttendanceMainFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
     self.frame:SetSize(500, 350)
     self.frame:SetPoint("CENTER", UIParent, "CENTER", -300, 0)
     self.frame:SetBackdrop({
@@ -17,7 +18,7 @@ function InfinityAttendanceUI:Initialize()
     self.frame:SetBackdropBorderColor(0.8, 0.8, 0.8, 1)
     
     -- Title
-    local title = self.frame:CreateFontString(nil, "ARTWORK", "GameFontBold")
+    local title = self.frame:CreateFontString(nil, "ARTWORK", (GameFontBold and "GameFontBold" or "GameFontNormalLarge"))
     title:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 10, -10)
     title:SetText("Infinity Attendance")
     

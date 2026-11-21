@@ -1,0 +1,98 @@
+## Interface: 16001
+## Title: Legacy Forever
+## Notes: Shows which of your unfinished Legacy challenges you can advance in the zone on the world map.
+## Author: cjber
+## Version: 2.5.5
+## Category: Map
+## X-License: GPL-3.0-or-later
+## X-Website: https://github.com/cjber/legacy-forever
+## X-Donate: https://github.com/sponsors/cjber
+## X-Curse-Project-ID: 1705879
+## IconTexture: Interface\AddOns\LegacyForever\media\Icon
+## X-Forever-Icon: Interface\Icons\Achievement_General
+## X-Forever-Core: v1.15.4
+## OptionalDeps: ShortestPathForever, QuestieDB, Questie, AtlasLootClassic, ForeverCore
+## SavedVariables: LegacyForeverDB
+## X-Forever-Core-Embed: 1
+## LoadSavedVariablesFirst: 1
+## AddonCompartmentFunc: LegacyForever_OnAddonCompartmentClick
+
+Libs\ForeverCore\Core\Loader.lua
+Libs\ForeverCore\Begin.lua
+Libs\ForeverCore\Core.lua
+Libs\ForeverCore\Locales\enUS.lua
+Libs\ForeverCore\Locales\deDE.lua
+Libs\ForeverCore\Locales\esES.lua
+Libs\ForeverCore\Locales\esMX.lua
+Libs\ForeverCore\Locales\frFR.lua
+Libs\ForeverCore\Locales\koKR.lua
+Libs\ForeverCore\Locales\ptBR.lua
+Libs\ForeverCore\Locales\ruRU.lua
+Libs\ForeverCore\Locales\zhCN.lua
+Libs\ForeverCore\Locales\zhTW.lua
+Libs\ForeverCore\Data\Credits.lua
+Libs\ForeverCore\Core\SafeCall.lua
+Libs\ForeverCore\Core\Open.lua
+Libs\ForeverCore\Core\OpenMap.lua
+Libs\ForeverCore\Core\OpenSettings.lua
+Libs\ForeverCore\Core\Log.lua
+Libs\ForeverCore\Core\Capture.lua
+Libs\ForeverCore\Core\Performance.lua
+Libs\ForeverCore\Core\Text.lua
+Libs\ForeverCore\UI\Art.lua
+Libs\ForeverCore\UI\Report.lua
+Libs\ForeverCore\UI\Credits.lua
+Libs\ForeverCore\UI\SettingsPage.lua
+Libs\ForeverCore\UI\SettingsSections.lua
+Libs\ForeverCore\UI\TrackerLock.lua
+Libs\ForeverCore\UI\TrackerOrder.lua
+Libs\ForeverCore\UI\ContextMenu.lua
+Libs\ForeverCore\UI\TrackerHost.lua
+Libs\ForeverCore\UI\TrackerSection.xml
+Libs\ForeverCore\UI\TrackerSection.lua
+Libs\ForeverCore\UI\MapCanvas.lua
+Libs\ForeverCore\Core\APIKit.lua
+Libs\ForeverCore\Core\Journey.lua
+Libs\ForeverCore\UI\QuestLogTabs.lua
+Libs\ForeverCore\UI\ProfessionTabs.lua
+Libs\ForeverCore\Expose.lua
+Libs\ForeverCore\End.lua
+ForeverCoreHost.lua
+Locales\enUS.lua
+Locales\deDE.lua
+Locales\esES.lua
+Locales\esMX.lua
+Locales\frFR.lua
+Locales\koKR.lua
+Locales\ptBR.lua
+Locales\ruRU.lua
+Locales\zhCN.lua
+Locales\zhTW.lua
+Core\ForeverRequire.lua
+Core\Require.lua
+Data\Legacy.lua
+Data\Explore.lua
+Data\ShadingMasks.lua
+Data\Credits.lua
+Core\Core.lua
+Core\Art.lua
+Core\Saved.lua
+UI\WhatsNew.lua
+Core\Model.lua
+Core\Live.lua
+Integrations\Quests.lua
+Integrations\Navigate.lua
+Integrations\AtlasLoot.lua
+Core\ZoneCompletion.lua
+UI\Tracker.lua
+UI\Completion.xml
+UI\Completion.lua
+UI\Settings.lua
+UI\MapContents.lua
+UI\Shading.lua
+UI\Map.xml
+UI\Map.lua
+Core\API.lua
+Core\Report.lua
+ForeverCoreRun.lua
+ForeverCoreReady.lua

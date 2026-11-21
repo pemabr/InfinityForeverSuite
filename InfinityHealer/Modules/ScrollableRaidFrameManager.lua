@@ -38,7 +38,7 @@ function ScrollableRaidFrameManager:Initialize()
     
     -- Create parent frame
     if not self.parent_frame then
-        self.parent_frame = CreateFrame("Frame", "InfinityRaidFramesScroll", UIParent)
+        self.parent_frame = CreateFrame("Frame", "InfinityRaidFramesScroll", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
         self.parent_frame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 10, -10)
         self.parent_frame:SetSize(600, 500)
         self.parent_frame:EnableMouse(true)

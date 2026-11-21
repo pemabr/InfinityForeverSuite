@@ -1,0 +1,10 @@
+## Interface: 11509, 20506, 38002, 120100
+## Title: Infinity Loot History
+## Notes: Advanced loot tracking and history with statistics
+## Author: Infinity Suite
+## Version: 1.0.0
+## Parent: InfinityCore
+## SavedVariables: InfinityLootHistoryDB
+## OptionalDeps: InfinityCore
+
+Init.lua

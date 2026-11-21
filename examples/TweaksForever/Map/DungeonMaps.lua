@@ -1,0 +1,354 @@
+local ForeverCoreHostChunk = function(...) ---@type string, TFNamespace
+local _, ns = ...
+
+if ns.broken then
+	return
+end
+
+ns.Feature({
+	key = "dungeonMaps",
+	category = "Quests and maps",
+	section = "World map",
+	name = "Dungeon interior maps",
+	tooltip = "Inside a dungeon or raid, the world map shows its painted map, with a floor picker and a "
+		.. "Back to map button.",
+	default = true,
+})
+
+local PAD, COLUMNS, ROWS = 12, 4, 3
+-- Native map art uses a 1002x668 canvas in padded 256px tiles (UiMapArtStyleLayer style 1).
+local ART_WIDTH, ART_HEIGHT, TILE_SIZE = 1002, 668, 256
+local PICKER_WIDTH = 200
+
+local WINGS = {
+	["Graveyard"] = ns.L["Graveyard"],
+	["Library"] = ns.L["Library"],
+	["Armory"] = ns.L["Armory"],
+	["Cathedral"] = ns.L["Cathedral"],
+	["Upper Blackrock Spire"] = ns.L["Upper Blackrock Spire"],
+	["Gordok Commons"] = ns.L["Gordok Commons"],
+	["Capital Gardens"] = ns.L["Capital Gardens"],
+	["Warpwood Quarter"] = ns.L["Warpwood Quarter"],
+}
+
+---@class TFDungeonMaps
+local Model = {}
+ns.DungeonMaps = Model
+
+---@param art table?
+---@param instance integer
+---@return TFInteriorMap[]
+function Model.Floors(art, instance)
+	local source = type(art) == "table" and art[instance]
+	local floors = {}
+	if type(source) ~= "table" then
+		return floors
+	end
+	local name = GetRealZoneText and GetRealZoneText(instance)
+	for _, floor in ipairs(source) do
+		if type(floor) == "table" and type(floor.title) == "string" and type(floor.pattern) == "string" then
+			local title = floor.title
+			if name and name ~= "" then
+				if floor.wing and WINGS[floor.wing] then
+					title = name .. ": " .. WINGS[floor.wing]
+				elseif floor.level then
+					title = name .. " " .. floor.level
+				elseif not floor.wing then
+					title = name
+				end
+			end
+			floors[#floors + 1] = { title = title, pattern = floor.pattern, separator = floor.separator or "_" }
+		end
+	end
+	-- A few instances name several floors the same way (Dire Maul's three Capital Gardens levels and its two
+	-- Warpwood Quarter ones), which leaves a picker of identical buttons. Number the repeats, in floor order, the
+	-- way the generator already numbers a nameless instance ("Shadowfang Keep 1", "Shadowfang Keep 2"): a bare
+	-- number is the same in every language, so nothing here needs a translation.
+	local seen = {}
+	for _, floor in ipairs(floors) do
+		seen[floor.title] = (seen[floor.title] or 0) + 1
+	end
+	local numbered = {}
+	for _, floor in ipairs(floors) do
+		if seen[floor.title] > 1 then
+			numbered[floor.title] = (numbered[floor.title] or 0) + 1
+			if numbered[floor.title] > 1 then
+				floor.title = floor.title .. " (" .. numbered[floor.title] .. ")"
+			end
+		end
+	end
+	return floors
+end
+
+-- Every floor of the instances an entrance leads to, in the entrance's order.
+---@param art table?
+---@param instances integer[]
+---@return TFInteriorMap[]
+function Model.FloorsOf(art, instances)
+	local floors = {}
+	for _, instance in ipairs(instances) do
+		for _, floor in ipairs(Model.Floors(art, instance)) do
+			floors[#floors + 1] = floor
+		end
+	end
+	return floors
+end
+
+---@param instanceType string
+---@param instance integer?
+---@param playerMap integer?
+---@param shownMap integer?
+---@return integer?
+function Model.Inside(instanceType, instance, playerMap, shownMap)
+	if (instanceType == "party" or instanceType == "raid") and playerMap and playerMap == shownMap then
+		return instance
+	end
+end
+
+---@param count integer
+---@param chosen integer?
+---@return integer
+function Model.Floor(count, chosen)
+	return math.max(1, math.min(chosen or 1, count))
+end
+
+ns.Init(function()
+	local map = WorldMapFrame
+	local host, heading, picker, popup, back, reopen
+	local tiles = {}
+	local choices, floors, selected, shown = {}, {}, 1, nil
+	---@type table<integer|string, integer>
+	local chosen = {}
+	local pending = false
+	-- The map an entrance was clicked on, while its dungeon's sheet is up over it.
+	---@type integer?
+	local viewing
+
+	local function Hide()
+		if host then
+			popup:Hide()
+			host:Hide()
+			reopen:Hide()
+		end
+		shown = nil
+	end
+
+	local function Layout()
+		local width, height = host:GetWidth(), host:GetHeight()
+		for index, tile in ipairs(tiles) do
+			local column, row = (index - 1) % COLUMNS, math.floor((index - 1) / COLUMNS)
+			local left, top = column * TILE_SIZE, row * TILE_SIZE
+			local tileWidth = math.min(TILE_SIZE, ART_WIDTH - left)
+			local tileHeight = math.min(TILE_SIZE, ART_HEIGHT - top)
+			tile:SetSize(width * tileWidth / ART_WIDTH, height * tileHeight / ART_HEIGHT)
+			tile:SetTexCoord(0, tileWidth / TILE_SIZE, 0, tileHeight / TILE_SIZE)
+			tile:ClearAllPoints()
+			tile:SetPoint("TOPLEFT", host, "TOPLEFT", width * left / ART_WIDTH, -height * top / ART_HEIGHT)
+		end
+	end
+
+	local Select
+	local function Choices()
+		for index, floor in ipairs(floors) do
+			local choice = choices[index]
+			if not choice then
+				choice = ns.MapDraw.FrameUnder("Button", popup, "SharedButtonSmallTemplate")
+				choice:SetSize(PICKER_WIDTH - 12, 24)
+				choice:SetPoint("TOPLEFT", 6, -6 - (index - 1) * 26)
+				choice:SetScript("OnClick", function()
+					Select(index)
+				end)
+				choices[index] = choice
+			end
+			choice:SetText(floor.title)
+			choice:SetEnabled(index ~= selected)
+			choice:Show()
+		end
+		for index = #floors + 1, #choices do
+			choices[index]:Hide()
+		end
+		popup:SetSize(PICKER_WIDTH, #floors * 26 + 12)
+	end
+
+	local function Draw()
+		local floor = floors[selected]
+		heading:SetText(floor.title)
+		for index, tile in ipairs(tiles) do
+			tile:SetTexture(floor.pattern .. floor.separator .. index) -- art-ok: native map tile, padded edges cropped by Layout
+		end
+		picker:SetShown(#floors > 1)
+		picker:SetText(floor.title)
+		popup:Hide()
+		Choices()
+	end
+
+	---@param index integer
+	function Select(index)
+		selected = Model.Floor(#floors, index)
+		popup:Hide()
+		if shown then
+			chosen[shown] = selected
+		end
+		Draw()
+	end
+
+	local function Build()
+		local canvas = map.ScrollContainer
+		host = ns.MapDraw.FrameUnder("Frame", canvas)
+		host:SetAllPoints(canvas)
+		-- The sheet is a modal surface over the map and its addon controls, not a child-level overlay.
+		host:SetFrameStrata("DIALOG")
+		host:SetFrameLevel(canvas:GetFrameLevel() + 100)
+		host:EnableMouse(true)
+		local background = host:CreateTexture(nil, "BACKGROUND")
+		background:SetAllPoints()
+		background:SetColorTexture(0, 0, 0, 1)
+		heading = host:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+		heading:SetPoint("TOPLEFT", PAD, -PAD)
+		heading:SetJustifyH("LEFT")
+		for index = 1, COLUMNS * ROWS do
+			tiles[index] = host:CreateTexture(nil, "ARTWORK")
+			tiles[index]:SetTexCoord(0, 1, 0, 1)
+		end
+		back = ns.MapDraw.FrameUnder("Button", host, "SharedButtonSmallTemplate") --[[@as Button]]
+		back:SetSize(112, 22)
+		back:SetPoint("TOPRIGHT", -PAD, -PAD)
+		back:SetText(ns.L["Back to map"])
+		ns.FitButton(back, 112)
+		reopen = ns.MapDraw.FrameUnder("Button", canvas, "SharedButtonSmallTemplate") --[[@as Button]]
+		reopen:SetSize(112, 22)
+		reopen:SetPoint("BOTTOMLEFT", PAD, PAD)
+		reopen:SetFrameLevel(host:GetFrameLevel() + 1)
+		reopen:SetText(ns.L["Dungeon map"])
+		ns.FitButton(reopen, 112)
+		reopen:Hide()
+		back:SetScript("OnClick", function()
+			if viewing then
+				viewing = nil
+				Hide()
+				return
+			end
+			host:Hide()
+			reopen:Show()
+		end)
+		reopen:SetScript("OnClick", function()
+			reopen:Hide()
+			host:Show()
+		end)
+		picker = ns.MapDraw.FrameUnder("Button", host, "SharedButtonSmallTemplate") --[[@as Button]]
+		picker:SetSize(PICKER_WIDTH, 24)
+		picker:SetPoint("TOPRIGHT", back, "TOPLEFT", -8, 0)
+		heading:SetPoint("TOPRIGHT", picker, "TOPLEFT", -8, 0)
+		heading:SetWordWrap(false)
+		popup = ns.MapDraw.FrameUnder("Frame", picker)
+		popup:SetFrameStrata("DIALOG")
+		popup:SetPoint("TOPRIGHT", picker, "BOTTOMRIGHT", 0, -2)
+		popup:EnableMouse(true)
+		local popupBackground = popup:CreateTexture(nil, "BACKGROUND")
+		popupBackground:SetAllPoints()
+		popupBackground:SetColorTexture(0.04, 0.03, 0.02, 1)
+		popup:SetScript("OnShow", function(self)
+			self:RegisterEvent("GLOBAL_MOUSE_DOWN")
+		end)
+		popup:SetScript("OnHide", function(self)
+			self:UnregisterEvent("GLOBAL_MOUSE_DOWN")
+		end)
+		popup:SetScript("OnEvent", function(self)
+			if not (self:IsMouseOver() or picker:IsMouseOver()) then
+				self:Hide()
+			end
+		end)
+		ns.EscapeCloses(popup)
+		popup:Hide()
+		picker:SetScript("OnClick", function()
+			popup:SetShown(not popup:IsShown())
+		end)
+		host:SetScript("OnSizeChanged", Layout)
+	end
+
+	---@param key integer|string
+	---@param found TFInteriorMap[]
+	local function Present(key, found)
+		if not host then
+			Build()
+		end
+		floors, shown = found, key
+		selected = Model.Floor(#floors, chosen[key])
+		reopen:Hide()
+		host:Show()
+		Layout()
+		Draw()
+	end
+
+	-- A dungeon's floors over the map it is shown on. False leaves no sheet to show.
+	---@param uiMapID integer
+	---@param instances integer[]
+	---@return boolean
+	function Model.Open(uiMapID, instances)
+		local found = Model.FloorsOf(ns.DungeonMapArt, instances)
+		if #found == 0 or not ns.Active("dungeonMaps") or InCombatLockdown() then
+			return false
+		end
+		viewing = uiMapID
+		Present(table.concat(instances, ","), found)
+		return true
+	end
+
+	local function Refresh()
+		if not map:IsShown() then
+			return
+		end
+		if viewing then
+			if viewing == map:GetMapID() and ns.Active("dungeonMaps") then
+				return
+			end
+			viewing = nil
+			Hide()
+		end
+		local _, instanceType, _, _, _, _, _, instance = GetInstanceInfo()
+		local inside = Model.Inside(instanceType, instance, C_Map.GetBestMapForUnit("player"), map:GetMapID())
+		if not (inside and ns.Active("dungeonMaps")) then
+			Hide()
+			return
+		end
+		if shown == inside then
+			pending = false
+			return
+		end
+		if InCombatLockdown() then
+			Hide()
+			pending = true
+			return
+		end
+		pending = false
+		local found = Model.Floors(ns.DungeonMapArt, inside)
+		if #found == 0 then
+			Hide()
+			return
+		end
+		Present(inside, found)
+	end
+
+	ns.MapDraw.Watch(map, function(_, what)
+		if what == "map" then
+			Refresh()
+		end
+	end)
+	map:HookScript("OnShow", Refresh)
+	map:HookScript("OnHide", function()
+		if host then
+			popup:Hide()
+		end
+		shown, viewing = nil, nil
+	end)
+	ns.On("PLAYER_ENTERING_WORLD", Refresh)
+	ns.On("ZONE_CHANGED_NEW_AREA", Refresh)
+	ns.On("PLAYER_REGEN_ENABLED", function()
+		if pending then
+			Refresh()
+		end
+	end)
+	ns.OnSettingChanged("dungeonMaps", Refresh)
+end)
+
+end local _, ForeverCoreHostNs = ... if type(ForeverCoreHostNs) == "table" and type(ForeverCoreHostNs.ForeverCoreHostChunks) == "table" then local chunks = ForeverCoreHostNs.ForeverCoreHostChunks chunks[#chunks + 1] = ForeverCoreHostChunk else return ForeverCoreHostChunk(...) end

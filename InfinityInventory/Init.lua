@@ -41,24 +41,21 @@ local function InitializeInventory()
 		end
 	end, {"inventory"})
 	
-	InfinityUtils:Info("InfinityInventory initialized successfully", "Inventory")
-	InfinityMessaging:Publish(INFINITY_EVENTS.FEATURE_ENABLED, "inventory", true)
-end
-
-
-local function RegisterAddonWithInfinityManager()
 	if _G.InfinityAddonManager then
-		_G.InfinityAddonManager:RegisterAddon(ADDON_NAME, ADDON_VERSION, {
+		_G.InfinityAddonManager:RegisterAddon("InfinityInventory", "1.2.0", {
 			description = "Inventory management",
 			author = "Infinity Suite Team",
 			category = "Inventory",
 			enabled = true,
-			settings = {{}}
+			settings = {}
 		})
 	end
+	
+	InfinityUtils:Info("InfinityInventory initialized successfully", "Inventory")
+	InfinityMessaging:Publish(INFINITY_EVENTS.FEATURE_ENABLED, "inventory", true)
 end
 
-	local frame = CreateFrame("Frame")
+local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:SetScript("OnEvent", function(self, event, addonName)
 	if addonName == "InfinityInventory" then

@@ -1,0 +1,23 @@
+## Interface: 20506
+## Title: |cff00ccffSharpie's Gear Judge|r |cff00ff00[Roadmap]|r (TBC Edition)
+## Notes: Finds the best upgrades for you.
+## Author: Supersharpie
+## Version: 3.4.0-TBC
+## Dependencies: SharpiesGearJudge
+## OptionalDeps: QuestieDB
+## X-Curse-Project-ID: 1451473
+
+Locales\deDE.lua
+Locales\esES.lua
+Locales\esMX.lua
+Locales\frFR.lua
+Locales\ptBR.lua
+Locales\ruRU.lua
+Locales\koKR.lua
+Locales\zhTW.lua
+D1_Items.lua
+D2_Items.lua
+D3_Items.lua
+D4_Badges.lua
+D5_Quests.lua
+Roadmap.lua

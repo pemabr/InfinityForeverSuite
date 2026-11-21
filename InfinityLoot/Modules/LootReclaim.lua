@@ -47,15 +47,12 @@ function LootReclaim:LogAward(item_id, winner, dkp_cost)
 end
 
 function LootReclaim:CanReclaim()
-    -- Check if player is guild officer or master
-    local rank = GetGuildInfo("player")
-    if not rank then
-        return false
+    if _G.IsGuildLeader and _G.IsGuildLeader() then
+        return true
     end
-    
     -- Rank 0 = guild master, rank 1 = officer
     local _, _, rank_index = GetGuildInfo("player")
-    return rank_index <= 1
+    return rank_index ~= nil and rank_index <= 1
 end
 
 function LootReclaim:RecoverLoot(award_index, reason)

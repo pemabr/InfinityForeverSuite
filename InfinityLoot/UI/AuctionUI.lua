@@ -70,7 +70,7 @@ function InfinityLootAuctionUI:HandleAuctionCommand(args)
 			return
 		end
 		InfinityLootAuctions:CloseAuction(auctionId)
-		InformationUtils:Info("Auction " .. auctionId .. " closed", "AuctionUI")
+		InfinityUtils:Info("Auction " .. auctionId .. " closed", "AuctionUI")
 	elseif subcommand == "list" then
 		self:ShowAuctionList()
 	elseif subcommand == "history" then

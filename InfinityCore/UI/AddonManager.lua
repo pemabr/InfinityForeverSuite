@@ -53,7 +53,7 @@ function InfinityAddonManager:SetAddonEnabled(name, enabled)
 end
 
 function InfinityAddonManager:CreateManagerWindow()
-	local mainFrame = CreateFrame("Frame", "InfinityAddonManager", UIParent)
+	local mainFrame = CreateFrame("Frame", "InfinityAddonManagerWindow", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	mainFrame:SetSize(700, 500)
 	mainFrame:SetPoint("CENTER")
 	mainFrame:SetBackdrop({
@@ -87,7 +87,7 @@ function InfinityAddonManager:CreateManagerWindow()
 	listScroll:SetSize(180, 420)
 	listScroll:SetPoint("TOPLEFT", 10, -35)
 	
-	local addonList = CreateFrame("Frame", nil, listScroll)
+	local addonList = CreateFrame("Frame", nil, listScroll, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	addonList:SetSize(180, 1)
 	listScroll:SetScrollChild(addonList)
 	
@@ -95,7 +95,7 @@ function InfinityAddonManager:CreateManagerWindow()
 	mainFrame.listScroll = listScroll
 	
 	-- Details area (right side)
-	local detailsFrame = CreateFrame("Frame", nil, mainFrame)
+	local detailsFrame = CreateFrame("Frame", nil, mainFrame, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	detailsFrame:SetSize(480, 420)
 	detailsFrame:SetPoint("TOPLEFT", 200, -35)
 	mainFrame.detailsFrame = detailsFrame
@@ -121,9 +121,7 @@ end
 
 function InfinityAddonManager:RefreshAddonList(mainFrame)
 	-- Clear list
-	for i = mainFrame.addonList:GetNumChildren(), 1, -1 do
-		mainFrame.addonList:GetChild(i):Hide()
-	end
+	InfinityUtils:ClearContainer(mainFrame.addonList)
 	
 	local searchText = (mainFrame.searchBox and mainFrame.searchBox:GetText() or ""):lower()
 	local y = 0
@@ -133,7 +131,7 @@ function InfinityAddonManager:RefreshAddonList(mainFrame)
 		if searchText == "" or addonInfo.name:lower():find(searchText, 1, true) or 
 		   addonInfo.description:lower():find(searchText, 1, true) then
 			
-			local btn = CreateFrame("Button", nil, mainFrame.addonList)
+			local btn = CreateFrame("Button", nil, mainFrame.addonList, BackdropTemplateMixin and "BackdropTemplate" or nil)
 			btn:SetSize(170, 30)
 			btn:SetPoint("TOPLEFT", 0, y)
 			btn:SetBackdrop({
@@ -166,9 +164,7 @@ end
 
 function InfinityAddonManager:ShowAddonDetails(mainFrame, addonInfo)
 	-- Clear details
-	for i = mainFrame.detailsFrame:GetNumChildren(), 1, -1 do
-		mainFrame.detailsFrame:GetChild(i):Hide()
-	end
+	InfinityUtils:ClearContainer(mainFrame.detailsFrame)
 	
 	local y = 0
 	
@@ -229,13 +225,14 @@ function InfinityAddonManager:ShowAddonDetails(mainFrame, addonInfo)
 end
 
 function InfinityAddonManager:Toggle()
-	if _G.InfinityAddonManager and _G.InfinityAddonManager:IsVisible() then
-		_G.InfinityAddonManager:Hide()
+	if _G.InfinityAddonManagerWindow and _G.InfinityAddonManagerWindow:IsVisible() then
+		_G.InfinityAddonManagerWindow:Hide()
 	else
-		if not _G.InfinityAddonManager then
-			_G.InfinityAddonManager = self:CreateManagerWindow()
+		if not _G.InfinityAddonManagerWindow then
+			local window = self:CreateManagerWindow()
+			window:Show()
 		else
-			_G.InfinityAddonManager:Show()
+			_G.InfinityAddonManagerWindow:Show()
 		end
 	end
 end

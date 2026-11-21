@@ -1,0 +1,81 @@
+## Interface: 11509, 16001, 20506, 50504, 120105
+## Title: Atlas
+## Notes: Core addon for Atlas map modules and plugins
+## Title-deDE: Atlas
+## Notes-deDE: Kern-Add-on für Atlas-Kartenmodule und Plugins
+## Title-esES: Atlas
+## Notes-esES: Complemento principal para los módulos de mapas y complementos de Atlas
+## Title-esMX: Atlas
+## Notes-esMX: Complemento principal para los módulos de mapas y complementos de Atlas
+## Title-frFR: Atlas
+## Notes-frFR: Extension principale pour les modules de cartes et les extensions d’Atlas
+## Title-itIT: Atlas
+## Notes-itIT: Addon principale per i moduli delle mappe e i plugin di Atlas
+## Title-koKR: 아틀라스
+## Notes-koKR: Atlas 지도 모듈과 플러그인을 위한 핵심 애드온
+## Title-ptBR: Atlas
+## Notes-ptBR: Addon principal para os módulos de mapas e plugins do Atlas
+## Title-ruRU: Атлас
+## Notes-ruRU: Основной аддон для модулей карт и плагинов Atlas
+## Title-zhCN: Atlas 地图集
+## Notes-zhCN: Atlas 地图模块和插件的核心插件
+## Title-zhTW: Atlas 地圖集
+## Notes-zhTW: Atlas 地圖模組和插件的核心插件
+## Author: arith, nanderson11
+## Version: v1.54.07
+## OptionalDeps: LibStub, CallbackHandler-1.0, Ace3, LibBabble-Boss-3.0, LibBabble-SubZone-3.0, LibBabble-Faction-3.0, LibDBIcon-1.0, LibUIDropDownMenu
+## AddonCompartmentFunc: Atlas_Toggle
+## IconTexture: Interface\WorldMap\WorldMap-Icon
+## SavedVariables: AtlasDB
+## Category: Map
+## Category-deDE: Karte
+## Category-esES: Mapa
+## Category-esMX: Mapa
+## Category-frFR: Carte
+## Category-itIT: Mappa
+## Category-koKR: 지도
+## Category-ptBR: Mapa
+## Category-ruRU: Карта
+## Category-zhCN: 地图
+## Category-zhTW: 地圖
+## X-Category: Map & Minimap
+## X-Credits: Dan Gilbert, Lothaer, Dynaletik, dubcat, Niflheim, Daviesh, Resike, ananhaid, diablohudream, dokcharlie, netaras, eugene.filatov, gonnym, maqjav, mr.kevin.fischer, nihlolino, peter.retzer, s8095324, StingerSoft, yeachan1
+## X-Date: 2026-11-11T16:35:33Z
+## X-License: GPLv2
+## X-Localizations: enUS, deDE, esES, esMX, frFR, ruRU, zhTW, zhCN, ptBR, koKR
+## X-Website: https://www.curseforge.com/wow/addons/atlas
+## X-Curse-Project-ID: 301
+## X-WoWI-ID: 3896
+
+Data\Constants.lua
+Data\AreaIDs.xml
+Libs\Libs.xml
+Locale\Locales.xml
+
+# Core & Modules
+Core\Addon.lua
+Modules\StaticPopup.lua
+Core\FontsTemplates.lua
+Core\Templates.lua
+Core\IngameLocales.lua
+
+Core\Atlas.lua
+Modules\Quest.lua
+Modules\Item.lua
+Modules\Creature.lua
+Modules\Factions.lua
+Modules\Achievements.lua
+Modules\LFG.lua
+Core\AtlasFrame.lua
+Core\UI.lua
+Core\Config.lua
+
+Data\Maps_Association.lua
+Data\DropDownConfig.lua
+
+# Integration functions
+Integration\EJIntegration.lua
+Integration\EJLoot.xml
+Integration\WorldMap.xml
+Integration\WorldMap.lua
+Integration\AtlasLootIntegration.lua

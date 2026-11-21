@@ -308,7 +308,7 @@ function Tests:TestDateRangeFiltering()
     InfinityLootHistory.lootLog = {}
     InfinityLootHistory.playerStats = {}
     
-    local now = InfinityUtils and InfinityUtils:GetTimeStamp() or os.time()
+    local now = InfinityUtils and InfinityUtils:GetTimeStamp() or time()
     
     -- Log with different timestamps
     InfinityLootHistory:LogLootAward({playerName = "P1", value = 100, timestamp = now - 1000})

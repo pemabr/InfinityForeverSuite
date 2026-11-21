@@ -1,0 +1,80 @@
+local ForeverCoreHostChunk = function(...) ---@type string, FGNamespace
+local _, ns = ...
+
+if ns.broken then
+	return
+end
+
+-- luacheck: globals NORMAL_FONT_COLOR GRAY_FONT_COLOR
+local L = ns.L
+local Art = ns.Art
+
+---@class FGTooltipModule
+local Tooltip = {}
+ns.Tooltip = Tooltip
+
+-- The client sizes GameTooltip to its widest line, and SetText measures a new title from scratch. A short name such
+-- as "Rat" or "Field Guide" would leave everything under it that narrow, so every Field Guide tooltip is given this
+-- width after its title is set.
+local MIN_WIDTH = 220
+
+-- Starts a tooltip whose lines Field Guide owns. `title` goes through SetText, which resets the measurement, so the
+-- minimum width is applied after it; a tooltip built from AddLine alone gets the same width before its first line.
+---@param owner Frame
+---@param anchor string
+---@param title? string
+---@return GameTooltip?
+local function Open(owner, anchor, title)
+	if not GameTooltip or not owner then
+		return nil
+	end
+	GameTooltip:SetOwner(owner, anchor)
+	GameTooltip:ClearLines()
+	if title then
+		GameTooltip:SetText(title)
+	end
+	GameTooltip:SetMinimumWidth(MIN_WIDTH)
+	return GameTooltip
+end
+
+---@param owner Frame
+---@param entry FGListEntry
+function Tooltip.Show(owner, entry)
+	local tooltip = Open(owner, "ANCHOR_RIGHT")
+	if not tooltip then
+		return
+	end
+	local species = entry.species
+	local state = entry.state
+	local count = state and state.count or 0
+	local r, g, b = Art.RGBA("gold", 1)
+	tooltip:AddLine(species.name, r, g, b, true)
+	local tr, tg, tb = Art.RGBA("text", 1)
+	tooltip:AddLine(string.format(L["%s · %s"], L[species.family], L[species.zone]), tr, tg, tb, true)
+	tooltip:AddLine(
+		string.format(L["%s · Lv %s"], L[species.family], ns.Model.LevelRange(species.minLevel, species.maxLevel)),
+		tr,
+		tg,
+		tb,
+		true
+	)
+	tooltip:AddLine(string.format(L["Research: %s"], L[ns.Model.RankName(count)]), tr, tg, tb, true)
+	local variants = ns.Model.Variants(ns.GetCharacterState(false), species.id)
+	local known = L["Known"]
+	local locked = L["Locked"]
+	for _, tier in ipairs({ "bronze", "silver", "gold", "shiny" }) do
+		local label = tier == "shiny" and L["Shiny variant"] or L[tier:sub(1, 1):upper() .. tier:sub(2)]
+		tooltip:AddLine(string.format(L["%s: %s"], label, variants[tier].known and known or locked), tr, tg, tb, true)
+	end
+	tooltip:Show()
+end
+
+function Tooltip.Hide()
+	if GameTooltip and GameTooltip.Hide then
+		-- GameTooltip is shared: the next one to use it gets its own width back.
+		GameTooltip:SetMinimumWidth(0)
+		GameTooltip:Hide()
+	end
+end
+
+end local _, ForeverCoreHostNs = ... if type(ForeverCoreHostNs) == "table" and type(ForeverCoreHostNs.ForeverCoreHostChunks) == "table" then local chunks = ForeverCoreHostNs.ForeverCoreHostChunks chunks[#chunks + 1] = ForeverCoreHostChunk else return ForeverCoreHostChunk(...) end

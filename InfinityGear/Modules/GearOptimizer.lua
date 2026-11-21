@@ -63,7 +63,7 @@ function GearOptimizer:ScanCurrentGear()
 	for _, slot in ipairs(slots) do
 		local itemId = GetInventoryItemID("player", GetInventorySlotInfo(slot))
 		if itemId then
-			local itemName, itemLink, rarity, ilvl, minLevel, itemType = GetItemInfo(itemId)
+			local itemName, itemLink, rarity, ilvl, minLevel, itemType = InfinityUtils:GetItemInfo(itemId)
 			local stats = self:GetItemStats(itemId)
 			
 			self.gearData.currentGear[slot] = {
@@ -85,7 +85,8 @@ function GearOptimizer:GetItemStats(itemId)
 	local stats = {}
 	
 	for stat, weight in pairs(self.stats.weights) do
-		local statValue = select(2, GetItemStats("item:" .. itemId))
+		local rawStats = InfinityUtils:GetItemStats("item:" .. itemId)
+		local statValue = type(rawStats) == "table" and rawStats[stat] or nil
 		if statValue then
 			stats[stat] = statValue
 		end

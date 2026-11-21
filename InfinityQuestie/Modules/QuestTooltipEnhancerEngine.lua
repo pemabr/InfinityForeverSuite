@@ -296,8 +296,10 @@ if not IsTestingLua then
         elseif cmd == "config" then
             local config = QuestTooltipEnhancerEngine:GetConfig()
             print("Tooltip Configuration:")
-            for key, value in pairs(config) do
-                print("  " .. key .. ": " .. tostring(value))
+            if type(config) == "table" then
+                for key, value in pairs(config) do
+                    print("  " .. key .. ": " .. tostring(value))
+                end
             end
         elseif cmd == "status" then
             local status = QuestTooltipEnhancerEngine:GetStatus()

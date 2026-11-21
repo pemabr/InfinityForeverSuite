@@ -160,7 +160,7 @@ function InfinityCalendarNotifications:RemindParticipants(eventID)
 	end
 	
 	local message = string.format("Reminder: Event '%s' at %s", 
-		event.title, os.date("%H:%M", event.startTime))
+		event.title, date("%H:%M", event.startTime))
 	
 	-- Send to each confirmed participant
 	for characterName, participant in pairs(event.participants) do
