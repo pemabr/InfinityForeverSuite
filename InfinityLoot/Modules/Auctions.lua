@@ -15,16 +15,6 @@ InfinityLootAuctions = {
 	version = "1.0.0",
 }
 
-local function Public(value)
-	if _G.issecretvalue and _G.issecretvalue(value) then return nil end
-	return value
-end
-
-local function PositiveInteger(value, maximum)
-	return type(value) == "number" and value == value and value > 0
-		and value <= maximum and value == math.floor(value)
-end
-
 -- Initialize auction system
 function InfinityLootAuctions:Initialize()
 	InfinityUtils:Info("Auctions system initializing...", "InfinityLoot")
@@ -39,58 +29,18 @@ end
 -- Create new auction
 -- biddingMode: "open", "closed", "vickrey", "anonymous", "tiered", "antisnipe"
 function InfinityLootAuctions:CreateAuction(itemLink, biddingMode, duration, options)
-	if _G.issecretvalue and (issecretvalue(itemLink) or issecretvalue(biddingMode)
-		or issecretvalue(duration) or issecretvalue(options)) then
-		InfinityUtils:Warning("Protected auction input.", "Auctions")
-		return nil
-	end
-	itemLink, biddingMode, duration = Public(itemLink), Public(biddingMode), Public(duration)
+	local auctionId = self:GenerateAuctionId()
+	
 	biddingMode = biddingMode or self.settings.defaultBiddingMode
-	duration = duration or 60
+	duration = duration or 60 -- Default 1 minute
 	options = options or {}
-	if type(itemLink) ~= "string" or not itemLink:match("|Hitem:%d+")
-		or #itemLink > 1024 or not PositiveInteger(duration, 86400) or type(options) ~= "table" then
-		InfinityUtils:Warning("Invalid auction item or duration.", "Auctions")
-		return nil
-	end
-	if _G.issecretvalue and (issecretvalue(options.minimumBid) or issecretvalue(options.bidIncrement)
-		or issecretvalue(options.antiSnipeDuration) or issecretvalue(options.tierLevels)) then
-		InfinityUtils:Warning("Protected auction options.", "Auctions")
-		return nil
-	end
-	local minimumBid = options.minimumBid == nil and 1 or Public(options.minimumBid)
-	local bidIncrement = options.bidIncrement == nil and 1 or Public(options.bidIncrement)
-	local antiSnipeDuration = options.antiSnipeDuration == nil and self.settings.defaultAntisnipenDuration or Public(options.antiSnipeDuration)
-	if not PositiveInteger(minimumBid, 1000000000) or not PositiveInteger(bidIncrement, 1000000000)
-		or not PositiveInteger(antiSnipeDuration, 86400) then
-		InfinityUtils:Warning("Invalid auction bid or increment.", "Auctions")
-		return nil
-	end
-	local tierLevels = options.tierLevels or { "MS", "OS", "Offspec", "Bank" }
-	if type(tierLevels) ~= "table" or #tierLevels == 0 then
-		InfinityUtils:Warning("Invalid auction tiers.", "Auctions")
-		return nil
-	end
-	local seen = {}
-	for _, tier in ipairs(tierLevels) do
-		if (_G.issecretvalue and issecretvalue(tier)) or type(tier) ~= "string" or tier == ""
-			or seen[tier] then
-			InfinityUtils:Warning("Invalid auction tiers.", "Auctions")
-			return nil
-		end
-		seen[tier] = true
-	end
+	
 	-- Validate bidding mode
 	if not self:IsValidBiddingMode(biddingMode) then
 		InfinityUtils:Warning("Invalid bidding mode: " .. tostring(biddingMode), "Auctions")
 		return nil
 	end
 	
-	if #self.activeAuctions >= self.settings.maxConcurrentAuctions then
-		InfinityUtils:Warning("Maximum concurrent auctions reached (" .. self.settings.maxConcurrentAuctions .. ")", "Auctions")
-		return nil
-	end
-	local auctionId = self:GenerateAuctionId()
 	local auction = {
 		id = auctionId,
 		itemLink = itemLink,
@@ -105,13 +55,13 @@ function InfinityLootAuctions:CreateAuction(itemLink, biddingMode, duration, opt
 		winningBid = nil,
 		
 		-- Options per bidding mode
-		minimumBid = minimumBid,
-		bidIncrement = bidIncrement,
-		antiSnipeDuration = antiSnipeDuration,
+		minimumBid = options.minimumBid or 0,
+		bidIncrement = options.bidIncrement or 1,
+		antiSnipeDuration = options.antiSnipeDuration or self.settings.defaultAntisnipenDuration,
 		startingBid = options.startingBid or 0,
 		
 		-- Tiered auction options
-		tierLevels = tierLevels,
+		tierLevels = options.tierLevels or {"MS", "OS", "Offspec", "Bank"}, -- Main Spec, Off Spec, Offspec, Bank
 		tierBids = {}, -- {tier="MS", bids={...}}
 		
 		-- Anonymous mode tracking
@@ -130,17 +80,13 @@ function InfinityLootAuctions:CreateAuction(itemLink, biddingMode, duration, opt
 		end
 	end
 	
-	table.insert(self.activeAuctions, auction)
-	if _G.C_Timer and C_Timer.After then
-		local function Check()
-			if self:GetAuction(auctionId) ~= auction then return end
-			local remaining = auction.endTime - GetTime()
-			if remaining > 0 then C_Timer.After(remaining, Check) else self:CloseAuction(auctionId) end
-		end
-		C_Timer.After(duration, Check)
-	else
-		InfinityUtils:Warning("Auction timer unavailable; close the auction manually.", "Auctions")
+	-- Validate concurrent auctions
+	if #self.activeAuctions >= self.settings.maxConcurrentAuctions then
+		InfinityUtils:Warning("Maximum concurrent auctions reached (" .. self.settings.maxConcurrentAuctions .. ")", "Auctions")
+		return nil
 	end
+	
+	table.insert(self.activeAuctions, auction)
 	
 	-- Publish event
 	InfinityMessaging:Publish("auction_created", {
@@ -156,12 +102,6 @@ end
 
 -- Place a bid on an auction
 function InfinityLootAuctions:PlaceBid(auctionId, playerName, bidAmount, tierLevel)
-	auctionId, playerName, bidAmount, tierLevel = Public(auctionId), Public(playerName), Public(bidAmount), Public(tierLevel)
-	if type(auctionId) ~= "string" or type(playerName) ~= "string" or not playerName:match("%S")
-		or not PositiveInteger(bidAmount, 1000000000) then
-		InfinityUtils:Warning("Invalid auction bid.", "Auctions")
-		return false
-	end
 	local auction = self:GetAuction(auctionId)
 	if not auction then
 		InfinityUtils:Warning("Auction not found: " .. tostring(auctionId), "Auctions")
@@ -169,7 +109,7 @@ function InfinityLootAuctions:PlaceBid(auctionId, playerName, bidAmount, tierLev
 	end
 	
 	-- Validate auction is still active
-	if auction.status ~= "active" or GetTime() >= auction.endTime then
+	if auction.status ~= "active" then
 		InfinityUtils:Warning("Auction is not active", "Auctions")
 		return false
 	end
@@ -180,10 +120,9 @@ function InfinityLootAuctions:PlaceBid(auctionId, playerName, bidAmount, tierLev
 		return false
 	end
 	
-	if (auction.biddingMode == "open" or auction.biddingMode == "antisnipe") and auction.bids[1]
-		and bidAmount < auction.bids[1].amount + auction.bidIncrement then
-		InfinityUtils:Warning("Bid must exceed the current high bid by the increment.", "Auctions")
-		return false
+	-- Check for anti-snipe extension
+	if auction.biddingMode == "antisnipe" then
+		self:ExtendAuctionIfNeeded(auctionId)
 	end
 	
 	-- Handle bidding mode-specific logic
@@ -191,13 +130,11 @@ function InfinityLootAuctions:PlaceBid(auctionId, playerName, bidAmount, tierLev
 		return self:PlaceTieredBid(auction, playerName, bidAmount, tierLevel)
 	elseif auction.biddingMode == "anonymous" then
 		return self:PlaceAnonymousBid(auction, playerName, bidAmount)
-	elseif auction.biddingMode == "closed" or auction.biddingMode == "vickrey" then
+	elseif auction.biddingMode == "closed" then
 		return self:PlaceClosedBid(auction, playerName, bidAmount)
 	else
 		-- Open, Vickrey, Anti-Snipe all use standard bidding
-		local result = self:PlaceStandardBid(auction, playerName, bidAmount)
-		if result and auction.biddingMode == "antisnipe" then self:ExtendAuctionIfNeeded(auctionId) end
-		return result
+		return self:PlaceStandardBid(auction, playerName, bidAmount)
 	end
 end
 
@@ -361,14 +298,14 @@ function InfinityLootAuctions:PlaceTieredBid(auction, playerName, bidAmount, tie
 		return false
 	end
 	
-	-- A player can hold only one tier bid per auction.
-	for _, tier in ipairs(auction.tierLevels) do
-		local bids = auction.tierBids[tier]
-		for index = #bids, 1, -1 do
-			if bids[index].player == playerName then table.remove(bids, index) end
+	-- Remove old bid from same player in this tier
+	local tierBidTable = auction.tierBids[tierLevel]
+	for idx, bid in ipairs(tierBidTable) do
+		if bid.player == playerName then
+			table.remove(tierBidTable, idx)
+			break
 		end
 	end
-	local tierBidTable = auction.tierBids[tierLevel]
 	
 	-- Add new bid to tier
 	local bid = {
@@ -448,12 +385,9 @@ function InfinityLootAuctions:CloseAuction(auctionId)
 	-- Record in history
 	table.insert(self.auctionHistory, {
 		auctionId = auctionId,
-		id = auctionId,
-		itemLink = auction.itemLink,
 		itemName = auction.itemName,
 		winner = winner,
 		winningBid = winningBid,
-		winnerPrice = winningBid,
 		closedTime = GetTime(),
 		biddingMode = auction.biddingMode,
 	})
@@ -477,11 +411,8 @@ function InfinityLootAuctions:CloseAuction(auctionId)
 	
 	if winner then
 		InfinityUtils:Info(winner .. " won: " .. auction.itemName .. " for " .. winningBid, "Auctions")
-		print(string.format("Local auction %s: %s won %s for %d; award item and points manually.",
-			auctionId, winner, auction.itemName, winningBid))
 	else
 		InfinityUtils:Info("Auction closed with no bids: " .. auction.itemName, "Auctions")
-		print("Local auction " .. auctionId .. " closed without bids.")
 	end
 	
 	return {
@@ -506,7 +437,10 @@ function InfinityLootAuctions:ExtendAuctionIfNeeded(auctionId)
 	
 	-- If a bid was placed in last anti-snipe duration, extend
 	if #auction.bids > 0 then
-		if timeRemaining < auction.antiSnipeDuration then
+		local lastBidTime = auction.bids[1].timestamp
+		local timeSinceLastBid = GetTime() - lastBidTime
+		
+		if timeSinceLastBid < auction.antiSnipeDuration then
 			-- Extend auction
 			auction.endTime = GetTime() + auction.antiSnipeDuration
 			

@@ -23,8 +23,6 @@ local ROLE_DEFINITIONS = {
 			["export_data"] = true,
 			["delete_records"] = true,
 			["undo_actions"] = true,
-			["configure_decay"] = true,
-			["audit_loot"] = true,
 		},
 	},
 	["manager"] = {
@@ -74,34 +72,6 @@ local ROLE_DEFINITIONS = {
 	},
 }
 
-local function IsGuildMaster(playerName)
-	local me = UnitName("player")
-	if not playerName or playerName == me then
-		if _G.IsGuildLeader and _G.IsGuildLeader() then
-			return true
-		end
-		if _G.GetGuildInfo then
-			local _, _, rankIndex = _G.GetGuildInfo("player")
-			if rankIndex == 0 then
-				return true
-			end
-		end
-	end
-	if _G.GetNumGuildMembers and _G.GetGuildRosterInfo and playerName then
-		local shortTarget = playerName:match("^([^%-]+)") or playerName
-		for i = 1, _G.GetNumGuildMembers() do
-			local name, _, rankIndex = _G.GetGuildRosterInfo(i)
-			if name then
-				local shortName = name:match("^([^%-]+)") or name
-				if name == playerName or shortName == shortTarget then
-					return rankIndex == 0
-				end
-			end
-		end
-	end
-	return false
-end
-
 -- Initialize access control system
 function InfinityLootAccessControl:Initialize()
 	InfinityUtils:Info("Access Control system initializing...", "InfinityLoot")
@@ -112,32 +82,10 @@ function InfinityLootAccessControl:Initialize()
 		self.db.roles = {}
 	end
 	
-	local function EnsureDefaultOrGuildMasterAdmin()
-		local playerName = UnitName("player")
-		if not playerName or playerName == "" or playerName == "Unknown" then
-			return
-		end
-		if IsGuildMaster(playerName) or self:CountAdmins() == 0 then
-			if not self.db.roles[playerName] or self.db.roles[playerName].role ~= "admin" then
-				self.db.roles[playerName] = {
-					role = "admin",
-					setBy = "system",
-					setTime = GetTime(),
-				}
-				InfinityUtils:Info("Admin role granted to " .. playerName, "AccessControl")
-			end
-		end
-	end
-	
-	EnsureDefaultOrGuildMasterAdmin()
-	
-	if not self.eventFrame then
-		self.eventFrame = CreateFrame("Frame")
-		self.eventFrame:RegisterEvent("PLAYER_LOGIN")
-		self.eventFrame:RegisterEvent("GUILD_ROSTER_UPDATE")
-		self.eventFrame:SetScript("OnEvent", function()
-			EnsureDefaultOrGuildMasterAdmin()
-		end)
+	-- Make current player an admin by default if no admins exist
+	if self:CountAdmins() == 0 then
+		self:SetPlayerRole(UnitName("player"), "admin")
+		InfinityUtils:Info("Current player set as admin (first admin)", "AccessControl")
 	end
 	
 	InfinityUtils:Info("Access Control system initialized", "InfinityLoot")
@@ -149,11 +97,11 @@ end
 
 -- Set a player's role
 function InfinityLootAccessControl:SetPlayerRole(playerName, role)
-	-- Only admins or the Guild Master can change roles
+	-- Only admins can change roles
 	local currentPlayer = UnitName("player")
 	local currentRole = self:GetPlayerRole(currentPlayer)
 	
-	if currentRole ~= "admin" and not IsGuildMaster(currentPlayer) then
+	if currentRole ~= "admin" then
 		InfinityUtils:Warning("Only admins can assign roles", "AccessControl")
 		return false
 	end
@@ -182,9 +130,6 @@ end
 
 -- Get a player's role
 function InfinityLootAccessControl:GetPlayerRole(playerName)
-	if IsGuildMaster(playerName) then
-		return "admin"
-	end
 	if self.db.roles[playerName] then
 		return self.db.roles[playerName].role
 	end

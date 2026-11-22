@@ -128,7 +128,7 @@ end
 function IntegrationTests:TestPerformanceBaseline()
 	print("|cffccccccTesting Performance Baseline...|r")
 	
-	if InfinityLootPerformanceOptimizer then
+	if InfinityPerformanceOptimizer then
 		local startCPU = debugprofilestop()
 		
 		-- Simulate module operation

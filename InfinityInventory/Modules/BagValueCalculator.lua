@@ -69,10 +69,10 @@ function BagValueCalculator:CalculateInventoryValue()
 	
 	-- Scan all bags
 	for bag = 0, NUM_BAG_SLOTS or 4 do
-		for slot = 1, InfinityUtils:GetBagSlots(bag) do
-			local texture, count = InfinityUtils:GetBagItemInfo(bag, slot)
+		for slot = 1, GetContainerNumSlots(bag) or 0 do
+			local texture, count = GetContainerItemInfo(bag, slot)
 			if texture then
-				local itemLink = InfinityUtils:GetBagItemLink(bag, slot)
+				local itemLink = GetContainerItemLink(bag, slot)
 				if itemLink then
 					local value = self:GetItemValue(itemLink)
 					totalValue = totalValue + (value * (count or 1))
@@ -126,9 +126,9 @@ function BagValueCalculator:GetItemValue(itemLink)
 		value = _G.AucAdvanced.API.GetMarketPrice(itemId) or 0
 	end
 	
-	-- Fallback to vendor sell price (11th return of GetItemInfo)
+	-- Fallback to vendor price
 	if value == 0 then
-		local vendorPrice = select(11, InfinityUtils:GetItemInfo(itemLink))
+		local _, _, _, vendorPrice = GetItemInfo(itemLink)
 		value = vendorPrice or 0
 	end
 	
@@ -177,12 +177,12 @@ function BagValueCalculator:GetValueByQuality()
 	
 	-- Scan all bags
 	for bag = 0, NUM_BAG_SLOTS or 4 do
-		for slot = 1, InfinityUtils:GetBagSlots(bag) do
-			local texture, count = InfinityUtils:GetBagItemInfo(bag, slot)
+		for slot = 1, GetContainerNumSlots(bag) or 0 do
+			local texture, count = GetContainerItemInfo(bag, slot)
 			if texture then
-				local itemLink = InfinityUtils:GetBagItemLink(bag, slot)
+				local itemLink = GetContainerItemLink(bag, slot)
 				if itemLink then
-					local _, _, quality = InfinityUtils:GetItemInfo(itemLink)
+					local _, _, quality = GetItemInfo(itemLink)
 					if quality then
 						local value = self:GetItemValue(itemLink)
 						breakdown[quality] = (breakdown[quality] or 0) + (value * (count or 1))
@@ -210,10 +210,10 @@ function BagValueCalculator:GetValueableItems(minValue)
 	
 	-- Scan all bags
 	for bag = 0, NUM_BAG_SLOTS or 4 do
-		for slot = 1, InfinityUtils:GetBagSlots(bag) do
-			local texture, count = InfinityUtils:GetBagItemInfo(bag, slot)
+		for slot = 1, GetContainerNumSlots(bag) or 0 do
+			local texture, count = GetContainerItemInfo(bag, slot)
 			if texture then
-				local itemLink = InfinityUtils:GetBagItemLink(bag, slot)
+				local itemLink = GetContainerItemLink(bag, slot)
 				if itemLink then
 					local value = self:GetItemValue(itemLink)
 					if value >= minValue then

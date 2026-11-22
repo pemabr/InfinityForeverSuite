@@ -38,7 +38,7 @@ function PartyFrameRenderer:Initialize()
     
     -- Create parent frame
     if not self.parent_frame then
-        self.parent_frame = CreateFrame("Frame", "InfinityPartyFrames", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
+        self.parent_frame = CreateFrame("Frame", "InfinityPartyFrames", UIParent)
         self.parent_frame:SetPoint("TOPLEFT", 10, -100)
         self.parent_frame:SetSize(800, 300)
         self.parent_frame:EnableMouse(false)

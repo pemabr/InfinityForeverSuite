@@ -1,519 +1,564 @@
 -- InfinityCore UI Framework
--- Shared UI components and styling
+-- Top-of-the-line flat obsidian/light UI toolkit with BackdropTemplateMixin safety for WoW Forever (Interface 16001)
 
 InfinityUIFramework = {
-	theme = "default",
+	theme = "obsidian",
 	fonts = {},
 	colors = {},
 	windows = {},
 }
 
--- Initialize framework
+InfinityUIFramework.CLASS_COLORS = {
+	WARRIOR = { 0.78, 0.61, 0.43, "|cffc79c6e" },
+	PALADIN = { 0.96, 0.55, 0.73, "|cfff58cba" },
+	HUNTER  = { 0.67, 0.83, 0.45, "|cffabd473" },
+	ROGUE   = { 1.00, 0.96, 0.41, "|cfffff569" },
+	PRIEST  = { 1.00, 1.00, 1.00, "|cffffffff" },
+	SHAMAN  = { 0.00, 0.44, 0.87, "|cff0070de" },
+	MAGE    = { 0.41, 0.80, 0.94, "|cff69ccf0" },
+	WARLOCK = { 0.58, 0.51, 0.79, "|cff9482c9" },
+	DRUID   = { 1.00, 0.49, 0.04, "|cffff7d0a" },
+}
+
+local BACKDROP_TEMPLATE = BackdropTemplateMixin and "BackdropTemplate" or nil
+
+local FLAT_BACKDROP = {
+	bgFile = "Interface\\Buttons\\WHITE8X8",
+	edgeFile = "Interface\\Buttons\\WHITE8X8",
+	tile = false,
+	edgeSize = 1,
+	insets = { left = 1, right = 1, top = 1, bottom = 1 },
+}
+
+function InfinityUIFramework:GetClassColor(className)
+	local key = string.upper(tostring(className or "WARRIOR"):gsub("%s+", ""))
+	local c = self.CLASS_COLORS[key] or { 0.22, 0.74, 0.97, "|cff38bdf8" }
+	return c[1], c[2], c[3], c[4]
+end
+
+-- Safe Escape-to-close registration
+function InfinityUIFramework:RegisterEscClose(frameName)
+	if not frameName or type(UISpecialFrames) ~= "table" then return end
+	for _, existing in ipairs(UISpecialFrames) do
+		if existing == frameName then return end
+	end
+	table.insert(UISpecialFrames, frameName)
+end
+
+-- Safe backdrop helper compatible with WoW Classic / WoW Forever / Legacy clients
+function InfinityUIFramework:ApplyBackdrop(frame, bgR, bgG, bgB, bgA, borderR, borderG, borderB, borderA)
+	if not frame then return end
+	if not frame.SetBackdrop and BackdropTemplateMixin and Mixin then
+		Mixin(frame, BackdropTemplateMixin)
+	end
+	if frame.SetBackdrop then
+		frame:SetBackdrop(FLAT_BACKDROP)
+		frame:SetBackdropColor(bgR or 0.07, bgG or 0.09, bgB or 0.13, bgA or 0.96)
+		frame:SetBackdropBorderColor(borderR or 0.22, borderG or 0.28, borderB or 0.38, borderA or 0.9)
+	else
+		if not frame._infBg then
+			local bg = frame:CreateTexture(nil, "BACKGROUND")
+			bg:SetAllPoints()
+			frame._infBg = bg
+		end
+		if frame._infBg.SetColorTexture then
+			frame._infBg:SetColorTexture(bgR or 0.07, bgG or 0.09, bgB or 0.13, bgA or 0.96)
+		else
+			frame._infBg:SetTexture(bgR or 0.07, bgG or 0.09, bgB or 0.13, bgA or 0.96)
+		end
+	end
+end
+
+-- Cleanly clear child frames and non-preserved regions inside a container
+function InfinityUIFramework:ClearContainer(container)
+	if not container then return end
+	local children = { container:GetChildren() }
+	for _, child in ipairs(children) do
+		child:Hide()
+		child:SetParent(nil)
+	end
+	local regions = { container:GetRegions() }
+	for _, region in ipairs(regions) do
+		if region and not region._infPreserve then
+			region:Hide()
+		end
+	end
+end
+
 function InfinityUIFramework:Initialize()
-	self.theme = InfinityStorageManager:GetProfile("theme", "default")
+	if InfinityStorageManager and InfinityStorageManager.GetProfile then
+		self.theme = InfinityStorageManager:GetProfile("theme", "obsidian")
+	end
 	self:LoadTheme(self.theme)
-	InfinityUtils:Info("UI Framework initialized", "UIFramework")
+	if InfinityUtils and InfinityUtils.Info then
+		InfinityUtils:Info("UI Framework initialized (" .. tostring(self.theme) .. ")", "UIFramework")
+	end
 end
 
--- Load theme
 function InfinityUIFramework:LoadTheme(themeName)
-	self.theme = themeName
-	InfinityStorageManager:SetProfile("theme", themeName)
-	
-	-- Apply theme colors and fonts
-	if themeName == "default" then
-		self:ApplyDefaultTheme()
-	elseif themeName == "dark" then
-		self:ApplyDarkTheme()
-	elseif themeName == "light" then
+	self.theme = themeName or "obsidian"
+	if InfinityStorageManager and InfinityStorageManager.SetProfile then
+		InfinityStorageManager:SetProfile("theme", self.theme)
+	end
+
+	if self.theme == "light" then
 		self:ApplyLightTheme()
+	elseif self.theme == "classic" or self.theme == "default" then
+		self:ApplyDefaultTheme()
+	else
+		self:ApplyDarkTheme()
 	end
-	
-	-- Notify subscribers
-	if InfinityMessaging then
-		InfinityMessaging:Publish(INFINITY_EVENTS.UI_THEME_CHANGED, themeName)
+
+	if InfinityMessaging and INFINITY_EVENTS and INFINITY_EVENTS.UI_THEME_CHANGED then
+		InfinityMessaging:Publish(INFINITY_EVENTS.UI_THEME_CHANGED, self.theme)
 	end
 end
 
--- Default theme
 function InfinityUIFramework:ApplyDefaultTheme()
-	self.colors = {
-		window_bg = "Interface/Tooltips/UI-Tooltip-Background",
-		header_bg = "Interface/Tooltips/UI-Tooltip-Border",
-		primary = "|cff00ccff",
-		secondary = "|cff33ff33",
-		text = "|cffffffffff",
-		text_muted = "|cffcccccc",
-		success = "|cff33ff33",
-		warning = "|cffff9900",
-		error = "|cffff3333",
+	self.palette = {
+		bg = { 0.06, 0.08, 0.12, 0.97 },
+		header = { 0.10, 0.13, 0.19, 1.0 },
+		panel = { 0.09, 0.12, 0.17, 0.96 },
+		rowAlt = { 0.12, 0.15, 0.21, 0.85 },
+		rowHover = { 0.16, 0.22, 0.32, 0.95 },
+		border = { 0.22, 0.30, 0.42, 0.95 },
+		accent = { 0.14, 0.50, 0.94, 1.0 },
+		accentHover = { 0.22, 0.58, 1.00, 1.0 },
+		gold = { 0.92, 0.72, 0.22, 1.0 },
+		success = { 0.18, 0.76, 0.44, 1.0 },
+		danger = { 0.88, 0.26, 0.28, 1.0 },
+		text = { 0.95, 0.97, 1.0, 1.0 },
+		muted = { 0.60, 0.68, 0.78, 1.0 },
 	}
-end
-
--- Dark theme
-function InfinityUIFramework:ApplyDarkTheme()
 	self.colors = {
-		window_bg = "Interface\\FrameGeneral\\UI-Background-Rock",
-		header_bg = "Interface\\ChatFrame\\ChatFrameBackground",
-		primary = "|cff00ccff",
-		secondary = "|cff33ff33",
+		primary = "|cff38bdf8",
+		secondary = "|cff4ade80",
+		gold = "|cfffbbf24",
 		text = "|cffffffff",
-		text_muted = "|cff999999",
-		success = "|cff33ff33",
-		warning = "|cffff9900",
-		error = "|cffff3333",
+		text_muted = "|cff94a3b8",
+		success = "|cff4ade80",
+		warning = "|cfffbbf24",
+		error = "|cfff87171",
 	}
 end
 
--- Light theme
+function InfinityUIFramework:ApplyDarkTheme()
+	self:ApplyDefaultTheme()
+end
+
 function InfinityUIFramework:ApplyLightTheme()
+	self.palette = {
+		bg = { 0.95, 0.96, 0.98, 0.98 },
+		header = { 0.88, 0.91, 0.96, 1.0 },
+		panel = { 1.0, 1.0, 1.0, 0.98 },
+		rowAlt = { 0.93, 0.95, 0.98, 0.95 },
+		rowHover = { 0.85, 0.90, 0.97, 1.0 },
+		border = { 0.74, 0.79, 0.86, 1.0 },
+		accent = { 0.11, 0.33, 0.86, 1.0 },
+		accentHover = { 0.16, 0.41, 0.94, 1.0 },
+		gold = { 0.80, 0.55, 0.08, 1.0 },
+		success = { 0.12, 0.62, 0.34, 1.0 },
+		danger = { 0.80, 0.20, 0.22, 1.0 },
+		text = { 0.08, 0.11, 0.17, 1.0 },
+		muted = { 0.38, 0.44, 0.54, 1.0 },
+	}
 	self.colors = {
-		window_bg = "Interface\\Buttons\\WHITE8X8",
-		header_bg = "Interface\\Tooltips\\UI-Tooltip-Border",
-		primary = "|cff0066ff",
-		secondary = "|cff00aa00",
-		text = "|cff000000",
-		text_muted = "|cff666666",
-		success = "|cff00aa00",
-		warning = "|cffff6600",
-		error = "|cffff0000",
+		primary = "|cff1d4ed8",
+		secondary = "|cff15803d",
+		gold = "|cffb45309",
+		text = "|cff0f172a",
+		text_muted = "|cff64748b",
+		success = "|cff16a34a",
+		warning = "|cffd97706",
+		error = "|cffdc2626",
 	}
 end
 
--- Create a standard frame
-function InfinityUIFramework:CreateFrame(name, parent, width, height)
-	local frame = CreateFrame("Frame", name, parent, BackdropTemplateMixin and "BackdropTemplate" or nil)
-	frame:SetSize(width, height)
-	
-	-- Add background
-	local bg = frame:CreateTexture(nil, "BACKGROUND")
-	bg:SetAllPoints()
-	bg:SetColorTexture(0.1, 0.1, 0.1, 0.8)
-	
-	-- Add border
-	frame:SetBackdrop({
-		bgFile = "Interface/Tooltips/UI-Tooltip-Background",
-		edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
-		tile = true,
-		tileSize = 16,
-		edgeSize = 16,
-		insets = { left = 4, right = 4, top = 4, bottom = 4 }
-	})
-	frame:SetBackdropColor(0.1, 0.1, 0.1, 0.9)
-	frame:SetBackdropBorderColor(0, 0.8, 1, 0.5)
-	
+InfinityUIFramework:ApplyDefaultTheme()
+
+-- Create a top-tier flat bordered window frame with accent hairline, draggable title bar & Escape close
+function InfinityUIFramework:CreateFrame(name, parent, width, height, titleText, subtitleText)
+	local p = self.palette
+	local frame = CreateFrame("Frame", name, parent or UIParent, BACKDROP_TEMPLATE)
+	frame:SetSize(width or 680, height or 480)
+	frame:SetFrameStrata("DIALOG")
+	frame:SetClampedToScreen(true)
+	self:ApplyBackdrop(frame, p.bg[1], p.bg[2], p.bg[3], p.bg[4], p.border[1], p.border[2], p.border[3], p.border[4])
+
+	if name then
+		self:RegisterEscClose(name)
+	end
+
+	-- Top accent hairline
+	local accentLine = frame:CreateTexture(nil, "OVERLAY")
+	accentLine:SetHeight(2)
+	accentLine:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
+	accentLine:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -1, -1)
+	if accentLine.SetColorTexture then
+		accentLine:SetColorTexture(p.accent[1], p.accent[2], p.accent[3], 1)
+	else
+		accentLine:SetTexture(p.accent[1], p.accent[2], p.accent[3], 1)
+	end
+	accentLine._infPreserve = true
+
+	if titleText then
+		local header = CreateFrame("Frame", nil, frame, BACKDROP_TEMPLATE)
+		header:SetHeight(36)
+		header:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -3)
+		header:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -1, -3)
+		self:ApplyBackdrop(header, p.header[1], p.header[2], p.header[3], p.header[4], p.border[1], p.border[2], p.border[3], 0.45)
+
+		local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+		title:SetPoint("LEFT", header, "LEFT", 12, 0)
+		title:SetText(self.colors.primary .. titleText .. "|r")
+		frame.titleText = title
+		frame.header = header
+
+		if subtitleText then
+			local sub = header:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+			sub:SetPoint("LEFT", title, "RIGHT", 10, -1)
+			sub:SetText(self.colors.text_muted .. subtitleText .. "|r")
+			frame.subtitleText = sub
+		end
+
+		frame:SetMovable(true)
+		frame:EnableMouse(true)
+		header:EnableMouse(true)
+		header:RegisterForDrag("LeftButton")
+		header:SetScript("OnDragStart", function() frame:StartMoving() end)
+		header:SetScript("OnDragStop", function() frame:StopMovingOrSizing() end)
+
+		local closeBtn = self:CreateButton(header, "X", 24, 22, function()
+			frame:Hide()
+		end)
+		closeBtn:SetPoint("RIGHT", header, "RIGHT", -6, 0)
+		frame.closeBtn = closeBtn
+	end
+
 	return frame
 end
 
--- Create a button
-function InfinityUIFramework:CreateButton(parent, text, width, height, onclick)
-	local btn = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
-	btn:SetSize(width, height)
-	btn:SetText(text)
-	
+-- Create an elevated section card container
+function InfinityUIFramework:CreateCard(parent, width, height, titleText)
+	local p = self.palette
+	local card = CreateFrame("Frame", nil, parent, BACKDROP_TEMPLATE)
+	card:SetSize(width or 300, height or 140)
+	self:ApplyBackdrop(card, p.panel[1], p.panel[2], p.panel[3], p.panel[4], p.border[1], p.border[2], p.border[3], 0.7)
+
+	if titleText then
+		local hdr = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+		hdr:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -8)
+		hdr:SetText(self.colors.gold .. titleText .. "|r")
+		hdr._infPreserve = true
+		card.title = hdr
+	end
+
+	return card
+end
+
+-- Create a compact KPI metric tile
+function InfinityUIFramework:CreateMetricTile(parent, width, height, labelText, valueText, colorHex)
+	local card = self:CreateCard(parent, width or 140, height or 56)
+	local val = card:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+	val:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -8)
+	val:SetText((colorHex or self.colors.primary) .. tostring(valueText or "0") .. "|r")
+	val._infPreserve = true
+
+	local lbl = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	lbl:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 10, 8)
+	lbl:SetText(self.colors.text_muted .. tostring(labelText or "") .. "|r")
+	lbl._infPreserve = true
+
+	card.valueLabel = val
+	card.nameLabel = lbl
+	function card:SetValue(newVal, newColor)
+		self.valueLabel:SetText((newColor or InfinityUIFramework.colors.primary) .. tostring(newVal) .. "|r")
+	end
+	return card
+end
+
+-- Create a real WoW StatusBar (for DPS/HPS meters, Boss Timers, Healer Bars, Skill Progress)
+function InfinityUIFramework:CreateStatusBar(parent, width, height, r, g, b)
+	local p = self.palette
+	local holder = CreateFrame("Button", nil, parent, BACKDROP_TEMPLATE)
+	holder:SetSize(width or 300, height or 22)
+	self:ApplyBackdrop(holder, 0.04, 0.06, 0.09, 0.95, p.border[1], p.border[2], p.border[3], 0.65)
+
+	local bar = CreateFrame("StatusBar", nil, holder)
+	bar:SetPoint("TOPLEFT", holder, "TOPLEFT", 1, -1)
+	bar:SetPoint("BOTTOMRIGHT", holder, "BOTTOMRIGHT", -1, 1)
+	bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+	bar:SetMinMaxValues(0, 100)
+	bar:SetValue(0)
+	bar:SetStatusBarColor(r or p.accent[1], g or p.accent[2], b or p.accent[3], 0.92)
+
+	local leftText = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	leftText:SetPoint("LEFT", bar, "LEFT", 7, 0)
+	leftText:SetJustifyH("LEFT")
+
+	local rightText = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	rightText:SetPoint("RIGHT", bar, "RIGHT", -7, 0)
+	rightText:SetJustifyH("RIGHT")
+
+	holder.bar = bar
+	holder.leftText = leftText
+	holder.rightText = rightText
+
+	function holder:SetBarData(pct, leftStr, rightStr, cr, cg, cb)
+		self.bar:SetValue(math.max(0, math.min(100, pct or 0)))
+		if cr and cg and cb then
+			self.bar:SetStatusBarColor(cr, cg, cb, 0.92)
+		end
+		if leftStr ~= nil then self.leftText:SetText(leftStr) end
+		if rightStr ~= nil then self.rightText:SetText(rightStr) end
+	end
+
+	return holder
+end
+
+-- Create a unified horizontal tab bar with active state indicator
+function InfinityUIFramework:CreateTabBar(parent, tabs, onSelect, totalWidth)
+	local p = self.palette
+	local bar = CreateFrame("Frame", nil, parent, BACKDROP_TEMPLATE)
+	bar:SetSize(totalWidth or 640, 30)
+	self:ApplyBackdrop(bar, p.header[1], p.header[2], p.header[3], 0.75, p.border[1], p.border[2], p.border[3], 0.5)
+
+	bar.buttons = {}
+	local count = math.max(1, #(tabs or {}))
+	local btnW = math.floor(((totalWidth or 640) - 8 - (count - 1) * 4) / count)
+
+	for i, tab in ipairs(tabs or {}) do
+		local btn = self:CreateButton(bar, tab.label or tab.name, btnW, 24, function()
+			for key, b in pairs(bar.buttons) do
+				b:SetActiveState(key == tab.key)
+			end
+			if onSelect then onSelect(tab.key) end
+		end)
+		btn:SetPoint("LEFT", bar, "LEFT", 4 + (i - 1) * (btnW + 4), 0)
+		bar.buttons[tab.key] = btn
+	end
+
+	function bar:SelectTab(key)
+		for k, b in pairs(self.buttons) do
+			b:SetActiveState(k == key)
+		end
+		if onSelect then onSelect(key) end
+	end
+
+	return bar
+end
+
+-- Create a zebra-striped hoverable list row
+function InfinityUIFramework:CreateListRow(parent, width, height, index, onclick)
+	local p = self.palette
+	local row = CreateFrame("Button", nil, parent, BACKDROP_TEMPLATE)
+	row:SetSize(width or 500, height or 26)
+	local base = (index % 2 == 0) and p.rowAlt or p.panel
+	self:ApplyBackdrop(row, base[1], base[2], base[3], base[4], p.border[1], p.border[2], p.border[3], 0.35)
+
+	row:SetScript("OnEnter", function(selfRow)
+		InfinityUIFramework:ApplyBackdrop(selfRow, p.rowHover[1], p.rowHover[2], p.rowHover[3], p.rowHover[4], p.accent[1], p.accent[2], p.accent[3], 0.8)
+	end)
+	row:SetScript("OnLeave", function(selfRow)
+		InfinityUIFramework:ApplyBackdrop(selfRow, base[1], base[2], base[3], base[4], p.border[1], p.border[2], p.border[3], 0.35)
+	end)
+	if onclick then
+		row:SetScript("OnClick", onclick)
+	end
+	return row
+end
+
+-- Sleek flat styled button with hover highlight
+function InfinityUIFramework:CreateButton(parent, text, width, height, onclick, isPrimary)
+	local p = self.palette
+	local btn = CreateFrame("Button", nil, parent, BACKDROP_TEMPLATE)
+	btn:SetSize(width or 110, height or 26)
+
+	local base = isPrimary and p.accent or p.panel
+	local hover = isPrimary and p.accentHover or p.rowHover
+	self:ApplyBackdrop(btn, base[1], base[2], base[3], 1, p.border[1], p.border[2], p.border[3], 0.9)
+
+	local fs = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	fs:SetPoint("CENTER")
+	fs:SetText(text or "")
+	if isPrimary then
+		fs:SetTextColor(1, 1, 1, 1)
+	else
+		fs:SetTextColor(p.text[1], p.text[2], p.text[3], 1)
+	end
+	btn.label = fs
+
+	btn:SetScript("OnEnter", function(selfBtn)
+		InfinityUIFramework:ApplyBackdrop(selfBtn, hover[1], hover[2], hover[3], 1, p.accent[1], p.accent[2], p.accent[3], 1)
+	end)
+	btn:SetScript("OnLeave", function(selfBtn)
+		local activeBase = selfBtn._isActive and p.accent or base
+		InfinityUIFramework:ApplyBackdrop(selfBtn, activeBase[1], activeBase[2], activeBase[3], 1, p.border[1], p.border[2], p.border[3], 0.9)
+	end)
+
+	function btn:SetActiveState(active)
+		self._isActive = active
+		local bg = active and p.accent or base
+		InfinityUIFramework:ApplyBackdrop(self, bg[1], bg[2], bg[3], 1, p.border[1], p.border[2], p.border[3], 0.9)
+		if active then
+			self.label:SetTextColor(1, 1, 1, 1)
+		else
+			self.label:SetTextColor(p.text[1], p.text[2], p.text[3], 1)
+		end
+	end
+
 	if onclick then
 		btn:SetScript("OnClick", onclick)
 	end
-	
+
 	return btn
 end
 
--- Create a text label
-function InfinityUIFramework:CreateLabel(parent, text, r, g, b)
-	r = r or 1
-	g = g or 1
-	b = b or 1
-	
-	local label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-	label:SetText(text)
-	label:SetTextColor(r, g, b, 1)
-	
+function InfinityUIFramework:CreateLabel(parent, text, r, g, b, fontObject)
+	local p = self.palette
+	local label = parent:CreateFontString(nil, "OVERLAY", fontObject or "GameFontHighlightSmall")
+	label:SetText(text or "")
+	label:SetJustifyH("LEFT")
+	label:SetTextColor(r or p.text[1], g or p.text[2], b or p.text[3], 1)
 	return label
 end
 
--- Create a dropdown
+function InfinityUIFramework:CreateInputBox(parent, width, height, onchange)
+	local p = self.palette
+	local input = CreateFrame("EditBox", nil, parent, BACKDROP_TEMPLATE)
+	input:SetSize(width or 160, height or 24)
+	input:SetAutoFocus(false)
+	input:SetFontObject("ChatFontNormal")
+	input:SetTextInsets(6, 6, 0, 0)
+	self:ApplyBackdrop(input, 0.04, 0.06, 0.09, 1, p.border[1], p.border[2], p.border[3], 1)
+
+	input:SetScript("OnEscapePressed", function(selfBox) selfBox:ClearFocus() end)
+	input:SetScript("OnEnterPressed", function(selfBox) selfBox:ClearFocus() end)
+
+	if onchange then
+		input:SetScript("OnTextChanged", onchange)
+	end
+
+	return input
+end
+
+function InfinityUIFramework:CreateEditBox(parent, width, height)
+	return self:CreateInputBox(parent, width, height)
+end
+
 function InfinityUIFramework:CreateDropdown(parent, options, selected, onchange)
 	local dropdown = CreateFrame("Frame", nil, parent, "UIDropDownMenuTemplate")
-	
-	local function DropdownInit(self, level)
-		for _, option in ipairs(options) do
+	local function DropdownInit(_, level)
+		for _, option in ipairs(options or {}) do
 			local info = UIDropDownMenu_CreateInfo()
 			info.text = option
 			info.value = option
-			info.func = function(self)
+			info.func = function()
 				UIDropDownMenu_SetSelectedValue(dropdown, option)
-				if onchange then
-					onchange(option)
-				end
+				if onchange then onchange(option) end
 			end
 			UIDropDownMenu_AddButton(info, level)
 		end
 	end
-	
 	UIDropDownMenu_Initialize(dropdown, DropdownInit)
-	UIDropDownMenu_SetSelectedValue(dropdown, selected or options[1])
-	
+	UIDropDownMenu_SetSelectedValue(dropdown, selected or (options and options[1]))
 	return dropdown
 end
 
--- Create an input field
-function InfinityUIFramework:CreateInputBox(parent, width, height, onchange)
-	local input = CreateFrame("EditBox", nil, parent, "InputBoxTemplate")
-	input:SetSize(width, height)
-	input:SetAutoFocus(false)
-	
-	if onchange then
-		input:SetScript("OnTextChanged", onchange)
-	end
-	
-	return input
-end
-
--- Create a scroll frame with content
 function InfinityUIFramework:CreateScrollFrame(parent, name, width, height)
 	local scroll = CreateFrame("ScrollFrame", name, parent, "UIPanelScrollFrameTemplate")
 	scroll:SetSize(width, height)
-	
-	local content = CreateFrame("Frame", nil, scroll, BackdropTemplateMixin and "BackdropTemplate" or nil)
-	content:SetSize(width, 1)
+	local content = CreateFrame("Frame", nil, scroll)
+	content:SetSize(width - 24, height)
 	scroll:SetScrollChild(content)
-	
 	scroll.content = content
-	
 	return scroll
 end
 
-function InfinityUIFramework:GetSelectedProfessionRecipeID()
-	local function Public(value)
-		if _G.issecretvalue and issecretvalue(value) then return nil end
-		return value
-	end
-	local professions = Public(_G.ProfessionsFrame)
-	if not professions or not professions.IsShown then return nil end
-	local visible = professions:IsShown()
-	if _G.issecretvalue and issecretvalue(visible) then return nil, "Profession window state is protected." end
-	if not visible then return nil end
-	local page = Public(professions.CraftingPage)
-	local form = (type(page) == "table" or type(page) == "userdata") and Public(page.SchematicForm)
-	if (type(form) ~= "table" and type(form) ~= "userdata") or type(form.GetRecipeInfo) ~= "function" then return nil end
-	local ok, info = pcall(form.GetRecipeInfo, form)
-	if not ok then return nil, "Selected recipe unavailable: " .. tostring(Public(info) or "protected error") end
-	if _G.issecretvalue and issecretvalue(info) then return nil, "Selected recipe is protected." end
-	if type(info) == "table" and _G.issecretvalue and issecretvalue(info.recipeID) then
-		return nil, "Selected recipe is protected."
-	end
-	local id = type(info) == "table" and Public(info.recipeID)
-	if type(id) == "number" and id == id and id > 0 and id <= 1000000000 and id == math.floor(id) then return id end
-	return nil
-end
-
-function InfinityUIFramework:CreateListWindow(name, title, width, height)
-	local frame = self:CreateFrame(name, UIParent, width, height)
-	frame:SetPoint("CENTER")
-	frame:SetMovable(true)
-	frame:EnableMouse(true)
-	frame:RegisterForDrag("LeftButton")
-	frame:SetScript("OnDragStart", function(window) window:StartMoving() end)
-	frame:SetScript("OnDragStop", function(window) window:StopMovingOrSizing() end)
-
-	local heading = self:CreateLabel(frame, title)
-	heading:SetPoint("TOPLEFT", 15, -12)
-	heading:SetFont("Fonts\\FRIZQT__.TTF", 14, "")
-	local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
-	close:SetPoint("TOPRIGHT", -5, -5)
-	close:SetScript("OnClick", function() frame:Hide() end)
-
-	local scroll = self:CreateScrollFrame(frame, nil, width - 55, height - 108)
-	scroll:SetPoint("TOPLEFT", 15, -65)
-	local content = scroll.content
-	content:SetWidth(width - 70)
-	frame.rows = {}
-	frame.status = self:CreateLabel(frame, "")
-	frame.status:SetPoint("BOTTOMLEFT", 15, 12)
-
-	function frame:SetItems(items)
-		for i, item in ipairs(items) do
-			local row = self.rows[i]
-			if not row then
-				row = CreateFrame("Button", nil, content)
-				row:SetSize(width - 75, 22)
-				row:SetPoint("TOPLEFT", 0, -(i - 1) * 22)
-				row.label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-				row.label:SetPoint("LEFT", 4, 0)
-				row.label:SetWidth(width - 85)
-				row.label:SetJustifyH("LEFT")
-				row:SetScript("OnClick", function(button)
-					if button.data.onClick then button.data.onClick() end
-				end)
-				row:SetScript("OnEnter", function(button)
-					local link = button.data and button.data.link
-					if _G.issecretvalue and issecretvalue(link) then link = nil end
-					if type(link) == "string" and link ~= "" and GameTooltip then
-						GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
-						GameTooltip:SetHyperlink(link)
-						GameTooltip:Show()
-					end
-				end)
-				row:SetScript("OnLeave", function()
-					if GameTooltip then GameTooltip:Hide() end
-				end)
-				self.rows[i] = row
-			end
-			row.data = item
-			row.label:SetText(item.text)
-			row:Show()
-		end
-		for i = #items + 1, #self.rows do self.rows[i]:Hide() end
-		content:SetHeight(math.max(1, #items * 22))
-		scroll:UpdateScrollChildRect()
-	end
-
-	frame:Hide()
-	return frame
-end
-
-local function PublicQuestValue(value)
-	if _G.issecretvalue and _G.issecretvalue(value) then return nil end
-	return value
-end
-
-function InfinityUIFramework:GetQuestLogSnapshot()
-	local api = _G.C_QuestLog
-	if not api or not api.GetNumQuestLogEntries or not api.GetInfo then return nil, false end
-	local count = PublicQuestValue(api.GetNumQuestLogEntries())
-	if type(count) ~= "number" then return nil, false end
-	local canWatch = api.GetQuestWatchType and api.AddQuestWatch and api.RemoveQuestWatch
-	local quests, collapsed = {}, false
-	for index = 1, count do
-		local info = PublicQuestValue(api.GetInfo(index))
-		if type(info) == "table" then
-			local header = PublicQuestValue(info.isHeader)
-			local id, title = PublicQuestValue(info.questID), PublicQuestValue(info.title)
-			local headerSecret = _G.issecretvalue and _G.issecretvalue(info.isHeader)
-			if not headerSecret and header and PublicQuestValue(info.isCollapsed) then collapsed = true end
-			if not headerSecret and not header and type(id) == "number" and id > 0 and type(title) == "string" then
-				local watchType = canWatch and api.GetQuestWatchType(id)
-				local watchSecret = _G.issecretvalue and _G.issecretvalue(watchType)
-				local quest = {
-					id = id,
-					title = title,
-					watched = canWatch and not watchSecret and watchType ~= nil,
-					watchKnown = canWatch and not watchSecret,
-					objectives = {},
-				}
-				local objectives = api.GetQuestObjectives and PublicQuestValue(api.GetQuestObjectives(id))
-				if type(objectives) == "table" then
-					for _, objective in ipairs(objectives) do
-						objective = PublicQuestValue(objective)
-						local text = type(objective) == "table" and PublicQuestValue(objective.text)
-						if type(text) == "string" and text ~= "" then
-							quest.objectives[#quest.objectives + 1] = text
-						end
-					end
-				end
-				quests[#quests + 1] = quest
-			end
-		end
-	end
-	return quests, not not canWatch, collapsed
-end
-
-function InfinityUIFramework:CreateQuestLogItems(onChanged, context, onWaypoint)
-	local quests, canWatch, collapsed = self:GetQuestLogSnapshot()
-	if not quests then return {}, "Quest log API unavailable.", nil end
-	local items = {}
-	for _, quest in ipairs(quests) do
-		local selected = quest
-		local entry = { text = (quest.watched and "[Tracked] " or "") .. quest.title }
-		if quest.watchKnown or onWaypoint then
-			entry.onClick = function()
-				if onWaypoint and _G.IsShiftKeyDown and _G.IsShiftKeyDown() then
-					onWaypoint(selected.id)
-					return
-				end
-				if not selected.watchKnown then
-					InfinityUtils:Warning("Quest tracking control unavailable.", context)
-					return
-				end
-				if _G.InCombatLockdown and _G.InCombatLockdown() then
-					InfinityUtils:Warning("Cannot change quest tracking during combat.", context)
-					return
-				end
-				local api = _G.C_QuestLog
-				local current = api.GetQuestWatchType(selected.id)
-				if _G.issecretvalue and _G.issecretvalue(current) then
-					InfinityUtils:Warning("Quest tracking state is unavailable.", context)
-					return
-				end
-				local result
-				if current ~= nil then
-					result = api.RemoveQuestWatch(selected.id)
-				else
-					result = api.AddQuestWatch(selected.id)
-				end
-				if result == false then
-					InfinityUtils:Warning("Could not change quest tracking: " .. selected.title, context)
-				end
-				if onChanged then onChanged() end
-			end
-		end
-		items[#items + 1] = entry
-		for _, objective in ipairs(quest.objectives) do
-			items[#items + 1] = { text = "    " .. objective }
-		end
-	end
-	if #items == 0 then items[1] = { text = "No visible quests in the quest log." } end
-	local status = canWatch and "Click a quest to toggle tracking." or "Quest tracking control unavailable."
-	if collapsed then status = "Collapsed quest sections are hidden in the quest log." end
-	if onWaypoint then status = status .. " Shift-click to set a waypoint." end
-	return items, status, quests
-end
-
--- Create a slider
-function InfinityUIFramework:CreateSlider(parent, minVal, maxVal, stepVal, initialVal, onchange)
-	local slider = CreateFrame("Slider", nil, parent, "OptionsSliderTemplate")
-	slider:SetMinMaxValues(minVal, maxVal)
-	slider:SetValueStep(stepVal)
-	slider:SetValue(initialVal or minVal)
-	
-	if onchange then
-		slider:SetScript("OnValueChanged", function(self, value)
-			onchange(value)
-		end)
-	end
-	
-	return slider
-end
-
--- Create a checkbox
 function InfinityUIFramework:CreateCheckbox(parent, text, checked, onchange)
 	local checkbox = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
-	checkbox:SetChecked(checked or false)
-	
+	checkbox:SetChecked(checked == true)
 	if text then
-		local label = checkbox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-		label:SetPoint("LEFT", checkbox, "RIGHT", 5, 0)
-		label:SetText(text)
+		local label = self:CreateLabel(checkbox, text)
+		label:SetPoint("LEFT", checkbox, "RIGHT", 4, 0)
+		checkbox.label = label
 	end
-	
 	if onchange then
-		checkbox:SetScript("OnClick", function(self)
-			onchange(self:GetChecked())
+		checkbox:SetScript("OnClick", function(selfBox)
+			onchange(selfBox:GetChecked() == true)
 		end)
 	end
-	
 	return checkbox
 end
 
--- Show a simple message box
-function InfinityUIFramework:ShowMessageBox(title, text, buttons)
-	local dialog = CreateFrame("Frame", "InfinityMessageBox", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
-	dialog:SetSize(400, 200)
-	dialog:SetPoint("CENTER")
-	dialog:SetBackdrop({
-		bgFile = "Interface/Tooltips/UI-Tooltip-Background",
-		edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
-		tile = true,
-		tileSize = 16,
-		edgeSize = 16,
-		insets = { left = 4, right = 4, top = 4, bottom = 4 }
-	})
-	dialog:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
-	dialog:SetBackdropBorderColor(0, 0.8, 1, 0.8)
-	
-	-- Title
-	local titleText = dialog:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-	titleText:SetPoint("TOP", 0, -10)
-	titleText:SetText(title)
-	
-	-- Message text
-	local msgText = dialog:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-	msgText:SetPoint("TOPLEFT", 10, -40)
-	msgText:SetPoint("BOTTOMRIGHT", -10, 50)
-	msgText:SetWordWrap(true)
-	msgText:SetText(text)
-	
-	-- Buttons
-	if buttons then
-		local btnCount = #buttons
-		local btnWidth = 80
-		local startX = -(btnCount * (btnWidth + 10)) / 2
-		
-		for i, btn in ipairs(buttons) do
-			local button = CreateFrame("Button", nil, dialog, "UIPanelButtonTemplate")
-			button:SetSize(btnWidth, 24)
-			button:SetPoint("BOTTOM", startX + (i-1) * (btnWidth + 10), 10)
-			button:SetText(btn.text)
-			button:SetScript("OnClick", function()
-				if btn.callback then
-					btn.callback()
-				end
-				dialog:Hide()
-			end)
-		end
+-- Draggable Minimap Suite Launcher Button
+function InfinityUIFramework:CreateMinimapButton()
+	if _G.InfinityMinimapButton or not Minimap then
+		return _G.InfinityMinimapButton
 	end
-	
-	-- Close button
-	local closeBtn = CreateFrame("Button", nil, dialog, "UIPanelCloseButton")
-	closeBtn:SetPoint("TOPRIGHT", -5, -5)
-	closeBtn:SetScript("OnClick", function() dialog:Hide() end)
-	
-	dialog:Show()
-	return dialog
+
+	local btn = CreateFrame("Button", "InfinityMinimapButton", Minimap, BACKDROP_TEMPLATE)
+	btn:SetSize(30, 30)
+	btn:SetFrameStrata("MEDIUM")
+	btn:SetFrameLevel(8)
+	btn:SetPoint("TOPLEFT", Minimap, "TOPLEFT", -4, -4)
+	self:ApplyBackdrop(btn, 0.08, 0.14, 0.24, 0.96, 0.22, 0.62, 0.98, 1)
+
+	local txt = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	txt:SetPoint("CENTER", 0, 0)
+	txt:SetText("|cff38bdf8INF|r")
+
+	btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+	btn:SetMovable(true)
+	btn:RegisterForDrag("LeftButton")
+	btn:SetScript("OnDragStart", function(selfBtn) selfBtn:StartMoving() end)
+	btn:SetScript("OnDragStop", function(selfBtn) selfBtn:StopMovingOrSizing() end)
+
+	btn:SetScript("OnClick", function(_, mouseButton)
+		if mouseButton == "RightButton" then
+			if _G.InfinityOfficerDashboard and _G.InfinityOfficerDashboard.Toggle then
+				_G.InfinityOfficerDashboard:Toggle()
+			end
+		else
+			if _G.InfinityMainFrame and _G.InfinityMainFrame.Toggle then
+				_G.InfinityMainFrame:Toggle()
+			end
+		end
+	end)
+
+	btn:SetScript("OnEnter", function(selfBtn)
+		if GameTooltip then
+			GameTooltip:SetOwner(selfBtn, "ANCHOR_LEFT")
+			GameTooltip:AddLine("|cff38bdf8Infinity Forever Suite|r", 1, 1, 1)
+			GameTooltip:AddLine("Left-Click: Open Suite Hub (/infinity)", 0.8, 0.9, 1)
+			GameTooltip:AddLine("Right-Click: Officer Dashboard (/officer)", 0.8, 0.9, 1)
+			GameTooltip:AddLine("Drag: Reposition button", 0.6, 0.7, 0.8)
+			GameTooltip:Show()
+		end
+	end)
+	btn:SetScript("OnLeave", function()
+		if GameTooltip then GameTooltip:Hide() end
+	end)
+
+	return btn
 end
 
--- Create a tab control
-function InfinityUIFramework:CreateTabControl(parent, tabs, onTabChanged)
-	local tabControl = CreateFrame("Frame", nil, parent, BackdropTemplateMixin and "BackdropTemplate" or nil)
-	tabControl.tabs = {}
-	tabControl.tabButtons = {}
-	
-	local buttonWidth = 100
-	for i, tab in ipairs(tabs) do
-		local btn = self:CreateButton(tabControl, tab.name, buttonWidth, 24, function()
-			tabControl:SelectTab(i)
-			if onTabChanged then
-				onTabChanged(tab)
-			end
-		end)
-		btn:SetPoint("TOPLEFT", (i-1) * (buttonWidth + 2), 0)
-		tabControl.tabButtons[i] = btn
-		tabControl.tabs[i] = tab
-	end
-	
-	-- Tab content area
-	tabControl.contentFrame = CreateFrame("Frame", nil, tabControl, BackdropTemplateMixin and "BackdropTemplate" or nil)
-	tabControl.contentFrame:SetPoint("TOPLEFT", 0, -30)
-	tabControl.contentFrame:SetPoint("BOTTOMRIGHT", 0, 0)
-	
-	function tabControl:SelectTab(index)
-		-- Hide all content
-		for _, content in ipairs(self.tabs) do
-			if content.frame then
-				content.frame:Hide()
-			end
+function InfinityUIFramework:ShowNotification(message, duration)
+	duration = duration or 3.5
+	local notif = self:CreateFrame(nil, UIParent, 360, 44)
+	notif:SetPoint("TOP", UIParent, "TOP", 0, -90)
+	local msgLabel = self:CreateLabel(notif, message, nil, nil, nil, "GameFontHighlight")
+	msgLabel:SetPoint("CENTER")
+	local expireAt = GetTime() + duration
+	notif:SetScript("OnUpdate", function(selfFrame)
+		if GetTime() >= expireAt then
+			selfFrame:Hide()
+			selfFrame:SetScript("OnUpdate", nil)
 		end
-		
-		-- Show selected
-		if self.tabs[index] and self.tabs[index].frame then
-			self.tabs[index].frame:Show()
-		end
-		
-		-- Highlight button
-		for i, btn in ipairs(self.tabButtons) do
-			if i == index then
-				btn:SetAlpha(1)
-			else
-				btn:SetAlpha(0.6)
-			end
-		end
-	end
-	
-	-- Select first tab by default
-	if #tabs > 0 then
-		tabControl:SelectTab(1)
-	end
-	
-	return tabControl
+	end)
+	notif:Show()
+	return notif
 end
+
+_G.InfinityUIFramework = InfinityUIFramework
 return InfinityUIFramework

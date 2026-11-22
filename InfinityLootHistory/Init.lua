@@ -3,7 +3,7 @@
 local ADDON_NAME = "InfinityLootHistory"
 local ADDON_VERSION = "1.0.0"
 
-local InfinityLootHistory
+-- Modules are loaded via .toc file, so InfinityLootHistory global is already created
 
 local function InitializeLootHistory()
 	-- Wait for InfinityCore to be fully loaded
@@ -12,11 +12,6 @@ local function InitializeLootHistory()
 			InfinityUtils:Warning("InfinityCore not fully loaded, deferring initialization", ADDON_NAME)
 		end
 		C_Timer.After(0.5, InitializeLootHistory)
-		return
-	end
-	InfinityLootHistory = _G.InfinityLootHistoryTracker
-	if not InfinityLootHistory then
-		InfinityUtils:Error("Loot history tracker unavailable.", ADDON_NAME)
 		return
 	end
 	
@@ -58,7 +53,7 @@ local function InitializeLootHistory()
 	
 	
 	-- Register commands
-	InfinityCommandRegistry:RegisterCommand("lootlog", function(args)
+	InfinityCommandRegistry:RegisterCommand("loothistory", function(args)
 		local subcommand = string.lower(args[1] or "")
 		if subcommand == "stats" then
 			local stats = InfinityLootHistory:GetLootStats()
@@ -66,10 +61,10 @@ local function InitializeLootHistory()
 			InfinityUtils:Info("Total items looted: " .. stats.totalItems, ADDON_NAME)
 			InfinityUtils:Info("Players with loot: " .. stats.totalPlayers, ADDON_NAME)
 		elseif subcommand == "clear" then
-			InfinityLootHistory:Clear()
+			InfinityLootHistory.lootLog = {}
 			InfinityUtils:Info("Loot history cleared", ADDON_NAME)
 		end
-	end, {})
+	end, {"lh", "lootlog"})
 	
 	InfinityUtils:Info("Loot History addon loaded v" .. ADDON_VERSION, ADDON_NAME)
 end

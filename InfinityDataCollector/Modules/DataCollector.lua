@@ -22,7 +22,7 @@ local DataCollector = {
 	},
 }
 
-_G.InfinityDataCollectorLegacy = DataCollector
+_G.InfinityDataCollector = DataCollector
 
 function DataCollector:Initialize()
 	InfinityUtils:Info("Data Collector initialized", "DataCollector")

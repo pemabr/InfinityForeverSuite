@@ -100,6 +100,7 @@ function LootAudit:LogDKPTrade(from, to, amount)
 		to = to,
 		amount = amount,
 		verified = false,
+		timestamp = timestamp,
 	}
 	
 	table.insert(self.auditLog, logEntry)
@@ -118,6 +119,7 @@ function LootAudit:LogDKPTax(player, amount, source)
 		player = player,
 		amount = amount,
 		source = source, -- gold or auction house value
+		timestamp = timestamp,
 	}
 	
 	table.insert(self.auditLog, logEntry)
@@ -133,6 +135,7 @@ function LootAudit:LogDKPDonation(player, amount, item)
 		player = player,
 		amount = amount,
 		item = item,
+		timestamp = timestamp,
 	}
 	
 	table.insert(self.auditLog, logEntry)

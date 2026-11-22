@@ -14,12 +14,6 @@ local WaypointPersistence = {
 
 _G.InfinityWaypointPersistence = WaypointPersistence
 
-local uniqueIdCounter = 0
-local function GenerateUniqueId()
-	uniqueIdCounter = uniqueIdCounter + 1
-	return "wp_" .. tostring(GetServerTime() or time()) .. "_" .. tostring(uniqueIdCounter)
-end
-
 -- Initialize waypoint persistence
 function WaypointPersistence:Initialize()
 	InfinityUtils:Info("Waypoint persistence initialized", "Navigation")
@@ -86,7 +80,7 @@ end
 -- Called when waypoint is added
 function WaypointPersistence:OnWaypointAdded(waypoint)
 	waypoint.createdAt = GetServerTime()
-	waypoint.id = waypoint.id or GenerateUniqueId()
+	waypoint.id = waypoint.id or GetUniqueId()
 	
 	self.savedWaypoints[waypoint.id] = waypoint
 	
@@ -145,7 +139,7 @@ end
 -- Import waypoints
 function WaypointPersistence:ImportWaypoints(waypointsData)
 	for _, waypoint in ipairs(waypointsData) do
-		waypoint.id = waypoint.id or GenerateUniqueId()
+		waypoint.id = waypoint.id or GetUniqueId()
 		self.savedWaypoints[waypoint.id] = waypoint
 	end
 	

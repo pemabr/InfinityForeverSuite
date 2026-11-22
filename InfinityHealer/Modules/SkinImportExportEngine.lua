@@ -3,7 +3,6 @@
 -- Handles skin creation, modification, sharing via import/export
 
 local SkinImportExportEngine = {}
-_G.SkinImportExportEngine = SkinImportExportEngine
 SkinImportExportEngine.enabled = false
 SkinImportExportEngine.db = nil
 SkinImportExportEngine.skins = {}

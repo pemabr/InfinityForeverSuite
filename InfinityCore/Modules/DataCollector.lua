@@ -31,8 +31,7 @@ local DataCollector = {
 	},
 }
 
-_G.InfinityCoreDataCollector = DataCollector
-if not _G.InfinityDataCollector then _G.InfinityDataCollector = DataCollector end
+_G.InfinityDataCollector = DataCollector
 
 -- Initialize data collector
 function DataCollector:Initialize()
@@ -40,10 +39,9 @@ function DataCollector:Initialize()
 	
 	local frame = CreateFrame("Frame")
 	frame:RegisterEvent("QUEST_ACCEPTED")
-	frame:RegisterEvent("QUEST_TURNED_IN")
-	if InfinityUtils:CanUseCombatLogEvent() then
-		pcall(frame.RegisterEvent, frame, "COMBAT_LOG_EVENT_UNFILTERED")
-	end
+	frame:RegisterEvent("QUEST_COMPLETE")
+	frame:RegisterEvent("QUEST_TURN_IN")
+	frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 	frame:RegisterEvent("LOOT_OPENED")
 	frame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 	
@@ -54,12 +52,14 @@ function DataCollector:Initialize()
 		
 		if event == "QUEST_ACCEPTED" then
 			DataCollector:OnQuestAccepted(...)
-		elseif event == "QUEST_TURNED_IN" then
+		elseif event == "QUEST_COMPLETE" then
+			DataCollector:OnQuestComplete(...)
+		elseif event == "QUEST_TURN_IN" then
 			DataCollector:OnQuestTurnIn(...)
 		elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
 			DataCollector:OnCombatLogEvent(...)
 		elseif event == "LOOT_OPENED" then
-			DataCollector:OnLootOpened()
+			DataCollector:OnLootOpened(...)
 		elseif event == "ZONE_CHANGED_NEW_AREA" then
 			DataCollector:OnZoneChanged()
 		end
@@ -150,34 +150,15 @@ function DataCollector:OnQuestAccepted(questId)
 	if not self.config.collectQuestData then
 		return
 	end
-	if (_G.issecretvalue and _G.issecretvalue(questId))
-		or type(questId) ~= "number" or questId ~= questId or questId <= 0
-		or questId >= math.huge or questId ~= math.floor(questId) then return end
-	local api = _G.C_QuestLog
-	if not api then return end
-	local questName, questLevel
-	if api.GetTitleForQuestID then questName = api.GetTitleForQuestID(questId) end
-	if _G.issecretvalue and _G.issecretvalue(questName) then questName = nil end
-	if api.GetLogIndexForQuestID and api.GetInfo then
-		local index = api.GetLogIndexForQuestID(questId)
-		if not (_G.issecretvalue and _G.issecretvalue(index)) and type(index) == "number" and index > 0 then
-			local info = api.GetInfo(index)
-			if not (_G.issecretvalue and _G.issecretvalue(info)) and type(info) == "table" then
-				questName = questName or info.title
-				questLevel = info.level
-			end
-		end
-	end
-	if (_G.issecretvalue and _G.issecretvalue(questName)) or type(questName) ~= "string" then return end
-	if _G.issecretvalue and _G.issecretvalue(questLevel) then questLevel = nil end
-	local zone = _G.GetZoneText and GetZoneText()
-	if (_G.issecretvalue and _G.issecretvalue(zone)) or type(zone) ~= "string" then zone = nil end
-
+	
+	local questName, _, questLevel = GetQuestInfo(questId)
+	
 	local questData = {
 		id = questId,
 		name = questName,
 		level = questLevel,
-		zone = zone,
+		zone = GetZoneText(),
+		startLocation = {x = GetPlayerMapAreaID(), y = GetPlayerMapAreaID()},
 		timestamp = GetServerTime(),
 	}
 	
@@ -195,9 +176,7 @@ end
 
 -- Quest turned in
 function DataCollector:OnQuestTurnIn(questId)
-	if (_G.issecretvalue and _G.issecretvalue(questId)) or type(questId) ~= "number"
-		or questId ~= questId or questId <= 0 or questId >= math.huge or questId ~= math.floor(questId) then return end
-	self:OnQuestComplete(questId)
+	-- Could track quest reward data
 end
 
 -- Combat log event - track mobs and drops
@@ -250,24 +229,19 @@ function DataCollector:OnLootOpened()
 	if not self.config.collectDropData then
 		return
 	end
-	if not _G.GetNumLootItems or not _G.GetLootSlotLink then return end
+	
 	local numLoot = GetNumLootItems()
-	if (_G.issecretvalue and _G.issecretvalue(numLoot)) or type(numLoot) ~= "number"
-		or numLoot ~= numLoot or numLoot < 0 or numLoot > 1000 or numLoot ~= math.floor(numLoot) then return end
-	local zone = _G.GetZoneText and GetZoneText()
-	if (_G.issecretvalue and _G.issecretvalue(zone)) or type(zone) ~= "string" then zone = nil end
 	for i = 1, numLoot do
 		local itemLink = GetLootSlotLink(i)
-		if not (_G.issecretvalue and _G.issecretvalue(itemLink)) and type(itemLink) == "string" then
+		if itemLink then
 			local itemId = tonumber(string.match(itemLink, "item:(%d+):"))
+			local lootSource = GetLootSourceInfo(i)
+			
 			if itemId then
 				if not self.database.seenDrops[itemId] then
-					local itemName, _, itemRarity = InfinityUtils:GetItemInfo(itemId)
-					if _G.issecretvalue and _G.issecretvalue(itemName) then itemName = nil end
-					if _G.issecretvalue and _G.issecretvalue(itemRarity) then itemRarity = nil end
 					self.database.seenDrops[itemId] = {
-						name = itemName,
-						rarity = itemRarity,
+						name = GetItemInfo(itemId),
+						rarity = select(3, GetItemInfo(itemId)),
 						timestamp = GetServerTime(),
 					}
 					
@@ -275,7 +249,7 @@ function DataCollector:OnLootOpened()
 						itemId = itemId,
 						itemName = self.database.seenDrops[itemId].name,
 						rarity = self.database.seenDrops[itemId].rarity,
-						zone = zone,
+						zone = GetZoneText(),
 						timestamp = GetServerTime(),
 					}
 					

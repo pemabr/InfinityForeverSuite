@@ -40,13 +40,12 @@ function LootAdvisor:OnLootOpened(itemLink, quantity)
 		return
 	end
 	
-	local itemName, _, itemRarity, itemLevel = InfinityUtils:GetItemInfo(itemLink)
-	local itemId = InfinityUtils:GetItemIDFromLink(itemLink)
+	local itemId, itemName, itemRarity, itemLevel = GetItemInfo(itemLink)
 	
 	if itemId then
 		table.insert(self.pendingLoot, {
 			itemId = itemId,
-			name = itemName or "Unknown",
+			name = itemName,
 			link = itemLink,
 			quantity = quantity or 1,
 			rarity = itemRarity,
@@ -131,75 +130,62 @@ function LootAdvisor:CalculateScore(playerName, class, loot)
 	return fairnessComponent + performanceComponent + needComponent
 end
 
--- Get fairness score (priority based on EPGP/DKP balance and recent loot history)
+-- Get fairness score (priority based on real EPGP PR or DKP balance)
 function LootAdvisor:GetFairnessScore(playerName)
-	local score = 50
-	if _G.InfinityLootEPGP and _G.InfinityLootEPGP.GetPlayerPR then
-		local pr = _G.InfinityLootEPGP:GetPlayerPR(playerName)
-		if pr and pr > 0 then
-			score = math.min(100, pr * 25)
-		end
-	elseif _G.InfinityDKPEngine and _G.InfinityDKPEngine.GetPlayerPriority then
-		local prio = _G.InfinityDKPEngine:GetPlayerPriority(playerName)
-		if prio and prio > 0 then
-			score = math.min(100, prio * 25)
-		end
-	end
-	if _G.InfinityLootHistory and _G.InfinityLootHistory.lootLog then
-		local recentAwards = 0
-		local cutoff = time() - (7 * 86400)
-		for i = #_G.InfinityLootHistory.lootLog, 1, -1 do
-			local e = _G.InfinityLootHistory.lootLog[i]
-			if e.timestamp and e.timestamp < cutoff then break end
-			if e.playerName == playerName then
-				recentAwards = recentAwards + 1
+	if _G.InfinityDKPEngine and _G.InfinityDKPEngine.GetPlayer then
+		local p = _G.InfinityDKPEngine:GetPlayer(playerName)
+		if p then
+			local pr = _G.InfinityDKPEngine.CalculatePR and _G.InfinityDKPEngine:CalculatePR(playerName) or 0
+			if pr and pr > 0 then
+				return math.min(100, pr * 25)
 			end
-		end
-		score = math.max(5, score - (recentAwards * 10))
-	end
-	return score
-end
-
--- Get performance score (from InfinityPerformanceAnalytics or InfinityDetails)
-function LootAdvisor:GetPerformanceScore(playerName)
-	if _G.InfinityPerformanceAnalyticsMeter and _G.InfinityPerformanceAnalyticsMeter.players then
-		local p = _G.InfinityPerformanceAnalyticsMeter.players[playerName]
-		if p and (p.totalDamage or 0) > 0 then
-			return math.min(100, 40 + math.log10(p.totalDamage) * 10)
-		end
-	end
-	if _G.InfinityDetailsActor and _G.InfinityDetailsActor.GetActorByName then
-		local actor = _G.InfinityDetailsActor:GetActorByName(playerName)
-		if actor and ((actor.damage_total or 0) > 0 or (actor.healing_total or 0) > 0) then
-			return math.min(100, 40 + math.log10((actor.damage_total or 0) + (actor.healing_total or 0)) * 10)
+			return math.min(100, math.max(10, (p.dkp or p.ep or 50) * 0.25))
 		end
 	end
 	return 50
 end
 
--- Get need score based on class armor/role compatibility with the item
+-- Get performance score (derived from live InfinityDetails combat meters)
+function LootAdvisor:GetPerformanceScore(playerName)
+	if _G.InfinityDetailsActor and _G.InfinityDetailsActor.GetAllActors then
+		local best = 1
+		local mine = 0
+		for _, actor in pairs(_G.InfinityDetailsActor:GetAllActors()) do
+			local total = (actor.damage_total or 0) + (actor.healing_total or 0)
+			if total > best then best = total end
+			if actor.name == playerName then mine = total end
+		end
+		if mine > 0 then
+			return math.min(100, (mine / best) * 100)
+		end
+	end
+	return 50
+end
+
+-- Get need score (class armor & weapon usability match)
 function LootAdvisor:GetNeedScore(class, loot)
-	local armorByClass = {
-		WARRIOR = "Plate", PALADIN = "Plate", DEATHKNIGHT = "Plate",
-		HUNTER = "Mail", SHAMAN = "Mail", EVOKER = "Mail",
-		ROGUE = "Leather", DRUID = "Leather", MONK = "Leather", DEMONHUNTER = "Leather",
+	local cls = string.upper(tostring(class or ""))
+	local itemSubType = loot and loot.itemSubType or nil
+	if not itemSubType and loot and loot.itemLink and GetItemInfo then
+		local _, _, _, _, _, _, subType = GetItemInfo(loot.itemLink)
+		itemSubType = subType
+	end
+
+	local preferredArmor = {
+		WARRIOR = "Plate", PALADIN = "Plate",
+		HUNTER = "Mail", SHAMAN = "Mail",
+		ROGUE = "Leather", DRUID = "Leather",
 		PRIEST = "Cloth", MAGE = "Cloth", WARLOCK = "Cloth",
 	}
-	if loot and (loot.link or loot.itemId) then
-		local _, _, _, _, _, itemType, itemSubType = InfinityUtils:GetItemInfo(loot.link or loot.itemId)
-		if itemType == "Armor" and itemSubType and armorByClass[class] then
-			if itemSubType == armorByClass[class] then
-				return 90
-			elseif itemSubType == "Miscellaneous" or itemSubType == "Rings" or itemSubType == "Neck" or itemSubType == "Trinkets" then
-				return 75
-			elseif itemSubType == "Cloaks" or itemSubType == "Back" then
-				return 70
-			else
-				return 15
-			end
+
+	if itemSubType and preferredArmor[cls] then
+		if itemSubType == preferredArmor[cls] then
+			return 90
+		elseif itemSubType == "Miscellaneous" or itemSubType == "Cloaks" then
+			return 70
 		end
 	end
-	return 50
+	return 55
 end
 
 -- Get alternative candidates

@@ -117,37 +117,25 @@ function DispelEngine:FindDispellableDebuffs(playerName)
     
     local dispellable = {}
     
-    -- Check all auras on unit (Forever 1.60.1 C_UnitAuras + legacy fallback)
-    local isSec = _G.issecretvalue
+    -- Check all auras on player
     local index = 1
     while true do
-        local name, debuffType, duration, expirationTime
-        if _G.C_UnitAuras and _G.C_UnitAuras.GetAuraDataByIndex then
-            local aura = _G.C_UnitAuras.GetAuraDataByIndex(playerName, index, "HARMFUL")
-            if not aura then break end
-            name = aura.name
-            debuffType = aura.dispelName
-            duration = aura.duration
-            expirationTime = aura.expirationTime
-        elseif _G.UnitAura then
-            local n, _, _, _, dType, dur, exp = _G.UnitAura(playerName, index, "HARMFUL")
-            if not n then break end
-            name, debuffType, duration, expirationTime = n, dType, dur, exp
-        else
+        local name, rank, texture, count, debuffType, duration, expirationTime, caster, isStealable = UnitAura(playerName, index, "HARMFUL")
+        
+        if not name then
             break
         end
         
-        if debuffType and type(debuffType) == "string" and not (isSec and isSec(debuffType)) then
-            local lowerType = debuffType:lower()
-            if self:CanDispel(lowerType) then
-                table.insert(dispellable, {
-                    name = (isSec and isSec(name)) and "Debuff" or name,
-                    type = lowerType,
-                    duration = (isSec and isSec(duration)) and 0 or duration,
-                    expires = (isSec and isSec(expirationTime)) and 0 or expirationTime,
-                    priority = self.DEBUFF_TYPES[lowerType] and self.DEBUFF_TYPES[lowerType].priority or "low",
-                })
-            end
+        -- Check if this debuff type is dispellable
+        local lowerType = debuffType:lower()
+        if self:CanDispel(lowerType) then
+            table.insert(dispellable, {
+                name = name,
+                type = lowerType,
+                duration = duration,
+                expires = expirationTime,
+                priority = self.DEBUFF_TYPES[lowerType] and self.DEBUFF_TYPES[lowerType].priority or "low",
+            })
         end
         
         index = index + 1

@@ -4,6 +4,7 @@
 local InfinityEncounterDB = {}
 _G.InfinityEncounterDB = InfinityEncounterDB
 
+-- Midnight Raids (Primary focus)
 InfinityEncounterDB.encounters = {
     -- Example boss data structure
     -- [bossId] = {
@@ -89,129 +90,112 @@ function InfinityEncounterDB:GetMechanics(bossId)
     return {}
 end
 
-local function Public(value)
-    if _G.issecretvalue and _G.issecretvalue(value) then return nil end
-    return value
-end
-
-local function PositiveID(value)
-    value = Public(value)
-    return type(value) == "number" and value > 0 and value < math.huge and value == math.floor(value)
-end
-
-local function Text(value)
-    value = Public(value)
-    return type(value) == "string" and value or nil
-end
-
+-- Database initialization with common boss patterns
+-- This would be populated from actual encounter data
 function InfinityEncounterDB:Initialize()
-end
-
-function InfinityEncounterDB:GetJournalInstance()
-    if not (_G.C_Map and C_Map.GetBestMapForUnit and _G.EJ_GetInstanceForMap) then
-        return nil, "Encounter Journal map lookup is unavailable."
+    local classicEncounters = {
+        anubrekhan = {
+            name = "Anub'Rekhan",
+            zone = "Naxxramas",
+            encounterID = 1107,
+            difficulty = "40-Man",
+            phases = { { name = "Normal", healthPercent = 100 }, { name = "Locust Swarm", healthPercent = 75 } },
+            abilities = {
+                [28785] = { name = "Locust Swarm", type = "raid", timer = 90, cooldown = 90, alertTime = 10 },
+                [28783] = { name = "Impale", type = "group", timer = 15, cooldown = 15, alertTime = 5 },
+            },
+            mechanics = { "Kite boss clockwise during Locust Swarm", "Off-tank Crypt Guards immediately", "Spread to minimize Impale targets" },
+        },
+        patchwerk = {
+            name = "Patchwerk",
+            zone = "Naxxramas",
+            encounterID = 1118,
+            difficulty = "40-Man",
+            phases = { { name = "Hateful Strike", healthPercent = 100 }, { name = "Frenzy", healthPercent = 5 } },
+            abilities = {
+                [28308] = { name = "Hateful Strike", type = "tank", timer = 1.2, cooldown = 1.2, alertTime = 0 },
+                [28131] = { name = "Frenzy", type = "phase", timer = 420, cooldown = 420, alertTime = 30 },
+            },
+            mechanics = { "Keep 3 hateful off-tanks topped at 100% HP", "7-minute hard enrage timer", "Burn cooldowns at 5% Frenzy" },
+        },
+        loatheb = {
+            name = "Loatheb",
+            zone = "Naxxramas",
+            encounterID = 1115,
+            difficulty = "40-Man",
+            phases = { { name = "Corrupted Mind", healthPercent = 100 } },
+            abilities = {
+                [29204] = { name = "Inevitable Doom", type = "raid", timer = 120, cooldown = 30, alertTime = 8 },
+                [29234] = { name = "Summon Spore", type = "group", timer = 13, cooldown = 13, alertTime = 4 },
+            },
+            mechanics = { "Follow strict 5-second healer rotation", "Rotate DPS groups into Fungal Creep spores", "Use Greater Shadow Protection Potions for Doom" },
+        },
+        sapphiron = {
+            name = "Sapphiron",
+            zone = "Naxxramas",
+            encounterID = 1119,
+            difficulty = "40-Man",
+            phases = { { name = "Ground Phase", healthPercent = 100 }, { name = "Air Phase", healthPercent = 80 } },
+            abilities = {
+                [28542] = { name = "Life Drain", type = "raid", timer = 24, cooldown = 24, alertTime = 5 },
+                [28524] = { name = "Frost Breath", type = "phase", timer = 45, cooldown = 65, alertTime = 8 },
+            },
+            mechanics = { "Decurse Life Drain immediately", "Hide behind Ice Blocks during Air Phase Frost Breath", "Wear Frost Resistance gear" },
+        },
+        kelthuzad = {
+            name = "Kel'Thuzad",
+            zone = "Naxxramas",
+            encounterID = 1114,
+            difficulty = "40-Man",
+            phases = { { name = "Phase 1: Adds", healthPercent = 100 }, { name = "Phase 2: Kel'Thuzad", healthPercent = 100 }, { name = "Phase 3: Guardians", healthPercent = 40 } },
+            abilities = {
+                [28478] = { name = "Frostbolt", type = "tank", timer = 10, cooldown = 12, alertTime = 3 },
+                [27808] = { name = "Frost Blast", type = "raid", timer = 30, cooldown = 35, alertTime = 6 },
+                [27812] = { name = "Shadow Fissure", type = "group", timer = 15, cooldown = 15, alertTime = 3 },
+                [28410] = { name = "Chains of Kel'Thuzad", type = "raid", timer = 60, cooldown = 60, alertTime = 8 },
+            },
+            mechanics = { "Kick single-target Frostbolt", "Move out of red Shadow Fissure within 3s", "Spread 10 yards for Frost Blast", "CC mind-controlled raiders" },
+        },
+        ragnaros = {
+            name = "Ragnaros",
+            zone = "Molten Core",
+            encounterID = 672,
+            difficulty = "40-Man",
+            phases = { { name = "Emergence", healthPercent = 100 }, { name = "Sons of Flame", healthPercent = 50 } },
+            abilities = {
+                [20566] = { name = "Wrath of Ragnaros", type = "tank", timer = 25, cooldown = 28, alertTime = 5 },
+                [21158] = { name = "Submerge", type = "phase", timer = 180, cooldown = 180, alertTime = 15 },
+            },
+            mechanics = { "Melee out before Wrath of Ragnaros knockback", "Banish and kill Sons of Flame on Submerge" },
+        },
+        nefarian = {
+            name = "Nefarian",
+            zone = "Blackwing Lair",
+            encounterID = 617,
+            difficulty = "40-Man",
+            phases = { { name = "Phase 1: Drakonids", healthPercent = 100 }, { name = "Phase 2: Nefarian", healthPercent = 100 }, { name = "Phase 3: Constructs", healthPercent = 20 } },
+            abilities = {
+                [22539] = { name = "Shadow Flame", type = "tank", timer = 18, cooldown = 18, alertTime = 5 },
+                [22686] = { name = "Bellowing Roar", type = "raid", timer = 30, cooldown = 30, alertTime = 6 },
+            },
+            mechanics = { "Equip Onyxia Scale Cloak", "Fear Ward tank before Bellowing Roar", "Handle Class Calls cleanly" },
+        },
+        cthun = {
+            name = "C'Thun",
+            zone = "Ahn'Qiraj",
+            encounterID = 717,
+            difficulty = "40-Man",
+            phases = { { name = "Phase 1: Eye of C'Thun", healthPercent = 100 }, { name = "Phase 2: C'Thun", healthPercent = 100 } },
+            abilities = {
+                [26029] = { name = "Dark Glare", type = "raid", timer = 45, cooldown = 85, alertTime = 8 },
+                [26134] = { name = "Eye Beam", type = "group", timer = 3, cooldown = 3, alertTime = 1 },
+            },
+            mechanics = { "Spread 10 yards to prevent Eye Beam chaining", "Rotate clockwise during Dark Glare", "Kill Flesh Tentacles inside stomach" },
+        },
+    }
+    for id, data in pairs(classicEncounters) do
+        self.encounters[id] = data
     end
-    local mapID = Public(C_Map.GetBestMapForUnit("player"))
-    local visited = {}
-    for _ = 1, 10 do
-        if not PositiveID(mapID) or visited[mapID] then break end
-        visited[mapID] = true
-        local instanceID = Public(EJ_GetInstanceForMap(mapID))
-        if PositiveID(instanceID) then return instanceID end
-        local info = C_Map.GetMapInfo and Public(C_Map.GetMapInfo(mapID))
-        mapID = type(info) == "table" and Public(info.parentMapID) or nil
-    end
-    return nil, "No Encounter Journal instance found for the current map."
-end
-
-function InfinityEncounterDB:GetJournalList()
-    if not _G.EJ_GetEncounterInfoByIndex then
-        return nil, "Encounter Journal is unavailable on this client."
-    end
-    local instanceID, err = self:GetJournalInstance()
-    if not instanceID then return nil, err end
-    local lines = { "Current instance: Journal encounters",
-        "Use /encounter journal <journal ID> for details.", "" }
-    for index = 1, 100 do
-        local name, _, journalID = EJ_GetEncounterInfoByIndex(index, instanceID)
-        if _G.issecretvalue and _G.issecretvalue(name) then
-            return nil, "Encounter Journal entries are protected."
-        end
-        name, journalID = Text(name), Public(journalID)
-        if index == 1 and not name and _G.EJ_SelectInstance then
-            local selectedName = EJ_GetEncounterInfoByIndex(1)
-            if _G.issecretvalue and _G.issecretvalue(selectedName) then
-                return nil, "Encounter Journal entries are protected."
-            end
-            if not Text(selectedName) then
-                local combat = _G.InCombatLockdown and Public(InCombatLockdown())
-                if _G.InCombatLockdown and combat ~= false then
-                    return nil, "Open the Encounter Journal outside combat before listing this instance."
-                end
-                EJ_SelectInstance(instanceID)
-                name, _, journalID = EJ_GetEncounterInfoByIndex(index, instanceID)
-                if _G.issecretvalue and _G.issecretvalue(name) then
-                    return nil, "Encounter Journal entries are protected."
-                end
-                name, journalID = Text(name), Public(journalID)
-            end
-        end
-        if not name or not PositiveID(journalID) then break end
-        lines[#lines + 1] = journalID .. " - " .. name
-    end
-    if #lines == 3 then
-        return nil, "No encounters available for this map. Open the in-game Encounter Journal and try again."
-    end
-    if #lines == 103 then lines[#lines + 1] = "Additional encounters omitted." end
-    return table.concat(lines, "\n")
-end
-
-function InfinityEncounterDB:GetJournalEncounter(journalID)
-    if not PositiveID(journalID) then return nil, "Enter a positive journal encounter ID." end
-    if not (_G.EJ_GetEncounterInfo and _G.C_EncounterJournal and C_EncounterJournal.GetSectionInfo) then
-        return nil, "Encounter Journal details are unavailable on this client."
-    end
-    local name, description, _, root = EJ_GetEncounterInfo(journalID)
-    name, description, root = Text(name), Text(description), Public(root)
-    if not name or name == "" then return nil, "Journal encounter not found: " .. journalID end
-    local lines = { name .. " (Journal ID " .. journalID .. ")",
-        "Journal descriptions; not automatic timers.", "" }
-    if description and description ~= "" then lines[#lines + 1] = description .. "\n" end
-    local stack, visited, count, displayed, omitted = {}, {}, 0, 0, false
-    if PositiveID(root) then stack[1] = { root, 0 } end
-    while #stack > 0 and count < 120 do
-        local entry = table.remove(stack)
-        local sectionID, depth = entry[1], entry[2]
-        if not visited[sectionID] then
-            visited[sectionID] = true
-            count = count + 1
-            local info = Public(C_EncounterJournal.GetSectionInfo(sectionID))
-            if type(info) == "table" then
-                local title, detail = Text(info.title), Text(info.description)
-                local filtered = Public(info.filteredByDifficulty)
-                local spellID = Public(info.spellID)
-                if title and title ~= "" then
-                    lines[#lines + 1] = string.rep("  ", depth) .. title
-                        .. (PositiveID(spellID) and (" [Spell ID " .. spellID .. "]") or "")
-                        .. (filtered == true and " (other difficulty)" or "")
-                    displayed = displayed + 1
-                    if detail and detail ~= "" then
-                        if #detail > 2000 then detail = detail:sub(1, 2000) .. " [truncated]" end
-                        lines[#lines + 1] = detail
-                    end
-                end
-                local child, sibling = Public(info.firstChildSectionID), Public(info.siblingSectionID)
-                if PositiveID(sibling) then stack[#stack + 1] = { sibling, depth } end
-                if PositiveID(child) then
-                    if depth < 10 then stack[#stack + 1] = { child, depth + 1 }
-                    else omitted = true end
-                end
-            end
-        end
-    end
-    if #stack > 0 or omitted then lines[#lines + 1] = "[Additional journal sections omitted.]" end
-    if displayed == 0 then lines[#lines + 1] = "No journal mechanics available." end
-    return table.concat(lines, "\n")
 end
 
 return InfinityEncounterDB

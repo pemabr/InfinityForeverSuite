@@ -43,7 +43,7 @@ function InfinityCalendarNotifications:CheckReminders()
 	
 	for _, reminder in ipairs(reminders) do
 		self:NotifyReminder(reminder)
-		InfinityCalendarCore:MarkReminderTriggered(reminder.eventID, reminder.minutesBefore)
+		InfinityCalendarCore:MarkReminderTriggered(reminder.eventID)
 	end
 end
 
@@ -64,6 +64,13 @@ function InfinityCalendarNotifications:NotifyReminder(reminder)
 		UIErrorsFrame:AddMessage(message, 0, 1, 0, 1, UIERRORS_HOLD_TIME)
 	end
 	
+	-- Announce to guild if raid event
+	local event = InfinityCalendarCore:GetEvent(reminder.eventID)
+	if event and event.type == "raid" and InfinityCalendarCore:IsEventLeader(reminder.eventID) then
+		local announce = string.format("Guild Event in %d minutes: %s - %s",
+			reminder.minutesBefore, event.title, event.location)
+		SendChatMessage(announce, "GUILD")
+	end
 end
 
 -- Check event status changes
@@ -74,9 +81,7 @@ function InfinityCalendarNotifications:CheckEventStatus()
 	for eventID, event in pairs(events) do
 		if event.status == "scheduled" then
 			-- Check if event should start
-			if now >= event.startTime + event.duration then
-				InfinityCalendarCore:UpdateEvent(eventID, {status = "completed"})
-			elseif now >= event.startTime then
+			if now >= event.startTime then
 				InfinityCalendarCore:UpdateEvent(eventID, {status = "in_progress"})
 				self:NotifyEventStarted(event)
 			end
@@ -102,6 +107,10 @@ function InfinityCalendarNotifications:NotifyEventStarted(event)
 		PlaySoundFile("Sound\\Interface\\Doodad\\Bell\\BellTollNeutral.wav", "Master")
 	end
 	
+	-- Guild announcement
+	if event.type == "raid" then
+		SendChatMessage(event.title .. " is now in progress!", "GUILD")
+	end
 end
 
 -- Notify event ended
@@ -112,6 +121,13 @@ function InfinityCalendarNotifications:NotifyEventEnded(event)
 		print("|cff00ff00[Calendar]|r " .. message)
 	end
 	
+	-- Send summary
+	if event.type == "raid" then
+		local participants = InfinityCalendarCore:GetParticipantCount(event.id)
+		local summary = string.format("Event Complete: %s (%d participants, %d confirmed)",
+			event.title, participants.total, participants.confirmed)
+		SendChatMessage(summary, "GUILD")
+	end
 end
 
 -- Set notification channels

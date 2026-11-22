@@ -225,7 +225,7 @@ local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:SetScript("OnEvent", function(self, event, addonName)
 	if addonName == "InfinityLoot" then
-		_G.InfinityLootPerformanceOptimizer = PerformanceOptimizer
+		_G.InfinityPerformanceOptimizer = PerformanceOptimizer
 		
 		-- Register slash command for performance reports
 		SLASH_PERFREPORT1 = "/perfreport"

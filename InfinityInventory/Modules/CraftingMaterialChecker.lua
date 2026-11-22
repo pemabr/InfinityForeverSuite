@@ -53,9 +53,19 @@ end
 -- Scan professions
 function CraftingMaterialChecker:ScanProfessions()
 	self.professions = {}
-	
-	-- Get profession info (would require profession API calls)
-	-- Placeholder for now
+	local knownProfs = {
+		alchemy = true, blacksmithing = true, enchanting = true, engineering = true,
+		herbalism = true, leatherworking = true, mining = true, skinning = true,
+		tailoring = true, cooking = true, ["first aid"] = true, fishing = true,
+	}
+	if GetNumSkillLines and GetSkillLineInfo then
+		for i = 1, GetNumSkillLines() do
+			local name, isHeader, _, rank, _, _, maxRank = GetSkillLineInfo(i)
+			if name and not isHeader and knownProfs[name:lower()] then
+				self.professions[name] = { name = name, rank = rank or 0, maxRank = maxRank or 300 }
+			end
+		end
+	end
 end
 
 -- Scan for crafting materials
@@ -91,7 +101,7 @@ function CraftingMaterialChecker:ScanMaterials()
 	
 	-- Scan bags for materials
 	for _, material in ipairs(commonMaterials) do
-		local quantity = InfinityUtils:GetItemCount(material.id)
+		local quantity = GetItemCount(material.id)
 		
 		if quantity > 0 then
 			newMaterials[material.id] = {
@@ -165,7 +175,7 @@ function CraftingMaterialChecker:GetMaterialValue()
 	local totalValue = 0
 	
 	for _, material in pairs(self.materials) do
-		local itemValue = select(11, InfinityUtils:GetItemInfo(material.id)) or 0
+		local itemValue = select(11, GetItemInfo(material.id)) or 0
 		totalValue = totalValue + (itemValue * material.quantity)
 	end
 	

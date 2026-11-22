@@ -1,0 +1,5 @@
+{
+  "name": "Infinity Suite — Guild & Raid Officer Console",
+  "description": "Web companion for the InfinityForever WoW addon suite featuring Officer Dashboard, DKP/EPGP ledger, multi-mode loot auctions, Naxxramas encounter planner, attendance tracking, and 27-addon suite manager.",
+  "requestFramePermissions": []
+}

@@ -1,6 +1,6 @@
 ## Interface: 16001
 ## Title: |cff00ccffInfinity|r Healer
-## Notes: Group health frames with character-specific secure click bindings.
+## Notes: Comprehensive raid healing UI with frames, click-casting, and predictions.
 ## Author: Infinity Suite Team
 ## Version: 1.4.0
 ## SavedVariables: InfinityHealerDB
@@ -10,7 +10,6 @@
 Localization\Localization.lua
 
 Modules\HealerFrames.lua
-Modules\GroupStatus.lua
 Modules\FrameRenderer.lua
 Modules\RaidFrameEngine.lua
 Modules\PartyFrameRenderer.lua

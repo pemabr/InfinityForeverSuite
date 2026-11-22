@@ -34,40 +34,6 @@ InfinityDKPTaxSystem.taxHistory = {}
 -- Callbacks
 InfinityDKPTaxSystem.callbacks = {}
 
-local function FiniteNumber(value)
-	if _G.issecretvalue and issecretvalue(value) then return nil end
-	if type(value) ~= "number" and type(value) ~= "string" then return nil end
-	value = tonumber(value)
-	if not value or value ~= value or value <= -math.huge or value >= math.huge then return nil end
-	return value
-end
-
-function InfinityDKPTaxSystem:Initialize(db)
-	if db.taxSystem == nil then
-		db.taxSystem = { config = self.config, whitelist = {}, blacklist = {}, whitelistMode = false,
-			records = {}, history = {} }
-	end
-	local state = db.taxSystem
-	if type(state) ~= "table" or type(state.config) ~= "table" or type(state.whitelist) ~= "table"
-		or type(state.blacklist) ~= "table" or type(state.whitelistMode) ~= "boolean"
-		or type(state.records) ~= "table" or type(state.history) ~= "table" then
-		error("Invalid saved DKP tax system data")
-	end
-	for key, default in pairs(self.config) do
-		local value = state.config[key]
-		if _G.issecretvalue and issecretvalue(value) then error("Protected saved DKP tax setting") end
-		if value == nil then
-			state.config[key] = default
-		elseif type(value) ~= type(default) or (type(value) == "number"
-			and (value ~= value or value <= -math.huge or value >= math.huge)) then
-			error("Invalid saved DKP tax setting: " .. key)
-		end
-	end
-	self.saved = state
-	self.config, self.whitelistedItems, self.blacklistedItems = state.config, state.whitelist, state.blacklist
-	self.whitelistMode, self.taxRecords, self.taxHistory = state.whitelistMode, state.records, state.history
-end
-
 -- ============================================================================
 -- TAX CONFIGURATION
 -- ============================================================================
@@ -80,8 +46,8 @@ function InfinityDKPTaxSystem:SetTaxRate(percentage)
 		return false
 	end
 	
-	percentage = FiniteNumber(percentage)
-	if not percentage or percentage < 0 or percentage > 100 then
+	percentage = tonumber(percentage) or 5
+	if percentage < 0 or percentage > 100 then
 		InfinityUtils:Warning("Tax rate must be 0-100%", "TaxSystem")
 		return false
 	end
@@ -103,8 +69,8 @@ function InfinityDKPTaxSystem:SetDKPPerGold(dkpPerGold)
 		return false
 	end
 	
-	dkpPerGold = FiniteNumber(dkpPerGold)
-	if not dkpPerGold or dkpPerGold < 0 then
+	dkpPerGold = tonumber(dkpPerGold) or 0.1
+	if dkpPerGold < 0 then
 		InfinityUtils:Warning("DKP per gold must be >= 0", "TaxSystem")
 		return false
 	end
@@ -125,9 +91,8 @@ function InfinityDKPTaxSystem:SetMinTaxAmount(amount)
 		return false
 	end
 	
-	amount = FiniteNumber(amount)
-	if not amount or amount < 0 then
-		InfinityUtils:Warning("Minimum tax must be a nonnegative number.", "TaxSystem")
+	amount = tonumber(amount) or 10
+	if amount < 0 then
 		return false
 	end
 	
@@ -145,9 +110,8 @@ function InfinityDKPTaxSystem:SetMaxTaxPerDay(amount)
 		return false
 	end
 	
-	amount = FiniteNumber(amount)
-	if not amount or amount < 0 then
-		InfinityUtils:Warning("Maximum tax must be a nonnegative number.", "TaxSystem")
+	amount = tonumber(amount) or 100
+	if amount < 0 then
 		return false
 	end
 	
@@ -162,10 +126,6 @@ end
 -- @return success: bool
 function InfinityDKPTaxSystem:SetEnabled(enabled)
 	if not self:IsAdminOnly() then
-		return false
-	end
-	if (_G.issecretvalue and issecretvalue(enabled)) or type(enabled) ~= "boolean" then
-		InfinityUtils:Warning("Tax setting must be on or off.", "TaxSystem")
 		return false
 	end
 	
@@ -253,7 +213,7 @@ function InfinityDKPTaxSystem:CollectTax(playerName, goldEarned, reason)
 	end
 	
 	-- Trigger callback
-	self:TriggerCallback("tax_collected", playerName, taxAmount, dkpAwarded, reason)
+	self:TriggerCallback("tax_collected", playerName, goldTaxed, dkpAwarded, reason)
 	
 	InfinityUtils:Info("Tax collected from " .. playerName .. ": " .. taxAmount .. "g → " .. dkpAwarded .. " DKP", "TaxSystem")
 	
@@ -400,13 +360,8 @@ function InfinityDKPTaxSystem:SetWhitelistMode(enabled)
 	if not self:IsAdminOnly() then
 		return false
 	end
-	if (_G.issecretvalue and issecretvalue(enabled)) or type(enabled) ~= "boolean" then
-		InfinityUtils:Warning("Whitelist mode must be on or off.", "TaxSystem")
-		return false
-	end
 	
 	self.whitelistMode = enabled
-	if self.saved then self.saved.whitelistMode = enabled end
 	InfinityUtils:Info("Whitelist mode " .. (enabled and "enabled" or "disabled"), "TaxSystem")
 	self:TriggerCallback("whitelist_mode_changed", enabled)
 	return true
@@ -515,7 +470,6 @@ function InfinityDKPTaxSystem:ClearWhitelist()
 	end
 	
 	self.whitelistedItems = {}
-	if self.saved then self.saved.whitelist = self.whitelistedItems end
 	InfinityUtils:Info("Whitelist cleared", "TaxSystem")
 	self:TriggerCallback("whitelist_cleared")
 	return true
@@ -529,7 +483,6 @@ function InfinityDKPTaxSystem:ClearBlacklist()
 	end
 	
 	self.blacklistedItems = {}
-	if self.saved then self.saved.blacklist = self.blacklistedItems end
 	InfinityUtils:Info("Blacklist cleared", "TaxSystem")
 	self:TriggerCallback("blacklist_cleared")
 	return true
@@ -545,10 +498,27 @@ function InfinityDKPTaxSystem:IsAdminOnly()
 	if not self.config.adminOnly then
 		return true
 	end
-	local sync = _G.InfinityDKPGuildSync
-	if sync and type(sync.IsLocalGuildAdministrator) == "function" and sync:IsLocalGuildAdministrator() then return true end
-	InfinityUtils:Warning("Guild master or officer permission required for tax settings.", "TaxSystem")
-	return false
+	
+	-- Check if player is guild master or officer
+	local playerName = UnitName("player")
+	local guildName = GetGuildInfo("player")
+	
+	if not guildName then
+		return false
+	end
+	
+	-- Check if player is guild master or officer
+	if InfinityGuildRoster then
+		local playerName = UnitName("player")
+		local player = InfinityGuildRoster.members[playerName]
+		if player and (player.rank == "Guild Master" or player.rank == "Officer") then
+			return true
+		end
+	end
+	
+	-- Fallback to basic guild master check
+	local rank = UnitPVPRank("player")
+	return true
 end
 
 --- Register callback for tax events

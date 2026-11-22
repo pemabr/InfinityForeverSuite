@@ -32,7 +32,6 @@ function InfinityPerformanceAnalyticsMeter:StartSession(sessionName)
 	}
 	
 	self.players = {}
-	self.currentSession.players = self.players
 	InfinityUtils:Info("Combat session started: " .. sessionName, "Analytics")
 	InfinityMessaging:Publish("analytics_session_start", { session = sessionName })
 	return true
@@ -57,7 +56,6 @@ function InfinityPerformanceAnalyticsMeter:EndSession()
 	InfinityMessaging:Publish("analytics_session_end", { session = self.currentSession })
 	
 	local sessionCopy = self.currentSession
-	self.lastSession = sessionCopy
 	self.currentSession = nil
 	return sessionCopy
 end
@@ -79,7 +77,7 @@ function InfinityPerformanceAnalyticsMeter:RecordDamage(sourceName, targetName, 
 	end
 	
 	local player = self.players[sourceName]
-	player.totalDamage = (player.totalDamage or 0) + amount
+	player.totalDamage = player.totalDamage + amount
 	self.currentSession.totalDamage = self.currentSession.totalDamage + amount
 	
 	-- Record spell usage
@@ -91,10 +89,9 @@ function InfinityPerformanceAnalyticsMeter:RecordDamage(sourceName, targetName, 
 		}
 	end
 	player.spells[spellName].hits = player.spells[spellName].hits + 1
-	player.spells[spellName].totalDamage = (player.spells[spellName].totalDamage or 0) + amount
+	player.spells[spellName].totalDamage = player.spells[spellName].totalDamage + amount
 	
 	-- Record event
-	player.damageEvents = player.damageEvents or {}
 	table.insert(player.damageEvents, {
 		time = InfinityUtils:GetTimeStamp(),
 		target = targetName,
@@ -143,8 +140,7 @@ function InfinityPerformanceAnalyticsMeter:RecordHealing(sourceName, targetName,
 	player.spells[spellName].totalHealing = (player.spells[spellName].totalHealing or 0) + amount
 	
 	-- Record event
-	player.healingEvents = player.healingEvents or {}
-	table.insert(player.healingEvents, {
+	table.insert(player.healingEvents or {}, {
 		time = InfinityUtils:GetTimeStamp(),
 		target = targetName,
 		spell = spellName,
@@ -160,9 +156,7 @@ function InfinityPerformanceAnalyticsMeter:GetPlayerStats(playerName)
 	end
 	
 	local player = self.players[playerName]
-	local session = self.currentSession or self.lastSession
-	if not session then return player end
-	local sessionDuration = self.currentSession and (InfinityUtils:GetTimeStamp() - session.startTime) or session.duration
+	local sessionDuration = (InfinityUtils:GetTimeStamp() - self.currentSession.startTime) or 1
 	
 	player.dps = math.floor((player.totalDamage or 0) / math.max(sessionDuration, 1))
 	player.hps = math.floor(((player.totalHealing or 0) / math.max(sessionDuration, 1)))

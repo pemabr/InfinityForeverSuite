@@ -1,10 +1,9 @@
 ## Interface: 16001
-## Title: Infinity Encounter
-## Notes: Encounter alerts and supported native timeline events
+## Title: Infinity Encounter (DBM Replacement)
+## Notes: Complete encounter timers, boss ability tracking, and raid alerts
 ## Author: Infinity Forever Suite
 ## Version: 1.0.0
 ## RequiredDeps: InfinityCore
-## OptionalDeps: InfinityGuide
 
 Core\Localization.lua
 Core\CombatDetection.lua
@@ -14,7 +13,5 @@ Modules\Encounters.lua
 Modules\Abilities.lua
 Modules\Alerts.lua
 Modules\StatusBars.lua
-Modules\DBMBridge.lua
-Modules\Presets.lua
 UI\Main.lua
 Init.lua

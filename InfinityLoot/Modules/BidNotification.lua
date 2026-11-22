@@ -31,7 +31,7 @@ function BidNotification:Initialize()
 end
 
 function BidNotification:CreateNotificationFrame()
-	local frame = CreateFrame("Frame", "InfinityBidNotificationFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
+	local frame = CreateFrame("Frame", "InfinityBidNotificationFrame", UIParent)
 	frame:SetSize(300, 100)
 	frame:SetPoint(self.config.popupPosition, 0, -10)
 	frame:Hide()
@@ -90,19 +90,13 @@ function BidNotification:ShowPopup(auctionID, itemName, yourBid, newBid)
 	-- Create new popup frame
 	local popup = CreateFrame("Frame", "BidNotificationPopup_" .. auctionID, UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	popup:SetSize(300, 100)
-	popup:SetPoint(self.config.popupPosition, 20, -20)
-	popup:SetBackdrop({
-		bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-		edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-		tile = true,
-		tileSize = 32,
-		edgeSize = 32,
-		insets = {left = 11, right = 11, top = 12, bottom = 11}
-	})
-	popup:SetBackdropColor(0.1, 0.1, 0.1, 0.9)
+	popup:SetPoint(self.config.popupPosition or "TOP", 20, -20)
+	if InfinityUIFramework and InfinityUIFramework.ApplyBackdrop then
+		InfinityUIFramework:ApplyBackdrop(popup, 0.14, 0.06, 0.08, 0.96, 0.92, 0.30, 0.32, 1)
+	end
 	
 	-- Add title
-	local title = popup:CreateFontString(nil, "OVERLAY", (GameFontBold and "GameFontBold" or "GameFontNormalLarge"))
+	local title = popup:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 	title:SetPoint("TOPLEFT", 15, -15)
 	title:SetText("|cffff6b6bOutbid!|r")
 	title:SetTextColor(1, 0.42, 0.42)
@@ -161,20 +155,14 @@ end
 function BidNotification:ShowSuccessPopup(auctionID, itemName, finalBid)
 	local popup = CreateFrame("Frame", "BidSuccessPopup_" .. auctionID, UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	popup:SetSize(300, 80)
-	popup:SetPoint(self.config.popupPosition, 20, -20)
-	popup:SetBackdrop({
-		bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-		edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-		tile = true,
-		tileSize = 32,
-		edgeSize = 32,
-		insets = {left = 11, right = 11, top = 12, bottom = 11}
-	})
-	popup:SetBackdropColor(0.1, 0.3, 0.1, 0.9)
+	popup:SetPoint(self.config.popupPosition or "TOP", 20, -20)
+	if InfinityUIFramework and InfinityUIFramework.ApplyBackdrop then
+		InfinityUIFramework:ApplyBackdrop(popup, 0.06, 0.16, 0.10, 0.96, 0.22, 0.80, 0.45, 1)
+	end
 	
-	local title = popup:CreateFontString(nil, "OVERLAY", (GameFontBold and "GameFontBold" or "GameFontNormalLarge"))
+	local title = popup:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 	title:SetPoint("TOPLEFT", 15, -15)
-	title:SetText("|cff00ff00✓ Won!|r")
+	title:SetText("|cff4ade80Won Auction!|r")
 	title:SetTextColor(0.5, 1, 0.5)
 	
 	local text = popup:CreateFontString(nil, "OVERLAY", "GameFontNormal")

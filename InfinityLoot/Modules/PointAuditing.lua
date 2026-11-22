@@ -32,7 +32,7 @@ function InfinityPointAuditing:GetTransactionsByType(txType, limit)
 	local results = {}
 	local history = InfinityLootEPGP.transactionHistory
 	
-	for i = #history, math.max(1, #history - 999), -1 do
+	for i = #history, math.max(1, #history - 1000) do
 		if history[i] and history[i].type == txType then
 			table.insert(results, history[i])
 			if #results >= limit then break end
@@ -76,7 +76,7 @@ function InfinityPointAuditing:GetPlayerEPSources(playerName, limit)
 	local sources = {}
 	local history = InfinityLootEPGP.transactionHistory
 	
-	for i = #history, math.max(1, #history - 499), -1 do
+	for i = #history, math.max(1, #history - 500) do
 		if history[i] and history[i].playerName == playerName and history[i].type == "ep_awarded" then
 			local reason = history[i].reason or "Unknown"
 			if not sources[reason] then
@@ -114,9 +114,9 @@ function InfinityPointAuditing:GetPlayerGPItems(playerName, limit)
 	local items = {}
 	local history = InfinityLootEPGP.transactionHistory
 	
-	for i = #history, math.max(1, #history - 499), -1 do
+	for i = #history, math.max(1, #history - 500) do
 		if history[i] and history[i].playerName == playerName and history[i].type == "gp_awarded" then
-			local itemName = history[i].item or "Unknown Item"
+			local itemName = history[i].itemName or "Unknown Item"
 			if not items[itemName] then
 				items[itemName] = { gp = 0, count = 0, timestamp = history[i].timestamp }
 			end
@@ -150,7 +150,7 @@ end
 -- Generate a comprehensive audit report for a player
 function InfinityPointAuditing:GeneratePlayerAuditReport(playerName, numDays)
 	numDays = numDays or 30
-	local endTime = InfinityUtils:GetTimeStamp()
+	local endTime = GetTime()
 	local startTime = endTime - (numDays * 86400)
 	
 	local epGained = self:GetPlayerEPGainedInRange(playerName, startTime, endTime)
@@ -168,7 +168,7 @@ function InfinityPointAuditing:GeneratePlayerAuditReport(playerName, numDays)
 		netPoints = epGained - gpSpent,
 		epSources = epSources,
 		gpItems = gpItems,
-		reportTime = endTime,
+		reportTime = GetTime(),
 	}
 	
 	return report
@@ -181,7 +181,7 @@ function InfinityPointAuditing:DetectAnomalies(playerName)
 	local recentTxns = {}
 	
 	-- Get recent transactions for this player
-	for i = #history, math.max(1, #history - 99), -1 do
+	for i = #history, math.max(1, #history - 100) do
 		if history[i] and history[i].playerName == playerName then
 			table.insert(recentTxns, 1, history[i])
 		end
@@ -190,8 +190,8 @@ function InfinityPointAuditing:DetectAnomalies(playerName)
 	-- Check for rapid GP awards (possible duplicate)
 	for i = 1, #recentTxns - 1 do
 		if recentTxns[i].type == "gp_awarded" and recentTxns[i+1].type == "gp_awarded" then
-			local timeDiff = recentTxns[i+1].timestamp - recentTxns[i].timestamp
-			if timeDiff >= 0 and timeDiff < 2 then -- Less than 2 seconds apart
+			local timeDiff = recentTxns[i].timestamp - recentTxns[i+1].timestamp
+			if timeDiff < 2 then -- Less than 2 seconds apart
 				table.insert(anomalies, {
 					type = "rapid_gp_awards",
 					severity = "MEDIUM",

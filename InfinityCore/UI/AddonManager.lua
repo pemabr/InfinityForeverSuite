@@ -1,22 +1,52 @@
 -- InfinityCore Addon Manager UI
--- Manage individual addon settings and configuration
+-- Modern flat addon browser, search, enable/disable toggle, and quick window launcher
 
 InfinityAddonManager = {
 	addons = {},
 	currentAddon = nil,
 }
 
+local QUICK_OPENERS = {
+	InfinityCore = function() if _G.InfinityMainFrame then _G.InfinityMainFrame:Toggle() end end,
+	InfinityDKP = function() if _G.InfinityDKPUI then _G.InfinityDKPUI:Toggle() end end,
+	InfinityLoot = function() if _G.InfinityLootUI then _G.InfinityLootUI:Toggle() end end,
+	InfinityGuild = function() if _G.InfinityGuildUI then _G.InfinityGuildUI:Toggle() end end,
+	InfinityRaid = function() if _G.InfinityRaidUI then _G.InfinityRaidUI:Toggle() end end,
+	InfinityHealer = function() if _G.InfinityHealerUI then _G.InfinityHealerUI:Toggle() end end,
+	InfinityDetails = function() if _G.InfinityDetailsUI then _G.InfinityDetailsUI:Toggle() end end,
+	InfinityEncounter = function() if _G.InfinityEncounterUI then _G.InfinityEncounterUI:Toggle() end end,
+	InfinityAttendance = function() if _G.InfinityAttendanceUI then _G.InfinityAttendanceUI:Toggle() end end,
+	InfinityCalendar = function() if _G.InfinityCalendarUI then _G.InfinityCalendarUI:Toggle() end end,
+	InfinityWorldBoss = function() if _G.InfinityWorldBossUI then _G.InfinityWorldBossUI:Toggle() end end,
+	InfinityQuestie = function() if _G.InfinityQuestieUI then _G.InfinityQuestieUI:Toggle() end end,
+	InfinityGather = function() if _G.InfinityGatherUI then _G.InfinityGatherUI:Toggle() end end,
+	InfinityGatherPath = function() if _G.InfinityGatherPathUI then _G.InfinityGatherPathUI:Toggle() end end,
+	InfinityGear = function() if _G.InfinityGearUI then _G.InfinityGearUI:Toggle() end end,
+	InfinityInventory = function() if _G.InfinityInventoryUI then _G.InfinityInventoryUI:Toggle() end end,
+	InfinityNavigation = function() if _G.InfinityNavigationUI then _G.InfinityNavigationUI:Toggle() end end,
+	InfinityGuide = function() if _G.InfinityGuideUI then _G.InfinityGuideUI:Toggle() end end,
+	InfinityQoL = function() if _G.InfinityQoLUI then _G.InfinityQoLUI:Toggle() end end,
+	InfinityProfiler = function() if _G.InfinityProfilerUI then _G.InfinityProfilerUI:Toggle() end end,
+	InfinityPerformanceAnalytics = function() if _G.InfinityPerformanceUI then _G.InfinityPerformanceUI:Toggle() end end,
+	InfinityData = function() if _G.InfinityDataUI then _G.InfinityDataUI:Toggle() end end,
+	InfinityDataCollector = function() if _G.InfinityDataCollectorUI then _G.InfinityDataCollectorUI:Toggle() end end,
+}
+
 function InfinityAddonManager:Initialize()
-	InfinityUtils:Info("Addon Manager initialized", "AddonManager")
+	if InfinityUtils and InfinityUtils.Info then
+		InfinityUtils:Info("Addon Manager initialized", "AddonManager")
+	end
 end
 
 function InfinityAddonManager:RegisterAddon(name, version, config)
+	config = config or {}
 	self.addons[name] = {
 		name = name,
-		version = version,
-		description = config.description or "No description",
-		author = config.author or "Unknown",
-		category = config.category or "Other",
+		version = version or config.version or "1.0.0",
+		enabled = config.enabled ~= false,
+		description = config.description or "Infinity Forever Suite module",
+		author = config.author or "Infinity Forever",
+		category = config.category or "General",
 		settings = config.settings or {},
 	}
 end
@@ -27,8 +57,7 @@ end
 
 function InfinityAddonManager:GetAllAddons()
 	local addonList = {}
-	for name, info in pairs(self.addons) do
-		info.enabled = self:IsAddonEnabled(name)
+	for _, info in pairs(self.addons) do
 		table.insert(addonList, info)
 	end
 	table.sort(addonList, function(a, b) return a.name < b.name end)
@@ -36,233 +65,171 @@ function InfinityAddonManager:GetAllAddons()
 end
 
 function InfinityAddonManager:IsAddonEnabled(name)
-	local api = _G.C_AddOns
-	if not api or not api.GetAddOnEnableState then
-		return nil
-	end
-	if api.DoesAddOnExist and not api.DoesAddOnExist(name) then
-		return nil
-	end
-	local character = _G.UnitGUID and _G.UnitGUID("player")
-	local state = api.GetAddOnEnableState(name, character)
-	if type(state) == "number" then
-		return state > 0
-	end
-	return nil
+	return self.addons[name] and self.addons[name].enabled or false
 end
 
 function InfinityAddonManager:SetAddonEnabled(name, enabled)
-	local api = _G.C_AddOns
-	local character = _G.UnitGUID and _G.UnitGUID("player")
-	local current = self:IsAddonEnabled(name)
-	if not api or not api.EnableAddOn or not api.DisableAddOn or not character or current == nil then
-		InfinityUtils:Error("Cannot change addon state: " .. tostring(name), "AddonManager")
-		return false
-	end
-	enabled = not not enabled
-	if enabled then
-		api.EnableAddOn(name, character)
-	else
-		api.DisableAddOn(name, character)
-	end
-	if self:IsAddonEnabled(name) ~= enabled then
-		InfinityUtils:Error("Addon state did not change: " .. name, "AddonManager")
-		return false
-	end
 	if self.addons[name] then
 		self.addons[name].enabled = enabled
+		if InfinityStorageManager and InfinityStorageManager.SetAddonSetting then
+			InfinityStorageManager:SetAddonSetting(name, "enabled", enabled)
+		end
+		if InfinityMessaging and InfinityMessaging.Publish then
+			InfinityMessaging:Publish("INFINITY_ADDON_STATE_CHANGED", name, enabled)
+		end
+		return true
 	end
-	print("|cff00ccffInfinity Suite:|r " .. name .. " " .. (enabled and "enabled" or "disabled") .. " for this character. Reload the UI to apply.")
-	return true
+	return false
 end
 
 function InfinityAddonManager:CreateManagerWindow()
-	local mainFrame = CreateFrame("Frame", "InfinityAddonManagerWindow", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
-	mainFrame:SetSize(700, 500)
+	local mainFrame = InfinityUIFramework:CreateFrame(
+		"InfinityAddonManagerWindow",
+		UIParent,
+		740,
+		500,
+		"Infinity Suite — Addon Manager",
+		"WoW Forever (16001)"
+	)
 	mainFrame:SetPoint("CENTER")
-	mainFrame:SetBackdrop({
-		bgFile = "Interface/Tooltips/UI-Tooltip-Background",
-		edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
-		tile = true,
-		tileSize = 16,
-		edgeSize = 16,
-		insets = { left = 4, right = 4, top = 4, bottom = 4 }
-	})
-	mainFrame:SetBackdropColor(0.1, 0.1, 0.1, 0.9)
-	mainFrame:SetBackdropBorderColor(0, 0.8, 1, 0.5)
-	mainFrame:SetMovable(true)
-	mainFrame:EnableMouse(true)
-	mainFrame:RegisterForDrag("LeftButton")
-	mainFrame:SetScript("OnDragStart", function(self) self:StartMoving() end)
-	mainFrame:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
-	
-	-- Title
-	local title = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-	title:SetPoint("TOP", 0, -10)
-	title:SetText("|cff00ccffInfinity Suite - Addon Manager|r")
-	
-	-- Close button
-	local closeBtn = CreateFrame("Button", nil, mainFrame, "UIPanelCloseButton")
-	closeBtn:SetPoint("TOPRIGHT", -5, -5)
-	closeBtn:SetScript("OnClick", function() mainFrame:Hide() end)
-	
-	-- Addon list (left side)
-	local listScroll = CreateFrame("ScrollFrame", "InfinityAddonListScroll", mainFrame, "UIPanelScrollFrameTemplate")
-	listScroll:SetSize(180, 420)
-	listScroll:SetPoint("TOPLEFT", 10, -35)
-	
-	local addonList = CreateFrame("Frame", nil, listScroll, BackdropTemplateMixin and "BackdropTemplate" or nil)
-	addonList:SetSize(180, 1)
-	listScroll:SetScrollChild(addonList)
-	
-	mainFrame.addonList = addonList
-	mainFrame.listScroll = listScroll
-	
-	-- Details area (right side)
-	local detailsFrame = CreateFrame("Frame", nil, mainFrame, BackdropTemplateMixin and "BackdropTemplate" or nil)
-	detailsFrame:SetSize(480, 420)
-	detailsFrame:SetPoint("TOPLEFT", 200, -35)
-	mainFrame.detailsFrame = detailsFrame
-	
-	-- Populate addon list
-	self:RefreshAddonList(mainFrame)
-	
-	-- Search box
-	local searchLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-	searchLabel:SetPoint("TOPLEFT", 10, -460)
-	searchLabel:SetText("Search:")
-	
-	local searchBox = CreateFrame("EditBox", nil, mainFrame, "InputBoxTemplate")
-	searchBox:SetSize(180, 20)
-	searchBox:SetPoint("TOPLEFT", 60, -462)
-	searchBox:SetScript("OnTextChanged", function(self)
-		self:RefreshAddonList(mainFrame)
+
+	-- Search bar row
+	local searchLabel = InfinityUIFramework:CreateLabel(mainFrame, "Filter Addons:")
+	searchLabel:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 14, -50)
+
+	local searchBox = InfinityUIFramework:CreateInputBox(mainFrame, 210, 24, function()
+		InfinityAddonManager:RefreshAddonList(mainFrame)
 	end)
+	searchBox:SetPoint("LEFT", searchLabel, "RIGHT", 8, 0)
 	mainFrame.searchBox = searchBox
-	
+
+	local refreshBtn = InfinityUIFramework:CreateButton(mainFrame, "Refresh", 86, 24, function()
+		InfinityAddonManager:RefreshAddonList(mainFrame)
+	end)
+	refreshBtn:SetPoint("TOPRIGHT", mainFrame, "TOPRIGHT", -14, -46)
+
+	-- Left list scroll
+	local listCard = InfinityUIFramework:CreateCard(mainFrame, 250, 405)
+	listCard:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 12, -82)
+
+	local listScroll = InfinityUIFramework:CreateScrollFrame(listCard, "InfinityAddonListScroll", 236, 392)
+	listScroll:SetPoint("TOPLEFT", listCard, "TOPLEFT", 6, -6)
+	mainFrame.addonList = listScroll.content
+	mainFrame.listScroll = listScroll
+
+	-- Right details card
+	local detailsFrame = InfinityUIFramework:CreateCard(mainFrame, 456, 405)
+	detailsFrame:SetPoint("TOPLEFT", listCard, "TOPRIGHT", 10, 0)
+	mainFrame.detailsFrame = detailsFrame
+
+	self:RefreshAddonList(mainFrame)
 	return mainFrame
 end
 
 function InfinityAddonManager:RefreshAddonList(mainFrame)
-	-- Clear list
-	InfinityUtils:ClearContainer(mainFrame.addonList)
-	
+	if not mainFrame or not mainFrame.addonList then return end
+	InfinityUIFramework:ClearContainer(mainFrame.addonList)
+
 	local searchText = (mainFrame.searchBox and mainFrame.searchBox:GetText() or ""):lower()
-	local y = 0
+	local y = -2
 	local addons = self:GetAllAddons()
-	
-	for _, addonInfo in ipairs(addons) do
-		if searchText == "" or addonInfo.name:lower():find(searchText, 1, true) or 
-		   addonInfo.description:lower():find(searchText, 1, true) then
-			
-			local btn = CreateFrame("Button", nil, mainFrame.addonList, BackdropTemplateMixin and "BackdropTemplate" or nil)
-			btn:SetSize(170, 30)
-			btn:SetPoint("TOPLEFT", 0, y)
-			btn:SetBackdrop({
-				bgFile = "Interface/Tooltips/UI-Tooltip-Background",
-				tile = true,
-				tileSize = 16,
-			})
-			btn:SetBackdropColor(0.2, 0.2, 0.2, 0.5)
-			
-			local text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-			text:SetPoint("LEFT", 5, 0)
-			text:SetText(addonInfo.name)
-			
-			local status = addonInfo.enabled == nil and "|cffff9900?|r" or
-				(addonInfo.enabled and "|cff00ff00✓|r" or "|cffff0000✗|r")
-			local statusText = btn:CreateFontString(nil, "OVERLAY", "GameFontSmall")
-			statusText:SetPoint("RIGHT", -5, 0)
-			statusText:SetText(status)
-			
-			btn:SetScript("OnClick", function()
-				self:ShowAddonDetails(mainFrame, addonInfo)
+	local firstMatch = nil
+
+	for idx, addonInfo in ipairs(addons) do
+		local matches = searchText == ""
+			or addonInfo.name:lower():find(searchText, 1, true)
+			or (addonInfo.description or ""):lower():find(searchText, 1, true)
+			or (addonInfo.category or ""):lower():find(searchText, 1, true)
+
+		if matches then
+			if not firstMatch then firstMatch = addonInfo end
+			local row = InfinityUIFramework:CreateListRow(mainFrame.addonList, 210, 28, idx, function()
+				InfinityAddonManager.currentAddon = addonInfo.name
+				InfinityAddonManager:ShowAddonDetails(mainFrame, addonInfo)
 			end)
-			
-			y = y - 32
+			row:SetPoint("TOPLEFT", mainFrame.addonList, "TOPLEFT", 2, y)
+
+			local nameLbl = InfinityUIFramework:CreateLabel(row, addonInfo.name)
+			nameLbl:SetPoint("LEFT", row, "LEFT", 8, 0)
+
+			local badge = addonInfo.enabled and "|cff4ade80ON|r" or "|cfff87171OFF|r"
+			local statusLbl = InfinityUIFramework:CreateLabel(row, badge)
+			statusLbl:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+
+			y = y - 30
 		end
 	end
-	
-	mainFrame.addonList:SetHeight(-y)
-	mainFrame.listScroll:UpdateScrollChildRect()
+
+	mainFrame.addonList:SetHeight(math.max(380, -y + 10))
+	if firstMatch and (not self.currentAddon or not self.addons[self.currentAddon]) then
+		self.currentAddon = firstMatch.name
+	end
+	if self.currentAddon and self.addons[self.currentAddon] then
+		self:ShowAddonDetails(mainFrame, self.addons[self.currentAddon])
+	end
 end
 
 function InfinityAddonManager:ShowAddonDetails(mainFrame, addonInfo)
-	-- Clear details
-	InfinityUtils:ClearContainer(mainFrame.detailsFrame)
-	
-	local y = 0
-	
-	-- Title
-	local nameText = mainFrame.detailsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-	nameText:SetPoint("TOPLEFT", 10, y)
-	nameText:SetText(addonInfo.name)
-	y = y - 30
-	
-	-- Version
-	local versionText = mainFrame.detailsFrame:CreateFontString(nil, "OVERLAY", "GameFontSmall")
-	versionText:SetPoint("TOPLEFT", 10, y)
-	versionText:SetText("Version: " .. addonInfo.version)
-	y = y - 20
-	
-	-- Author
-	local authorText = mainFrame.detailsFrame:CreateFontString(nil, "OVERLAY", "GameFontSmall")
-	authorText:SetPoint("TOPLEFT", 10, y)
-	authorText:SetText("Author: " .. addonInfo.author)
-	y = y - 20
-	
-	-- Category
-	local categoryText = mainFrame.detailsFrame:CreateFontString(nil, "OVERLAY", "GameFontSmall")
-	categoryText:SetPoint("TOPLEFT", 10, y)
-	categoryText:SetText("Category: " .. addonInfo.category)
-	y = y - 25
-	
-	-- Description
-	local descLabel = mainFrame.detailsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-	descLabel:SetPoint("TOPLEFT", 10, y)
-	descLabel:SetText("Description:")
-	y = y - 20
-	
-	local descText = mainFrame.detailsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-	descText:SetPoint("TOPLEFT", 10, y)
-	descText:SetPoint("RIGHT", -10, 0)
-	descText:SetWordWrap(true)
-	descText:SetText(addonInfo.description)
-	descText:SetHeight(60)
-	y = y - 80
-	
-	-- Enable/Disable button
-	local toggleBtn = CreateFrame("Button", nil, mainFrame.detailsFrame, "UIPanelButtonTemplate")
-	toggleBtn:SetSize(100, 25)
-	toggleBtn:SetPoint("TOPLEFT", 10, y)
-	toggleBtn:SetText(addonInfo.enabled and "Disable" or "Enable")
-	toggleBtn:SetScript("OnClick", function()
-		self:SetAddonEnabled(addonInfo.name, not addonInfo.enabled)
-		self:RefreshAddonList(mainFrame)
-		self:ShowAddonDetails(mainFrame, addonInfo)
-	end)
-	if addonInfo.enabled == nil then toggleBtn:Disable() end
-	
-	-- Status
-	local statusLabel = mainFrame.detailsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-	statusLabel:SetPoint("TOPLEFT", 120, y + 2)
-	local statusColor = addonInfo.enabled and "|cff00ff00" or "|cffff0000"
-	local statusStr = addonInfo.enabled == nil and "UNAVAILABLE" or (addonInfo.enabled and "ENABLED" or "DISABLED")
-	statusLabel:SetText("Status: " .. statusColor .. statusStr .. "|r")
-end
+	if not mainFrame or not mainFrame.detailsFrame or not addonInfo then return end
+	InfinityUIFramework:ClearContainer(mainFrame.detailsFrame)
 
-function InfinityAddonManager:Toggle()
-	if _G.InfinityAddonManagerWindow and _G.InfinityAddonManagerWindow:IsVisible() then
-		_G.InfinityAddonManagerWindow:Hide()
-	else
-		if not _G.InfinityAddonManagerWindow then
-			local window = self:CreateManagerWindow()
-			window:Show()
-		else
-			_G.InfinityAddonManagerWindow:Show()
+	local parent = mainFrame.detailsFrame
+	local title = InfinityUIFramework:CreateLabel(parent, "|cff38bdf8" .. addonInfo.name .. "|r", nil, nil, nil, "GameFontNormalLarge")
+	title:SetPoint("TOPLEFT", parent, "TOPLEFT", 16, -16)
+
+	local statusStr = addonInfo.enabled and "|cff4ade80ENABLED|r" or "|cfff87171DISABLED|r"
+	local statusBadge = InfinityUIFramework:CreateLabel(parent, statusStr)
+	statusBadge:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -16, -18)
+
+	local meta = InfinityUIFramework:CreateLabel(
+		parent,
+		string.format("|cff94a3b8Version:|r %s   |cff94a3b8Category:|r %s   |cff94a3b8Author:|r %s",
+			tostring(addonInfo.version), tostring(addonInfo.category), tostring(addonInfo.author))
+	)
+	meta:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -10)
+
+	local descCard = InfinityUIFramework:CreateCard(parent, 424, 110, "Overview")
+	descCard:SetPoint("TOPLEFT", meta, "BOTTOMLEFT", 0, -16)
+
+	local descText = InfinityUIFramework:CreateLabel(descCard, addonInfo.description or "No description available.")
+	descText:SetPoint("TOPLEFT", descCard, "TOPLEFT", 12, -30)
+	descText:SetWidth(400)
+	descText:SetWordWrap(true)
+
+	local toggleBtn = InfinityUIFramework:CreateButton(
+		parent,
+		addonInfo.enabled and "Disable Module" or "Enable Module",
+		130,
+		28,
+		function()
+			InfinityAddonManager:SetAddonEnabled(addonInfo.name, not addonInfo.enabled)
+			InfinityAddonManager:RefreshAddonList(mainFrame)
 		end
+	)
+	toggleBtn:SetPoint("TOPLEFT", descCard, "BOTTOMLEFT", 0, -16)
+
+	local opener = QUICK_OPENERS[addonInfo.name]
+	if opener then
+		local openBtn = InfinityUIFramework:CreateButton(parent, "Open Addon Window", 150, 28, function()
+			pcall(opener)
+		end, true)
+		openBtn:SetPoint("LEFT", toggleBtn, "RIGHT", 10, 0)
 	end
 end
 
-return InfinityAddonManager
+function InfinityAddonManager:Toggle()
+	if not _G.InfinityAddonManagerWindow then
+		_G.InfinityAddonManagerWindow = self:CreateManagerWindow()
+		_G.InfinityAddonManagerWindow:Show()
+		return
+	end
+	if _G.InfinityAddonManagerWindow:IsVisible() then
+		_G.InfinityAddonManagerWindow:Hide()
+	else
+		self:RefreshAddonList(_G.InfinityAddonManagerWindow)
+		_G.InfinityAddonManagerWindow:Show()
+	end
+end
 
+_G.InfinityAddonManager = InfinityAddonManager
+return InfinityAddonManager

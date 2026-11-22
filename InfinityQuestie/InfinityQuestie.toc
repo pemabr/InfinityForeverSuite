@@ -1,10 +1,9 @@
 ## Interface: 16001
 ## Title: Infinity Questie (Quest Guide)
-## Notes: Quest log, native waypoints, compass, and optional QuestieDB search and locations
+## Notes: Quest database, chains, routes, and optimization
 ## Author: Infinity Forever Suite
 ## Version: 1.1.0
 ## RequiredDeps: InfinityCore, InfinityData
-## OptionalDeps: QuestieDB, InfinityDataCollector
 
 Core\Localization.lua
 Core\QuestDatabase.lua
@@ -14,7 +13,6 @@ Modules\Tracker.lua
 Modules\Objectives.lua
 Modules\AdvancedQuestTracker.lua
 Modules\QuestieDBSync.lua
-Modules\Locations.lua
 Modules\QuestieIntegration.lua
 Modules\QuestDatabaseEngine.lua
 Modules\QuestTrackingEngine.lua

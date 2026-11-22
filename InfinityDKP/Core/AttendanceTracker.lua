@@ -2,26 +2,17 @@
 -- Track raid attendance for compensation/DKP purposes
 
 local InfinityAttendanceTracker = {}
-_G.InfinityDKPAttendanceTracker = InfinityAttendanceTracker
+_G.InfinityAttendanceTracker = InfinityAttendanceTracker
 
 InfinityAttendanceTracker.raids = {}
 InfinityAttendanceTracker.attendance_log = {}
 InfinityAttendanceTracker.callbacks = {}
 
-function InfinityAttendanceTracker:Initialize(db)
-    if db.attendanceRaids == nil then db.attendanceRaids = {} end
-    if db.attendanceLog == nil then db.attendanceLog = {} end
-    if type(db.attendanceRaids) ~= "table" or type(db.attendanceLog) ~= "table" then
-        error("Invalid saved attendance data")
-    end
-    self.raids, self.attendance_log = db.attendanceRaids, db.attendanceLog
-end
-
 function InfinityAttendanceTracker:StartRaid(raidName, difficulty)
     local raid = {
         name = raidName,
         difficulty = difficulty or "Normal",
-        start_time = time(),
+        start_time = GetTime(),
         end_time = nil,
         duration = 0,
         members = {},
@@ -39,7 +30,7 @@ function InfinityAttendanceTracker:EndRaid()
     if #self.raids == 0 then return end
     
     local raid = self.raids[#self.raids]
-    raid.end_time = time()
+    raid.end_time = GetTime()
     raid.duration = raid.end_time - raid.start_time
     
     self:TriggerCallback("raid_ended", raid.name, raid.duration)
@@ -55,7 +46,7 @@ function InfinityAttendanceTracker:MarkAttendance(playerName, present)
     raid.members[playerName] = {
         name = playerName,
         present = present,
-        join_time = time(),
+        join_time = GetTime(),
         class = select(2, UnitClass(playerName)),
     }
     
@@ -63,7 +54,7 @@ function InfinityAttendanceTracker:MarkAttendance(playerName, present)
         raid = raid.name,
         player = playerName,
         present = present,
-        time = time(),
+        time = GetTime(),
     })
     
     self:TriggerCallback("attendance_marked", playerName, present)
@@ -83,12 +74,13 @@ function InfinityAttendanceTracker:GetPlayerAttendance(playerName, limit)
     
     for i = #self.raids, math.max(1, #self.raids - limit + 1), -1 do
         local raid = self.raids[i]
-        local member = raid.members[playerName]
-        table.insert(attendance, 1, {
-            raid = raid.name,
-            present = member and member.present or false,
-            date = raid.start_time,
-        })
+        if raid.members[playerName] then
+            table.insert(attendance, 1, {
+                raid = raid.name,
+                present = raid.members[playerName].present,
+                date = raid.start_time,
+            })
+        end
     end
     
     return attendance

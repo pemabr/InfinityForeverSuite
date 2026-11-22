@@ -16,15 +16,10 @@ local function InitializeGuild()
 	local Events = InfinityGuildEvents or _G.InfinityGuildEvents
 	local UI = InfinityGuildUI or _G.InfinityGuildUI
 	
-	-- Register before modules can publish their initial data.
-	InfinityDataManager:RegisterSource("InfinityGuild", { roster = {}, dkp = {}, events = {} })
-
-	for _, module in ipairs({ Roster, DKP, Events }) do
-		local ok, err = pcall(module.Initialize, module)
-		if not ok then
-			InfinityUtils:Error("Guild module initialization failed: " .. tostring(err), "InfinityGuild")
-		end
-	end
+	-- Initialize modules
+	if Roster then pcall(function() Roster:Initialize() end) end
+	if DKP then pcall(function() DKP:Initialize() end) end
+	if Events then pcall(function() Events:Initialize() end) end
 	
 	-- Expose modules globally
 	_G.InfinityGuildRoster = Roster
@@ -32,10 +27,13 @@ local function InitializeGuild()
 	_G.InfinityGuildEvents = Events
 	_G.InfinityGuildUI = UI
 	
+	-- Register data sources
+	InfinityDataManager:RegisterSource("InfinityGuild", { roster = {}, dkp = {}, events = {} })
+	
 	-- Register slash commands
 	InfinityCommandRegistry:RegisterCommand({
-		name = "infguild",
-		aliases = {},
+		name = "guild",
+		aliases = { "g", "gm" },
 		description = "Open guild manager",
 		func = function()
 			InfinityGuildUI:Toggle()
@@ -43,19 +41,11 @@ local function InitializeGuild()
 	})
 	
 	InfinityCommandRegistry:RegisterCommand({
-		name = "infguildroster",
-		aliases = {},
+		name = "guildroster",
+		aliases = { "gr" },
 		description = "Open guild roster",
 		func = function()
-			if _G.InfinityGuildRoster and _G.InfinityGuildRoster.ScanGuildRoster then
-				_G.InfinityGuildRoster:ScanGuildRoster()
-			end
-			if not _G.InfinityGuildWindow then
-				InfinityGuildUI:Toggle()
-			else
-				_G.InfinityGuildWindow:Show()
-				InfinityGuildUI:ShowTab(_G.InfinityGuildWindow, "roster")
-			end
+			InfinityGuildUI:FocusTab("roster")
 		end,
 	})
 	
@@ -69,22 +59,25 @@ local function InitializeGuild()
 		end,
 	})
 	
-	if _G.InfinityAddonManager then
-		_G.InfinityAddonManager:RegisterAddon("InfinityGuild", "1.0.0", {
-			description = "Guild management",
-			author = "Infinity Suite Team",
-			category = "Guild",
-			enabled = true,
-			settings = {}
-		})
-	end
-	
 	InfinityUtils:Info("InfinityGuild initialized successfully", "InfinityGuild")
 	InfinityMessaging:Publish("guild_addon_loaded", { addon = "InfinityGuild" })
 end
 
 -- Hook into InfinityCore's initialization
-local frame = CreateFrame("Frame")
+
+local function RegisterAddonWithInfinityManager()
+	if _G.InfinityAddonManager then
+		_G.InfinityAddonManager:RegisterAddon(ADDON_NAME, ADDON_VERSION, {
+			description = "Guild management",
+			author = "Infinity Suite Team",
+			category = "Guild",
+			enabled = true,
+			settings = {{}}
+		})
+	end
+end
+
+	local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:SetScript("OnEvent", function(self, event, addonName)
 	if addonName == "InfinityCore" then
@@ -94,7 +87,6 @@ frame:SetScript("OnEvent", function(self, event, addonName)
 		-- Check if core is ready
 		if _G.InfinityDataManager then
 			InitializeGuild()
-			self:UnregisterEvent("ADDON_LOADED")
 		end
 	end
 end)

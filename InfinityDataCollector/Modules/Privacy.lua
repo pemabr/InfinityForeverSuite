@@ -7,11 +7,6 @@ InfinityDataCollectorPrivacy = {
 	version = 1,
 }
 
-local function Public(value)
-	if _G.issecretvalue and _G.issecretvalue(value) then return nil end
-	return value
-end
-
 -- Sanitization levels:
 -- "none"      = Share full data with everyone
 -- "guild"     = Share full data with guild members, sanitized data with others
@@ -22,18 +17,16 @@ function InfinityDataCollectorPrivacy:InitializeGuildMemberCache()
 	self.guildMembers = {}
 	
 	-- Get current guild
-	local guildName = _G.GetGuildInfo and Public(GetGuildInfo("player"))
-	if type(guildName) ~= "string" or guildName == "" or not _G.GetNumGuildMembers or not _G.GetGuildRosterInfo then
+	local guildName = GetGuildInfo("player")
+	if not guildName then
 		return
 	end
 	
 	-- Cache all guild members
-	local numMembers = Public(GetNumGuildMembers())
-	if type(numMembers) ~= "number" or numMembers ~= numMembers or numMembers < 0
-		or numMembers > 10000 or numMembers ~= math.floor(numMembers) then return end
+	local numMembers = GetNumGuildMembers()
 	for i = 1, numMembers do
-		local name = Public(GetGuildRosterInfo(i))
-		if type(name) == "string" and name ~= "" then
+		local name = GetGuildRosterInfo(i)
+		if name then
 			self.guildMembers[name] = true
 		end
 	end
@@ -41,8 +34,7 @@ end
 
 -- Check if player is in same guild
 function InfinityDataCollectorPrivacy:IsGuildMember(playerName)
-	playerName = Public(playerName)
-	if type(playerName) ~= "string" or playerName == "" then
+	if not playerName then
 		return false
 	end
 	

@@ -69,16 +69,14 @@ function DecaySystem:CheckDecaySchedule()
 end
 
 function DecaySystem:IsDecayTime()
-	local now = time()
-	local date = C_DateAndTime.GetCurrentCalendarTime()
+	local dateInfo = C_DateAndTime and C_DateAndTime.GetCurrentCalendarTime and C_DateAndTime.GetCurrentCalendarTime() or date("*t")
+	local weekday = dateInfo.weekday or dateInfo.wday or 1
+	local hour = dateInfo.hour or 0
 	
-	-- Check if it's the right day of week
-	if date.weekday ~= self.config.decayDay then
+	if weekday ~= self.config.decayDay then
 		return false
 	end
 	
-	-- Check if it's close to decay time (within 1 hour window)
-	local hour = date.hour
 	if hour == self.config.decayTime or hour == self.config.decayTime - 1 then
 		return true
 	end
@@ -141,23 +139,19 @@ function DecaySystem:ApplyDecay()
 	local decayLog = {}
 	
 	for i = 1, guildSize do
-		local memberName = GetGuildMemberInfo(i)
+		local memberName = GetGuildRosterInfo and GetGuildRosterInfo(i) or nil
 		if memberName then
-			local memberData = InfinityGuildRoster:GetMember(memberName)
+			local memberData = InfinityGuildRoster and InfinityGuildRoster:GetMember(memberName) or nil
 			if memberData then
-				-- Check if should be excluded
 				if self:ShouldExcludeFromDecay(memberName, memberData) then
 					InfinityUtils:Debug(memberName .. " excluded from decay", "DKP")
 				else
-					-- Calculate decay
 					local currentDKP = memberData.dkpBalance or 0
 					local decayAmount = currentDKP * self.config.decayRate
 					local newDKP = math.max(currentDKP - decayAmount, self.config.minimumDKP)
 
-					-- Apply decay
 					memberData.dkpBalance = newDKP
 
-					-- Log the decay
 					table.insert(decayLog, {
 						player = memberName,
 						before = currentDKP,
@@ -166,7 +160,6 @@ function DecaySystem:ApplyDecay()
 						timestamp = time(),
 					})
 
-					-- Record transaction
 					if InfinityDKP and InfinityDKP.RecordTransaction then
 						InfinityDKP:RecordTransaction({
 							type = "decay",

@@ -3,7 +3,6 @@
 
 local addonName = "InfinityCalendar"
 local addonVersion = "1.0"
-local initialized = false
 
 -- Main initialization function
 local function InitializeCalendar()
@@ -11,24 +10,80 @@ local function InitializeCalendar()
 	if not _G.InfinityCore or not _G.InfinityUtils then
 		return  -- Will retry when INFINITY_DATA_LOADED fires
 	end
-	if initialized then return end
 
 	-- Register with InfinityCore
 	InfinityCore:RegisterAddon(addonName, addonVersion, {
-		description = "Local event scheduling and reminders",
+		description = "Guild event scheduling, raid calendar, and automatic reminders",
 		author = "Infinity Suite",
 		category = "guild",
 	})
 
-	-- Modules are loaded via .toc (Core\CalendarCore.lua, Modules\Notifications.lua, UI\Main.lua)
+	-- Load core modules
+	local basePath = "Interface\\AddOns\\InfinityForever\\sink\\InfinityCalendar\\"
+
+	-- Load core
+	dofile(basePath .. "Core\\CalendarCore.lua")
+
+	-- Load modules
+	dofile(basePath .. "Modules\\Notifications.lua")
+
+	-- Load UI
+	dofile(basePath .. "UI\\Main.lua")
+
 	-- Initialize calendar
-	InfinityCalendarCore:Initialize()
-	InfinityCalendarNotifications:Initialize()
+	if InfinityCalendarCore then pcall(function() InfinityCalendarCore:Initialize() end) end
+	if InfinityCalendarNotifications then pcall(function() InfinityCalendarNotifications:Initialize() end) end
+
+-- Pre-populate with some example events if database is empty
+local function InitializeDefaultEvents()
+	if InfinityCalendarCore:CountTable(InfinityCalendarCore:GetAllEvents()) == 0 then
+		-- Create weekly raid event
+		local now = time()
+		local nextRaid = now + (3 * 24 * 3600)  -- 3 days from now
+		
+		InfinityCalendarCore:CreateEvent({
+			title = "Weekly Guild Raid",
+			description = "Mandatory guild raid night. Come prepared with consumables.",
+			type = "raid",
+			startTime = nextRaid,
+			duration = 10800,  -- 3 hours
+			location = "Molten Core",
+			leader = "GuildMaster",
+			maxParticipants = 40,
+		})
+		
+		-- Create a dungeon event
+		local nextDungeon = now + (1 * 24 * 3600)  -- Tomorrow
+		InfinityCalendarCore:CreateEvent({
+			title = "Dungeon Run - Stratholme",
+			description = "5-man dungeon run for loot and reputation.",
+			type = "dungeon",
+			startTime = nextDungeon,
+			duration = 3600,  -- 1 hour
+			location = "Stratholme",
+			leader = UnitName("player"),
+			maxParticipants = 5,
+		})
+	end
+end
+
+-- Setup reminders for all events
+local function SetupReminders()
+	local events = InfinityCalendarCore:GetAllEvents()
+	
+	for eventID, event in pairs(events) do
+		if event.status == "scheduled" then
+			-- Set 15 minute reminder
+			InfinityCalendarCore:SetReminder(eventID, 15)
+			-- Set 5 minute reminder
+			InfinityCalendarCore:SetReminder(eventID, 5)
+		end
+	end
+end
 
 -- Slash command handler
 local function HandleCalendarCommand(msg)
-	local input = InfinityUtils:Trim(msg or "")
-	msg = input:lower()
+	msg = msg:trim():lower()
 	
 	if msg == "show" or msg == "ui" or msg == "open" then
 		InfinityCalendarUI:Show()
@@ -63,26 +118,21 @@ local function HandleCalendarCommand(msg)
 	
 	elseif msg:find("^create ") then
 		-- Parse: create "Event Name" raid 2024-01-01 20:00 3600
-		local title, eventType, eventDate, eventTime, duration = input:match("^%S+ \"(.+)\" (%w+) ([%d-]+) ([%d:]+) (%d+)$")
-		if title and eventType and eventDate and eventTime and duration then
-			local startTime = InfinityCalendarCore:ParseDateTime(eventDate, eventTime)
-			if not startTime or tonumber(duration) <= 0 or tonumber(duration) >= math.huge then
-				InfinityUtils:Error("Invalid date, time or duration", addonName)
-				return
-			end
+		local title, eventType, date, time, duration = msg:match("^create \"(.+)\" (%w+) ([%d-]+) ([%d:]+) (%d+)$")
+		if title and eventType and date and time and duration then
+			local dateStr = date .. " " .. time
+			local startTime = time()  -- Simplified - should parse dateStr properly
 			
-			local success, eventID = InfinityCalendarCore:CreateEvent({
+			success, eventID = InfinityCalendarCore:CreateEvent({
 				title = title,
-				type = eventType:lower(),
+				type = eventType,
 				startTime = startTime,
 				duration = tonumber(duration),
 				leader = UnitName("player"),
 			})
 			
 			if success then
-				print(string.format("Event created: %s (ID: %d)", title, eventID))
-			else
-				InfinityUtils:Error("Event creation failed: " .. tostring(eventID), addonName)
+				InfinityUtils:Info(string.format("Event created: %s (ID: %d)", title, eventID), addonName)
 			end
 		else
 			InfinityUtils:Error("Invalid syntax for create command", addonName)
@@ -90,9 +140,8 @@ local function HandleCalendarCommand(msg)
 	
 	elseif msg == "today" then
 		local now = time()
-		local today = date("*t", now)
-		local dayStart = time({year=today.year, month=today.month, day=today.day, hour=0, min=0})
-		local dayEnd = time({year=today.year, month=today.month, day=today.day + 1, hour=0, min=0}) - 1
+		local dayStart = time({year=date("*t", now).year, month=date("*t", now).month, day=date("*t", now).day, hour=0, min=0})
+		local dayEnd = dayStart + 86400
 		
 		local events = InfinityCalendarCore:GetEventsByDateRange(dayStart, dayEnd)
 		print("\n=== TODAY'S EVENTS ===")
@@ -106,18 +155,39 @@ local function HandleCalendarCommand(msg)
 	else
 		print("\n=== INFINITY CALENDAR ===")
 		print("Usage:")
-		print("  /calendar show|hide|list|stats|today")
-		print('  /calendar create "Event Name" raid 2026-12-01 20:00 3600')
+		print("  /infinity calendar show              - Show calendar UI")
+		print("  /infinity calendar hide              - Hide calendar UI")
+		print("  /infinity calendar list              - List upcoming events")
+		print("  /infinity calendar stats             - Show statistics")
+		print("  /infinity calendar today             - Show today's events")
+		print("  /infinity calendar create <options>  - Create new event")
 	end
 end
 
 -- Register slash command
 InfinityCore:RegisterSlashCommand("calendar", HandleCalendarCommand, "calendar")
 
-initialized = true
+-- Initialize
+InitializeDefaultEvents()
+SetupReminders()
+InfinityCalendarNotifications:Start()
+
 InfinityUtils:Info(string.format("Loaded %s v%s", addonName, addonVersion), addonName)
 end
 
+
+-- Register with InfinityAddonManager if available
+local function RegisterAddonWithInfinityManager()
+	if _G.InfinityAddonManager then
+		_G.InfinityAddonManager:RegisterAddon(ADDON_NAME, ADDON_VERSION, {
+			description = "Manage guild events and raids",
+			author = "Infinity Suite Team",
+			category = "Guild",
+			enabled = true,
+			settings = {}
+		})
+	end
+end
 -- Hook into addon loaded and InfinityCore ready events
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")

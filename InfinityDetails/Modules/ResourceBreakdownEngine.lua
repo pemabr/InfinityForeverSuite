@@ -277,8 +277,8 @@ end
 
 -- Register admin commands
 if not IsTestingLua then
-    SLASH_RESOURCEBD1 = "/resourcebd"
-    SlashCmdList["RESOURCEBD"] = function(msg)
+    SLASH_RESOURCE1 = "/resource"
+    SlashCmdList["RESOURCE"] = function(msg)
         local cmd, args = msg:match("^(%S*)%s*(.*)$")
         cmd = cmd or ""
         

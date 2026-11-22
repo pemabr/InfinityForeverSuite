@@ -1,21 +1,16 @@
 -- Infinity Loot History - Advanced Loot Tracking
 -- Tracks all loot drops with player statistics and analytics
 
-local InfinityLootHistory = {
+InfinityLootHistory = {
 	lootLog = {},
 	playerStats = {},
 	maxLogSize = 10000,
 	version = 1,
 }
-_G.InfinityLootHistoryTracker = InfinityLootHistory
 
 function InfinityLootHistory:Initialize()
 	InfinityDataManager:RegisterSource("loot_history", function(data) end)
 	InfinityUtils:Info("Loot History initialized", "LootHistory")
-end
-
-function InfinityLootHistory:Clear()
-	self.lootLog, self.playerStats = {}, {}
 end
 
 function InfinityLootHistory:RecordLoot(itemID, itemName, rarity, dropSource, recipients)

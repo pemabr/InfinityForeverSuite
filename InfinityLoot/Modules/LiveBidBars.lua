@@ -91,7 +91,7 @@ function BidBars:CreateFrame()
     scroll:SetSize(self.config.width - 25, 300 - 40)
     scroll:SetPoint("TOPLEFT", frame, "TOPLEFT", 4, -30)
     
-    local content = CreateFrame("Frame", nil, scroll, BackdropTemplateMixin and "BackdropTemplate" or nil)
+    local content = CreateFrame("Frame", nil, scroll)
     content:SetSize(self.config.width - 40, 10)
     scroll:SetScrollChild(content)
     
@@ -170,7 +170,7 @@ function BidBars:RefreshDisplay()
         
         local auction_frame = content[auction_count]
         if not auction_frame then
-            auction_frame = CreateFrame("Frame", nil, content, BackdropTemplateMixin and "BackdropTemplate" or nil)
+            auction_frame = CreateFrame("Frame", nil, content)
             auction_frame:SetSize(content:GetWidth(), self.config.bar_height + 15)
             content[auction_count] = auction_frame
         end

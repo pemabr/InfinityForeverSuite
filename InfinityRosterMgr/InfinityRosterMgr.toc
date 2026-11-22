@@ -10,4 +10,3 @@
 Init.lua
 
 Modules\Roster.lua
-UI\Main.lua

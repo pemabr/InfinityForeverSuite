@@ -41,6 +41,7 @@ Modules\BidPopup.lua
 Modules\AwardDisplay.lua
 Modules\LootHistoryDB.lua
 Modules\LootValueAnalysis.lua
+Modules\LootQueueDisplay.lua
 
 Tests\AuctionTests.lua
 Tests\ComprehensiveTests.lua

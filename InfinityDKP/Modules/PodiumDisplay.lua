@@ -66,7 +66,7 @@ function PodiumDisplay:CreateFrame()
     end
     
     -- Create main frame
-    local frame = CreateFrame("Frame", "InfinityPodiumDisplay", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
+    local frame = CreateFrame("Frame", "InfinityPodiumDisplay", UIParent)
     frame:SetWidth(self.config.width)
     frame:SetHeight(self.config.height)
     frame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", self.config.position.x, -self.config.position.y)
@@ -106,7 +106,7 @@ function PodiumDisplay:CreateFrame()
     scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -50)
     scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -8, 8)
     
-    local content = CreateFrame("Frame", nil, scrollFrame, BackdropTemplateMixin and "BackdropTemplate" or nil)
+    local content = CreateFrame("Frame", nil, scrollFrame)
     content:SetWidth(frame:GetWidth() - 16)
     content:SetHeight(1)
     scrollFrame:SetScrollChild(content)
@@ -129,7 +129,7 @@ function PodiumDisplay:CreateFrame()
 end
 
 function PodiumDisplay:CreateHeaderRow(parent)
-    local header = CreateFrame("Frame", nil, parent, BackdropTemplateMixin and "BackdropTemplate" or nil)
+    local header = CreateFrame("Frame", nil, parent)
     header:SetWidth(parent:GetWidth())
     header:SetHeight(20)
     header:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, -34)
@@ -188,7 +188,7 @@ function PodiumDisplay:CreateRow(parent, index)
     row.index = index
     
     -- Row frame
-    local frame = CreateFrame("Frame", nil, parent, BackdropTemplateMixin and "BackdropTemplate" or nil)
+    local frame = CreateFrame("Frame", nil, parent)
     frame:SetWidth(parent:GetWidth())
     frame:SetHeight(20)
     frame:SetBackdrop({
@@ -428,19 +428,6 @@ end
 if not IsTestingLua then
     SLASH_PODIUM1 = "/podium"
     SlashCmdList["PODIUM"] = function(msg)
-        if not PodiumDisplay.enabled then
-            local ui = _G.InfinityDKPUI
-            if ui and type(ui.Show) == "function" and (msg == "" or msg == "show" or msg == "toggle") then
-                ui.selectedTab = "Players"
-                if (msg == "" or msg == "toggle") and type(ui.Toggle) == "function" then ui:Toggle()
-                else ui:Show() end
-            elseif ui and msg == "hide" and type(ui.Hide) == "function" then
-                ui:Hide()
-            else
-                InfinityUtils:Warning("Legacy podium is unavailable. Use the DKP Players tab for standings.", "DKP")
-            end
-            return
-        end
         local cmd, args = msg:match("^(%S*)%s*(.*)$")
         cmd = cmd or ""
         

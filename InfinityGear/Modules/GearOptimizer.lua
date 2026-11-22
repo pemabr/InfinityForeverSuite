@@ -63,7 +63,7 @@ function GearOptimizer:ScanCurrentGear()
 	for _, slot in ipairs(slots) do
 		local itemId = GetInventoryItemID("player", GetInventorySlotInfo(slot))
 		if itemId then
-			local itemName, itemLink, rarity, ilvl, minLevel, itemType = InfinityUtils:GetItemInfo(itemId)
+			local itemName, itemLink, rarity, ilvl, minLevel, itemType = GetItemInfo(itemId)
 			local stats = self:GetItemStats(itemId)
 			
 			self.gearData.currentGear[slot] = {
@@ -85,8 +85,7 @@ function GearOptimizer:GetItemStats(itemId)
 	local stats = {}
 	
 	for stat, weight in pairs(self.stats.weights) do
-		local rawStats = InfinityUtils:GetItemStats("item:" .. itemId)
-		local statValue = type(rawStats) == "table" and rawStats[stat] or nil
+		local statValue = select(2, GetItemStats("item:" .. itemId))
 		if statValue then
 			stats[stat] = statValue
 		end
@@ -119,63 +118,49 @@ function GearOptimizer:CalculateOptimizationScore()
 	end
 	
 	local avgIlvl = gearCount > 0 and (totalIlvl / gearCount) or 0
-	
-	-- Score formula: 0-100 scaled against Forever current tier baseline
-	self.gearData.optimization = math.min(100, math.floor((avgIlvl / 500) * 100 + 0.5))
+
+	-- Classic / WoW Forever Tier 3 BiS item level benchmark (~86)
+	local baseScore = math.min(85, (avgIlvl / 86) * 85)
+	local enchantBonus = gearCount > 0 and ((enchantedCount / gearCount) * 15) or 0
+	self.gearData.optimization = math.min(100, math.floor(baseScore + enchantBonus + 0.5))
 end
 
 -- Called when equipment changes
 function GearOptimizer:OnEquipmentChanged(slot)
 	self:ScanCurrentGear()
-	InfinityMessaging:Publish("gear_optimization_changed", self.gearData.optimization)
+	if InfinityMessaging and InfinityMessaging.Publish then
+		InfinityMessaging:Publish("gear_optimization_changed", self.gearData.optimization)
+	end
 end
 
--- Find upgrade recommendations by scanning player bags for higher iLvl items matching slot equipLoc
+-- Find real upgrade recommendations based on lowest item-level equipped slots
 function GearOptimizer:GetUpgradeRecommendations()
 	local recommendations = {}
-	local slotByEquipLoc = {
-		INVTYPE_HEAD = "HeadSlot",
-		INVTYPE_NECK = "NeckSlot",
-		INVTYPE_SHOULDER = "ShoulderSlot",
-		INVTYPE_CHEST = "ChestSlot",
-		INVTYPE_ROBE = "ChestSlot",
-		INVTYPE_WAIST = "WaistSlot",
-		INVTYPE_LEGS = "LegsSlot",
-		INVTYPE_FEET = "FeetSlot",
-		INVTYPE_WRIST = "WristSlot",
-		INVTYPE_HAND = "HandsSlot",
-		INVTYPE_FINGER = "Finger0Slot",
-		INVTYPE_TRINKET = "Trinket0Slot",
-		INVTYPE_CLOAK = "BackSlot",
-		INVTYPE_WEAPON = "MainHandSlot",
-		INVTYPE_2HWEAPON = "MainHandSlot",
-		INVTYPE_WEAPONMAINHAND = "MainHandSlot",
-		INVTYPE_WEAPONOFFHAND = "SecondaryHandSlot",
-		INVTYPE_SHIELD = "SecondaryHandSlot",
-		INVTYPE_HOLDABLE = "SecondaryHandSlot",
-	}
-	for bag = 0, NUM_BAG_SLOTS or 4 do
-		for slot = 1, InfinityUtils:GetBagSlots(bag) do
-			local link = InfinityUtils:GetBagItemLink(bag, slot)
-			if link then
-				local name, _, rarity, ilvl, _, _, _, _, equipLoc = InfinityUtils:GetItemInfo(link)
-				local targetSlot = equipLoc and slotByEquipLoc[equipLoc]
-				local equipped = targetSlot and self.gearData.currentGear[targetSlot]
-				if targetSlot and ilvl and (not equipped or ilvl > (equipped.ilvl or 0)) then
-					table.insert(recommendations, {
-						slot = targetSlot,
-						itemName = name,
-						itemLink = link,
-						ilvl = ilvl,
-						rarity = rarity,
-						ilvlGain = ilvl - (equipped and equipped.ilvl or 0),
-						source = "bag",
-					})
-				end
+	for slot, currentItem in pairs(self.gearData.currentGear) do
+		if currentItem then
+			local ilvl = currentItem.ilvl or 0
+			local targetSource = nil
+			if ilvl < 55 then
+				targetSource = "Level 60 Pre-BiS Dungeons (Stratholme / Scholomance / UBRS)"
+			elseif ilvl < 66 then
+				targetSource = "Molten Core / Onyxia / Zul'Gurub"
+			elseif ilvl < 76 then
+				targetSource = "Blackwing Lair / Temple of Ahn'Qiraj (AQ40)"
+			elseif ilvl < 85 then
+				targetSource = "Naxxramas Tier 3"
+			end
+			if targetSource then
+				table.insert(recommendations, {
+					slot = slot,
+					currentName = currentItem.name or "Equipped Item",
+					currentIlvl = ilvl,
+					recommendedSource = targetSource,
+					priority = math.max(1, 86 - ilvl),
+				})
 			end
 		end
 	end
-	table.sort(recommendations, function(a, b) return (a.ilvlGain or 0) > (b.ilvlGain or 0) end)
+	table.sort(recommendations, function(a, b) return a.priority > b.priority end)
 	return recommendations
 end
 

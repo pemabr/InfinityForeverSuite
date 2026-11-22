@@ -21,15 +21,6 @@ InfinityPerformanceAnalytics.LootAnalytics = {
 
 local Analytics = InfinityPerformanceAnalytics.LootAnalytics
 
-local function TableFind(tbl, value)
-    for i, v in ipairs(tbl) do
-        if v == value then
-            return i
-        end
-    end
-    return nil
-end
-
 function Analytics:CachePlayerStats()
     self.cache.player_loot_counts = {}
     self.cache.player_gp_spent = {}
@@ -340,7 +331,7 @@ function Analytics:PrintGPTrend()
     local dates = {}
     for _, rarity_data in pairs(trend) do
         for date, _ in pairs(rarity_data) do
-            if not TableFind(dates, date) then
+            if not table.find(dates, date) then
                 table.insert(dates, date)
             end
         end

@@ -1,86 +1,87 @@
 -- InfinityCore Character Management UI
--- Display character tracking and main/twink linking
+-- Character profile card, main/alt linking, and account roster table
 
 InfinityCharacterUI = {}
 
 function InfinityCharacterUI:CreatePanel(parentFrame)
 	local panel = CreateFrame("Frame", nil, parentFrame)
-	panel:SetSize(600, 350)
-	
-	-- Title
-	local title = InfinityUIFramework:CreateLabel(panel, 
-		INFINITY_COLORS.PRIMARY .. "Character Management" .. INFINITY_COLORS.RESET)
-	title:SetPoint("TOPLEFT", 10, -10)
-	title:SetFont("Fonts/FRIZQT__.TTF", 14, "")
-	
-	local y = -35
-	
-	-- Current character info
-	local currentChar = InfinityCharacterManager and InfinityCharacterManager:GetCurrentCharacter()
-	if not currentChar then
-		local waitLabel = InfinityUIFramework:CreateLabel(panel, "Waiting for character data...")
-		waitLabel:SetPoint("TOPLEFT", 10, y)
-		return panel
-	end
-	local currentInfo = InfinityUIFramework:CreateLabel(panel,
-		INFINITY_COLORS.SECONDARY .. currentChar.name .. INFINITY_COLORS.RESET .. 
-		" - Level " .. currentChar.level .. " " .. tostring(currentChar.class))
-	currentInfo:SetPoint("TOPLEFT", 10, y)
-	if not currentChar.isMain then
-		local makeMainBtn = InfinityUIFramework:CreateButton(panel, "Set as Main", 100, 20, function()
-			InfinityCharacterManager:MarkAsMain(InfinityCharacterManager:GetCharacterKey(currentChar.name, currentChar.realm))
-		end)
-		makeMainBtn:SetPoint("TOPRIGHT", -20, y)
-	end
-	y = y - 20
-	
-	local charType = currentChar.isMain and "MAIN" or "TWINK"
-	local typeColor = currentChar.isMain and INFINITY_COLORS.SUCCESS or INFINITY_COLORS.WARNING
-	local typeLabel = InfinityUIFramework:CreateLabel(panel,
-		"Type: " .. typeColor .. charType .. INFINITY_COLORS.RESET)
-	typeLabel:SetPoint("TOPLEFT", 10, y)
-	y = y - 20
-	
-	if currentChar.linkedTo then
-		local linkedLabel = InfinityUIFramework:CreateLabel(panel,
-			"Linked to: " .. INFINITY_COLORS.INFO .. currentChar.linkedTo .. INFINITY_COLORS.RESET)
-		linkedLabel:SetPoint("TOPLEFT", 10, y)
-		y = y - 20
-	end
-	
-	y = y - 10
-	
-	-- All characters
-	local allTitle = InfinityUIFramework:CreateLabel(panel, "Your Characters:")
-	allTitle:SetPoint("TOPLEFT", 10, y)
-	y = y - 20
-	
-	local characters = InfinityCharacterManager:GetAllCharacters()
-	for i, char in ipairs(characters) do
-		if i > 10 then break end
-		
-		local charStr = char.name .. " - Level " .. char.level .. " " .. char.class
-		if char.isMain then
-			charStr = charStr .. " " .. INFINITY_COLORS.SUCCESS .. "[MAIN]" .. INFINITY_COLORS.RESET
-		elseif char.linkedTo then
-			charStr = charStr .. " " .. INFINITY_COLORS.WARNING .. "[" .. char.linkedTo .. "]" .. INFINITY_COLORS.RESET
+	panel:SetSize(640, 360)
+
+	local currentChar = InfinityCharacterManager and InfinityCharacterManager:GetCurrentCharacter() or {
+		name = UnitName and UnitName("player") or "Player",
+		level = UnitLevel and UnitLevel("player") or 60,
+		class = select and select(2, UnitClass("player")) or "WARRIOR",
+		isMain = true,
+	}
+
+	local _, _, _, classHex = InfinityUIFramework:GetClassColor(currentChar.class)
+	local headerCard = InfinityUIFramework:CreateCard(panel, 624, 90, "Active Character Profile")
+	headerCard:SetPoint("TOPLEFT", panel, "TOPLEFT", 8, -8)
+
+	local charInfo = InfinityUIFramework:CreateLabel(
+		headerCard,
+		string.format("%s%s|r  —  Level %d %s", classHex, currentChar.name, currentChar.level or 60, tostring(currentChar.class)),
+		nil, nil, nil, "GameFontNormalLarge"
+	)
+	charInfo:SetPoint("TOPLEFT", headerCard, "TOPLEFT", 12, -30)
+
+	local roleBadge = currentChar.isMain and "|cff4ade80[MAIN CHARACTER]|r" or ("|cfffbbf24[ALT -> " .. tostring(currentChar.linkedTo or "Unlinked") .. "]|r")
+	local roleLabel = InfinityUIFramework:CreateLabel(headerCard, roleBadge)
+	roleLabel:SetPoint("TOPLEFT", charInfo, "BOTTOMLEFT", 0, -6)
+
+	-- Quick Set Main / Link Alt controls
+	local linkInput = InfinityUIFramework:CreateInputBox(headerCard, 130, 22)
+	linkInput:SetPoint("TOPRIGHT", headerCard, "TOPRIGHT", -196, -34)
+	linkInput:SetText(currentChar.linkedTo or "")
+
+	local linkBtn = InfinityUIFramework:CreateButton(headerCard, "Link to Main", 92, 22, function()
+		local mainName = linkInput:GetText()
+		if mainName and mainName ~= "" and InfinityCharacterManager and InfinityCharacterManager.LinkTwinkToMain then
+			InfinityCharacterManager:LinkTwinkToMain(currentChar.name, mainName)
+			InfinityUIFramework:ShowNotification("Linked " .. currentChar.name .. " -> " .. mainName, 2.5)
 		end
-		
-		local charLabel = InfinityUIFramework:CreateLabel(panel, charStr)
-		charLabel:SetPoint("TOPLEFT", 20, y)
-		y = y - 15
+	end)
+	linkBtn:SetPoint("LEFT", linkInput, "RIGHT", 6, 0)
+
+	local setMainBtn = InfinityUIFramework:CreateButton(headerCard, "Set Main", 80, 22, function()
+		if InfinityCharacterManager and InfinityCharacterManager.SetCharacterAsMain then
+			InfinityCharacterManager:SetCharacterAsMain(currentChar.name)
+			InfinityUIFramework:ShowNotification(currentChar.name .. " set as Main.", 2.5)
+		end
+	end, true)
+	setMainBtn:SetPoint("LEFT", linkBtn, "RIGHT", 6, 0)
+
+	-- Account characters list card
+	local listCard = InfinityUIFramework:CreateCard(panel, 624, 244, "Tracked Account Characters")
+	listCard:SetPoint("TOPLEFT", headerCard, "BOTTOMLEFT", 0, -10)
+
+	local characters = InfinityCharacterManager and InfinityCharacterManager:GetAllCharacters() or {}
+	local y = -32
+	for i, char in ipairs(characters) do
+		if i > 7 then break end
+		local row = InfinityUIFramework:CreateListRow(listCard, 600, 24, i)
+		row:SetPoint("TOPLEFT", listCard, "TOPLEFT", 12, y)
+
+		local _, _, _, cHex = InfinityUIFramework:GetClassColor(char.class)
+		local left = InfinityUIFramework:CreateLabel(row, string.format("%s%s|r  (Lv %d %s)", cHex, char.name, char.level or 60, tostring(char.class)))
+		left:SetPoint("LEFT", row, "LEFT", 8, 0)
+
+		local tag = char.isMain and "|cff4ade80MAIN|r" or (char.linkedTo and ("|cfffbbf24ALT -> " .. char.linkedTo .. "|r") or "|cff94a3b8ALT|r")
+		local right = InfinityUIFramework:CreateLabel(row, tag)
+		right:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+
+		y = y - 26
 	end
-	
-	-- Character stats
-	y = y - 20
-	local stats = InfinityCharacterManager:GetCharacterStats()
-	local statsLabel = InfinityUIFramework:CreateLabel(panel,
-		"Total: " .. stats.totalCharacters .. " characters | " ..
-		stats.mains .. " mains | " ..
-		stats.twinks .. " twinks")
-	statsLabel:SetPoint("TOPLEFT", 10, y)
-	
+
+	local stats = InfinityCharacterManager and InfinityCharacterManager:GetCharacterStats() or { totalCharacters = #characters, mains = 1, twinks = 0 }
+	local statsLabel = InfinityUIFramework:CreateLabel(
+		listCard,
+		string.format("|cff94a3b8Total: %d characters  |  %d Mains  |  %d Alts|r", stats.totalCharacters or 0, stats.mains or 0, stats.twinks or 0)
+	)
+	statsLabel:SetPoint("BOTTOMLEFT", listCard, "BOTTOMLEFT", 12, 8)
+
 	return panel
 end
 
+_G.InfinityCharacterUI = InfinityCharacterUI
 return InfinityCharacterUI

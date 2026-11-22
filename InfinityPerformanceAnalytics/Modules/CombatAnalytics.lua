@@ -14,16 +14,7 @@ InfinityPerformanceAnalytics.CombatAnalytics = {
     db = {
         players = {},
         encounters = {},
-        combat_session = {
-            start_time = 0,
-            end_time = 0,
-            boss_name = "Unknown",
-            encounter_id = nil,
-            duration = 0,
-            success = false,
-            total_damage = 0,
-            total_healing = 0,
-        }
+        combat_session = nil
     },
     
     config = {

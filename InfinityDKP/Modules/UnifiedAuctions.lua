@@ -26,15 +26,6 @@ InfinityDKPUnifiedAuctions.callbacks = {}
 -- Next auction ID
 InfinityDKPUnifiedAuctions.nextAuctionId = 1
 
-local function PositiveInteger(value, maximum)
-	return type(value) == "number" and value > 0 and value <= maximum and value == math.floor(value)
-end
-
-local function Public(value)
-	if _G.issecretvalue and _G.issecretvalue(value) then return nil end
-	return value
-end
-
 -- ============================================================================
 -- AUCTION MANAGEMENT
 -- ============================================================================
@@ -46,22 +37,16 @@ end
 -- @param minimumBid: number (optional)
 -- @return auctionId: number or nil
 function InfinityDKPUnifiedAuctions:CreateAuction(itemLink, startingBid, duration, minimumBid)
-	if (_G.issecretvalue and _G.issecretvalue(itemLink)) or type(itemLink) ~= "string"
-		or itemLink:match("^%s*$") or #itemLink > 1024 then
-		InfinityUtils:Warning("Invalid auction item.", "UnifiedAuctions")
-		return nil
-	end
-	startingBid = startingBid == nil and 1 or tonumber(Public(startingBid))
-	duration = duration == nil and self.config.defaultDuration or tonumber(Public(duration))
-	minimumBid = minimumBid == nil and startingBid or tonumber(Public(minimumBid))
-	if not PositiveInteger(startingBid, 1000000000) or not PositiveInteger(minimumBid, 1000000000)
-		or not PositiveInteger(duration, 86400) then
-		InfinityUtils:Warning("Auction bids and duration must be positive integers within the supported limits.", "UnifiedAuctions")
+	if not itemLink then
 		return nil
 	end
 	
 	local auctionId = self.nextAuctionId
 	self.nextAuctionId = self.nextAuctionId + 1
+	
+	startingBid = tonumber(startingBid) or 1
+	duration = tonumber(duration) or self.config.defaultDuration
+	minimumBid = tonumber(minimumBid) or startingBid
 	
 	-- Parse item name from link
 	local itemName = self:GetItemNameFromLink(itemLink)
@@ -81,9 +66,8 @@ function InfinityDKPUnifiedAuctions:CreateAuction(itemLink, startingBid, duratio
 		bids = {}, -- Unified bid pool (no tiers)
 		winner = nil,
 		winningBid = nil,
-		startEpoch = time(),
-		createdBy = UnitName and Public(UnitName("player")) or nil,
-		guildName = GetGuildInfo and Public(GetGuildInfo("player")) or nil,
+		createdBy = UnitName("player"),
+		guildName = GetGuildInfo("player"),
 	}
 	
 	table.insert(self.activeAuctions, auction)
@@ -102,10 +86,7 @@ end
 -- @param bidAmount: number
 -- @return success: bool
 function InfinityDKPUnifiedAuctions:PlaceBid(auctionId, playerName, bidAmount)
-	auctionId, playerName, bidAmount = Public(auctionId), Public(playerName), tonumber(Public(bidAmount))
-	if not PositiveInteger(auctionId, 1000000000) or type(playerName) ~= "string" or playerName == ""
-		or not PositiveInteger(bidAmount, 1000000000) then
-		InfinityUtils:Warning("Invalid auction bid.", "UnifiedAuctions")
+	if not auctionId or not playerName or not bidAmount then
 		return false
 	end
 	
@@ -124,16 +105,21 @@ function InfinityDKPUnifiedAuctions:PlaceBid(auctionId, playerName, bidAmount)
 	end
 	
 	-- Check if auction is still active
-	if GetTime() >= auction.endTime then
+	if GetTime() > auction.endTime then
 		InfinityUtils:Warning("Auction has ended", "UnifiedAuctions")
 		return false
 	end
 	
+	bidAmount = tonumber(bidAmount) or 0
+	
 	-- Validate bid amount
-	local required = auction.highestBidder and (auction.currentHighBid + self.config.minBidIncrement)
-		or math.max(auction.startingBid, auction.minimumBid)
-	if bidAmount < required then
-		InfinityUtils:Warning("Minimum bid: " .. required, "UnifiedAuctions")
+	if bidAmount <= auction.currentHighBid then
+		InfinityUtils:Warning("Bid must be higher than current bid (" .. auction.currentHighBid .. ")", "UnifiedAuctions")
+		return false
+	end
+	
+	if bidAmount < (auction.currentHighBid + self.config.minBidIncrement) then
+		InfinityUtils:Warning("Bid increment too small (minimum " .. self.config.minBidIncrement .. ")", "UnifiedAuctions")
 		return false
 	end
 	
@@ -210,21 +196,6 @@ function InfinityDKPUnifiedAuctions:CloseAuction(auctionId)
 	return auction.winner
 end
 
-function InfinityDKPUnifiedAuctions:CancelAuction(auctionId)
-	for index, auction in ipairs(self.activeAuctions) do
-		if auction.id == auctionId then
-			auction.status = "cancelled"
-			auction.endTime = GetTime()
-			table.insert(self.auctionHistory, auction)
-			table.remove(self.activeAuctions, index)
-			self:TriggerCallback("auction_cancelled", auctionId)
-			return true
-		end
-	end
-	InfinityUtils:Warning("Auction not found: " .. tostring(auctionId), "UnifiedAuctions")
-	return false
-end
-
 -- ============================================================================
 -- AUCTION QUERIES
 -- ============================================================================
@@ -299,8 +270,8 @@ function InfinityDKPUnifiedAuctions:GetPlayerAuctionStats(playerName)
 		if auction.winner == playerName then
 			wins = wins + 1
 			totalSpent = totalSpent + auction.winningBid
-			lastWin = auction.startEpoch and
-				date("%Y-%m-%d %H:%M:%S", auction.startEpoch) or "Never"
+			lastWin = auction.startTime and 
+				date("%Y-%m-%d %H:%M:%S", auction.startTime) or "Never"
 		end
 	end
 	
@@ -315,12 +286,11 @@ end
 --- Get guild auction statistics
 -- @return stats: table
 function InfinityDKPUnifiedAuctions:GetGuildAuctionStats()
-	local totalAuctions = 0
+	local totalAuctions = #self.auctionHistory
 	local totalDKPSpent = 0
 	local playersParticipated = {}
 	
 	for _, auction in ipairs(self.auctionHistory) do
-		if auction.status == "closed" then totalAuctions = totalAuctions + 1 end
 		if auction.winner then
 			totalDKPSpent = totalDKPSpent + auction.winningBid
 			playersParticipated[auction.winner] = true
@@ -346,16 +316,13 @@ function InfinityDKPUnifiedAuctions:ExportAuctionHistory(limit)
 	
 	for i = #self.auctionHistory, math.max(1, #self.auctionHistory - limit + 1), -1 do
 		local a = self.auctionHistory[i]
-		if a.status == "cancelled" then
-			export = export .. string.format("%s | %s | Cancelled\n",
-				a.startEpoch and date("%Y-%m-%d %H:%M:%S", a.startEpoch) or "?", a.itemName)
-		elseif a.winner then
+		if a.winner then
 			export = export .. string.format("%s | %s | %s → %d DKP\n",
-				a.startEpoch and date("%Y-%m-%d %H:%M:%S", a.startEpoch) or "?",
+				a.startTime and date("%Y-%m-%d %H:%M:%S", a.startTime) or "?", 
 				a.itemName, a.winner, a.winningBid)
 		else
 			export = export .. string.format("%s | %s | No bids\n",
-				a.startEpoch and date("%Y-%m-%d %H:%M:%S", a.startEpoch) or "?",
+				a.startTime and date("%Y-%m-%d %H:%M:%S", a.startTime) or "?",
 				a.itemName)
 		end
 	end
@@ -373,7 +340,7 @@ end
 function InfinityDKPUnifiedAuctions:GetItemNameFromLink(itemLink)
 	-- Extract name from |h[name]|h pattern
 	local name = itemLink:match("|h%[(.-)%]|h")
-	return name or itemLink
+	return name or "Unknown Item"
 end
 
 --- Count entries in table

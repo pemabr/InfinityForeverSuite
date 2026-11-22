@@ -20,8 +20,7 @@ function InfinityGearTracker:ScanEquipment()
 	-- Scan all equipment slots
 	local slots = {
 		"HeadSlot", "NeckSlot", "ShoulderSlot", "ChestSlot", "WaistSlot", "LegsSlot", 
-		"FeetSlot", "WristSlot", "HandsSlot", "Finger0Slot", "Finger1Slot",
-		"Trinket0Slot", "Trinket1Slot", "BackSlot",
+		"FeetSlot", "WristSlot", "HandsSlot", "FingerSlot", "TrinketSlot", "BackSlot", 
 		"MainHandSlot", "SecondaryHandSlot"
 	}
 	
@@ -30,8 +29,8 @@ function InfinityGearTracker:ScanEquipment()
 		if slotID then
 			local itemLink = GetInventoryItemLink("player", slotID)
 			if itemLink then
-				local itemID = InfinityUtils:GetItemIDFromLink(itemLink)
-				local itemName, _, itemRarity, itemLevel = InfinityUtils:GetItemInfo(itemID)
+				local itemID = GetItemInfoFromHyperlink(itemLink)
+				local itemName, _, itemRarity, itemLevel = GetItemInfo(itemID)
 				
 				if itemName then
 					self.equipment[slotName] = {
@@ -103,11 +102,11 @@ function InfinityGearTracker:GetEquipmentByRarity(rarity)
 end
 
 function InfinityGearTracker:CompareItems(item1Link, item2Link)
-	local id1 = InfinityUtils:GetItemIDFromLink(item1Link)
-	local id2 = InfinityUtils:GetItemIDFromLink(item2Link)
+	local id1 = GetItemInfoFromHyperlink(item1Link)
+	local id2 = GetItemInfoFromHyperlink(item2Link)
 	
-	local name1, _, rarity1, level1 = InfinityUtils:GetItemInfo(id1)
-	local name2, _, rarity2, level2 = InfinityUtils:GetItemInfo(id2)
+	local name1, _, rarity1, level1 = GetItemInfo(id1)
+	local name2, _, rarity2, level2 = GetItemInfo(id2)
 	
 	local comparison = {
 		item1 = {

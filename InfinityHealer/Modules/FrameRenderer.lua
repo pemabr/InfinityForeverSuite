@@ -166,7 +166,7 @@ function FrameRenderer:LayoutRaidFrames(groupSize)
 	groupSize = groupSize or 40
 	
 	if not self.mainWindow then
-		self.mainWindow = CreateFrame("Frame", "InfinityHealer_RaidWindow", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
+		self.mainWindow = CreateFrame("Frame", "InfinityHealer_RaidWindow", UIParent)
 		self.mainWindow:SetSize(400, 500)
 		self.mainWindow:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 50, -50)
 		self.mainWindow:SetBackdrop({
@@ -251,7 +251,7 @@ function FrameRenderer:LayoutCompactFrames(groupSize)
 	groupSize = groupSize or 40
 	
 	if not self.mainWindow then
-		self.mainWindow = CreateFrame("Frame", "InfinityHealer_CompactWindow", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
+		self.mainWindow = CreateFrame("Frame", "InfinityHealer_CompactWindow", UIParent)
 		self.mainWindow:SetSize(120, 400)
 		self.mainWindow:SetPoint("RIGHT", UIParent, "RIGHT", -20, 0)
 		self.mainWindow:SetBackdrop({

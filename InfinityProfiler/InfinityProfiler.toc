@@ -2,7 +2,7 @@
 ## Title: Infinity Profiler
 ## Author: Infinity Suite
 ## Version: 1.0
-## Notes: On-demand loaded-addon CPU and memory snapshots.
+## Notes: Addon-level performance profiling and monitoring system for Infinity Suite
 ## RequiredDeps: InfinityCore
 ## SavedVariables: InfinityProfilerDB
 

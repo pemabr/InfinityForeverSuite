@@ -43,7 +43,7 @@ function FocusIndicatorEngine:CreateFocusFrame()
     end
     
     -- Create main frame
-    local frame = CreateFrame("Frame", "InfinityFocusFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
+    local frame = CreateFrame("Frame", "InfinityFocusFrame", UIParent)
     frame:SetSize(self.config.focus_frame_size, self.config.focus_frame_size)
     frame:SetPoint("CENTER", self.config.position.x, self.config.position.y)
     

@@ -1,11 +1,10 @@
 ## Interface: 16001
 ## Title: |cff00ccffInfinity|r Gather
-## Notes: Gathering positions, waypoints, and optional ForeverCore world-map markers.
+## Notes: Resource gathering, route optimization, and skill-up tracking for the Infinity Suite.
 ## Author: Infinity Suite Team
 ## Version: 1.0.0
 ## SavedVariables: InfinityInfinityGatherDB
 ## Depends: InfinityCore
-## OptionalDeps: ForeverCore, GatherMate2, InfinityDataCollector
 ## X-Category: Utility
 
 Localization\Localization.lua
@@ -22,7 +21,6 @@ Modules\GatherAnalyticsEngine.lua
 Modules\GatheringDatabase.lua
 
 UI\MainUI.lua
-UI\MapPins.lua
 
 Init.lua
 

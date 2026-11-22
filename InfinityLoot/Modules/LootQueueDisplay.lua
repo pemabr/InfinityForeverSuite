@@ -37,22 +37,14 @@ function LootQueueDisplay:CreateQueueWindow()
 	-- Create main frame
 	local frame = CreateFrame("Frame", "InfinityLootQueueFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	frame:SetSize(350, 300)
-	frame:SetPoint("BottomRight", -20, 200)
+	frame:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -20, 200)
 	
-	-- Set backdrop
-	frame:SetBackdrop({
-		bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-		edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-		tile = true,
-		tileSize = 16,
-		edgeSize = 16,
-		insets = {left = 4, right = 4, top = 4, bottom = 4}
-	})
-	frame:SetBackdropColor(0.05, 0.05, 0.05, 0.8)
-	frame:SetBackdropBorderColor(0.5, 0.5, 0.5, 0.8)
+	if InfinityUIFramework and InfinityUIFramework.ApplyBackdrop then
+		InfinityUIFramework:ApplyBackdrop(frame, 0.06, 0.08, 0.12, 0.94, 0.22, 0.30, 0.42, 0.95)
+	end
 	
 	-- Title bar
-	local titleText = frame:CreateFontString(nil, "OVERLAY", (GameFontBold and "GameFontBold" or "GameFontNormalLarge"))
+	local titleText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 	titleText:SetPoint("TOPLEFT", 10, -10)
 	titleText:SetText("|cffffd700Loot Queue|r")
 	titleText:SetWidth(300)
@@ -69,7 +61,7 @@ function LootQueueDisplay:CreateQueueWindow()
 	scrollFrame:SetPoint("TOPLEFT", 10, -30)
 	scrollFrame:SetSize(330, 260)
 	
-	local content = CreateFrame("Frame", nil, scrollFrame, BackdropTemplateMixin and "BackdropTemplate" or nil)
+	local content = CreateFrame("Frame", nil, scrollFrame)
 	content:SetSize(330, 1)
 	scrollFrame:SetScrollChild(content)
 	
@@ -149,7 +141,7 @@ function LootQueueDisplay:RefreshQueueWindow()
 end
 
 function LootQueueDisplay:CreateQueueItemDisplay(parent, entry, yOffset)
-	local itemFrame = CreateFrame("Frame", nil, parent, BackdropTemplateMixin and "BackdropTemplate" or nil)
+	local itemFrame = CreateFrame("Frame", nil, parent)
 	itemFrame:SetSize(320, 45)
 	itemFrame:SetPoint("TOPLEFT", 0, yOffset)
 	

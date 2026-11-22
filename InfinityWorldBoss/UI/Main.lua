@@ -1,109 +1,153 @@
-local UI = {}
-_G.InfinityWorldBossUI = UI
+-- InfinityWorldBoss UI — World Boss Respawn Tracker Window
+-- Modern flat UIFramework with KPI tiles, live respawn StatusBars, and quick Kill Recording
 
-function UI:Initialize()
-	if self.frame then return end
-	self.frame = InfinityUIFramework:CreateListWindow("InfinityWorldBossFrame", "World Boss estimates", 700, 450)
-	local function Input(labelText, x, offset, width, max)
-		local label = InfinityUIFramework:CreateLabel(self.frame, labelText)
-		label:SetPoint("TOPLEFT", x, -43)
-		local box = CreateFrame("EditBox", nil, self.frame, "InputBoxTemplate")
-		box:SetSize(width, 20)
-		box:SetPoint("TOPLEFT", x + offset, -38)
-		box:SetAutoFocus(false)
-		box:SetMaxLetters(max)
-		return box
-	end
-	self.idInput = Input("ID", 15, 25, 65, 10)
-	self.intervalInput = Input("Seconds", 112, 63, 65, 10)
-	self.nameInput = Input("Name", 250, 43, 130, 100)
-	local function Number(box)
-		local value = box:GetText()
-		if _G.issecretvalue and _G.issecretvalue(value) then return nil end
-		if type(value) ~= "string" or not value:match("^%s*%d+%s*$") then return nil end
-		return tonumber(value)
-	end
-	local function Button(text, x, width, action)
-		local button = InfinityUIFramework:CreateButton(self.frame, text, width, 22, action)
-		button:SetPoint("TOPLEFT", x, -38)
-		return button
-	end
-	self.addButton = Button("Add", 430, 50, function()
-		self.confirmAction = nil
-		local name = self.nameInput:GetText()
-		if _G.issecretvalue and _G.issecretvalue(name) then name = nil end
-		local ok, problem = InfinityWorldBossCore:RegisterBoss(Number(self.idInput), name, Number(self.intervalInput))
-		if not ok then InfinityUtils:Warning(problem, "WorldBoss") else self:Refresh() end
+InfinityWorldBossUI = {
+	mainFrame = nil,
+	timerListFrame = nil,
+	timers = {},
+}
+
+local CLASSIC_WORLD_BOSSES = {
+	{ id = "azuregos", name = "Azuregos", zone = "Azshara" },
+	{ id = "kazzak", name = "Lord Kazzak", zone = "Blasted Lands" },
+	{ id = "emeriss", name = "Emeriss", zone = "Duskwood" },
+	{ id = "lethon", name = "Lethon", zone = "Hinterlands" },
+	{ id = "taerar", name = "Taerar", zone = "Ashenvale" },
+	{ id = "ysondre", name = "Ysondre", zone = "Feralas" },
+}
+
+function InfinityWorldBossUI:Initialize()
+	if self.mainFrame then return self.mainFrame end
+
+	local frame = InfinityUIFramework:CreateFrame(
+		"InfinityWorldBossFrame",
+		UIParent,
+		600,
+		460,
+		"Infinity World Boss Tracker",
+		"Spawn Windows & Guild Alerts"
+	)
+	frame:SetPoint("CENTER")
+
+	-- KPI strip
+	frame.mTracked = InfinityUIFramework:CreateMetricTile(frame, 138, 56, "Tracked", 6, "|cff38bdf8")
+	frame.mTracked:SetPoint("TOPLEFT", frame, "TOPLEFT", 12, -46)
+	frame.mAlive = InfinityUIFramework:CreateMetricTile(frame, 138, 56, "Likely Up", 0, "|cff4ade80")
+	frame.mAlive:SetPoint("LEFT", frame.mTracked, "RIGHT", 8, 0)
+	frame.mRespawn = InfinityUIFramework:CreateMetricTile(frame, 138, 56, "Respawning", 0, "|cfffbbf24")
+	frame.mRespawn:SetPoint("LEFT", frame.mAlive, "RIGHT", 8, 0)
+	frame.mWatched = InfinityUIFramework:CreateMetricTile(frame, 138, 56, "Active Timers", 0, "|cffa855f7")
+	frame.mWatched:SetPoint("LEFT", frame.mRespawn, "RIGHT", 8, 0)
+
+	-- List card
+	local listCard = InfinityUIFramework:CreateCard(frame, 576, 294, "World Boss Spawn Status")
+	listCard:SetPoint("TOPLEFT", frame.mTracked, "BOTTOMLEFT", 0, -10)
+
+	local scroll = InfinityUIFramework:CreateScrollFrame(listCard, "InfinityWorldBossScroll", 560, 254)
+	scroll:SetPoint("TOPLEFT", listCard, "TOPLEFT", 8, -32)
+	self.timerListFrame = scroll.content
+
+	local refreshBtn = InfinityUIFramework:CreateButton(frame, "Refresh Timers", 116, 26, function()
+		InfinityWorldBossUI:RefreshTimerList()
+	end, true)
+	refreshBtn:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 12, 12)
+
+	local shareBtn = InfinityUIFramework:CreateButton(frame, "Announce to Guild", 136, 26, function()
+		local active = (_G.InfinityWorldBossTimers and _G.InfinityWorldBossTimers.GetActiveTimers) and _G.InfinityWorldBossTimers:GetActiveTimers() or {}
+		local summary = "[InfinityWorldBoss] Active respawn timers: " .. tostring(#active)
+		if SendChatMessage and IsInGuild and IsInGuild() then
+			pcall(SendChatMessage, summary, "GUILD")
+		end
+		InfinityUIFramework:ShowNotification(summary, 2.5)
 	end)
-	self.intervalButton = Button("Interval", 484, 60, function()
-		self.confirmAction = nil
-		local ok, problem = InfinityWorldBossCore:SetInterval(Number(self.idInput), Number(self.intervalInput))
-		if not ok then InfinityUtils:Warning(problem, "WorldBoss") else self:Refresh() end
+	shareBtn:SetPoint("LEFT", refreshBtn, "RIGHT", 8, 0)
+
+	self.mainFrame = frame
+	self:RefreshTimerList()
+	return frame
+end
+
+function InfinityWorldBossUI:RefreshTimerList()
+	if not self.mainFrame then self:Initialize() end
+	InfinityUIFramework:ClearContainer(self.timerListFrame)
+
+	local activeTimers = (_G.InfinityWorldBossTimers and _G.InfinityWorldBossTimers.GetActiveTimers) and _G.InfinityWorldBossTimers:GetActiveTimers() or {}
+	local stats = (_G.InfinityWorldBossCore and _G.InfinityWorldBossCore.GetStatistics) and _G.InfinityWorldBossCore:GetStatistics() or {
+		trackedBosses = #CLASSIC_WORLD_BOSSES, aliveCount = #CLASSIC_WORLD_BOSSES, respawningCount = 0
+	}
+
+	self.mainFrame.mTracked:SetValue(stats.trackedBosses or #CLASSIC_WORLD_BOSSES)
+	self.mainFrame.mAlive:SetValue(stats.aliveCount or 0, "|cff4ade80")
+	self.mainFrame.mRespawn:SetValue(stats.respawningCount or 0, "|cfffbbf24")
+	self.mainFrame.mWatched:SetValue(#activeTimers, "|cffa855f7")
+
+	local timerByName = {}
+	for _, t in ipairs(activeTimers) do
+		timerByName[tostring(t.bossName or ""):lower()] = t
+	end
+
+	local y = -2
+	for idx, boss in ipairs(CLASSIC_WORLD_BOSSES) do
+		local t = timerByName[boss.name:lower()]
+		local row = InfinityUIFramework:CreateListRow(self.timerListFrame, 534, 38, idx)
+		row:SetPoint("TOPLEFT", self.timerListFrame, "TOPLEFT", 2, y)
+
+		local nameLbl = InfinityUIFramework:CreateLabel(row, "|cfffbbf24" .. boss.name .. "|r  |cff94a3b8(" .. boss.zone .. ")|r")
+		nameLbl:SetPoint("TOPLEFT", row, "TOPLEFT", 10, -5)
+
+		local statusStr = t and ("|cfffbbf24Respawn: " .. tostring(t.timeFormatted or "Pending") .. "|r") or "|cff4ade80Spawn Window Open|r"
+		local subLbl = InfinityUIFramework:CreateLabel(row, statusStr)
+		subLbl:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 10, 4)
+
+		local killBtn = InfinityUIFramework:CreateButton(row, "Mark Killed", 92, 22, function()
+			if _G.InfinityWorldBossCore and _G.InfinityWorldBossCore.RecordBossKill then
+				pcall(function() _G.InfinityWorldBossCore:RecordBossKill(boss.name, UnitName and UnitName("player") or "Guild") end)
+			end
+			if _G.InfinityWorldBossTimers and _G.InfinityWorldBossTimers.StartTimer then
+				pcall(function() _G.InfinityWorldBossTimers:StartTimer(boss.name, 72 * 3600, UnitName and UnitName("player") or "Guild") end)
+			end
+			InfinityUIFramework:ShowNotification("Recorded kill for " .. boss.name .. "!", 2.5)
+			InfinityWorldBossUI:RefreshTimerList()
+		end)
+		killBtn:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+
+		y = y - 42
+	end
+
+	self.timerListFrame:SetHeight(math.max(250, -y + 10))
+end
+
+function InfinityWorldBossUI:Toggle()
+	if not self.mainFrame then self:Initialize() end
+	self.mainFrame:SetShown(not self.mainFrame:IsShown())
+	if self.mainFrame:IsShown() then self:RefreshTimerList() end
+end
+
+function InfinityWorldBossUI:Show()
+	if not self.mainFrame then self:Initialize() end
+	self.mainFrame:Show()
+	self:RefreshTimerList()
+end
+
+function InfinityWorldBossUI:Hide()
+	if self.mainFrame then self.mainFrame:Hide() end
+end
+
+function InfinityWorldBossUI:StartAutoUpdate()
+	if self._autoFrame then return end
+	local updateFrame = CreateFrame("Frame")
+	local lastUpdate = 0
+	updateFrame:SetScript("OnUpdate", function(_, elapsed)
+		lastUpdate = lastUpdate + elapsed
+		if lastUpdate >= 5 then
+			if InfinityWorldBossUI.mainFrame and InfinityWorldBossUI.mainFrame:IsShown() then
+				InfinityWorldBossUI:RefreshTimerList()
+			end
+			lastUpdate = 0
+		end
 	end)
-	local function Confirm(action)
-		local id = Number(self.idInput)
-		if not id or not InfinityWorldBossCore.bosses[id] then
-			self.confirmAction = nil
-			InfinityUtils:Warning("Encounter ID is not registered.", "WorldBoss")
-			return
-		end
-		local key = action .. ":" .. id
-		if self.confirmAction ~= key then
-			self.confirmAction = key
-			self.frame.status:SetText(action .. " boss " .. id .. "? Click again to confirm.")
-		else
-			self.confirmAction = nil
-			if action == "Clear kill" then InfinityWorldBossCore:ClearKill(id) else InfinityWorldBossCore:RemoveBoss(id) end
-			self:Refresh()
-		end
-	end
-	self.clearButton = Button("Clear", 548, 55, function() Confirm("Clear kill") end)
-	self.removeButton = Button("Delete", 607, 65, function() Confirm("Delete") end)
+	self._autoFrame = updateFrame
 end
 
-function UI:Refresh()
-	if not self.frame then return end
-	self.confirmAction = nil
-	local items = {}
-	local now = time()
-	for _, entry in ipairs(InfinityWorldBossCore:GetAllBosses()) do
-		local id, boss = entry.id, entry.boss
-		local report = _G.InfinityGuildBossReports and InfinityGuildBossReports:GetReport(id)
-		local shared = ""
-		if report then
-			local ok, when = false, nil
-			if _G.date then ok, when = pcall(date, "%Y-%m-%d %H:%M", report.killed) end
-			if not ok or type(when) ~= "string" then when = "timestamp " .. report.killed end
-			shared = " | Guild report: " .. when
-		end
-		items[#items + 1] = {
-			text = string.format("%s [%d] - %s%s", boss.name, id, InfinityWorldBossCore:Describe(boss, now), shared),
-			onClick = function()
-				local ok, problem = InfinityWorldBossCore:RecordBossKill(id, time())
-				if not ok then InfinityUtils:Warning(problem, "WorldBoss") end
-				self:Refresh()
-			end,
-		}
-	end
-	if #items == 0 then items[1] = { text = "No bosses registered. Enter an ID, interval and name, then click Add." } end
-	self.frame:SetItems(items)
-	self.frame.status:SetText("Click to record a local kill. Guild reports may be from another layer.")
-end
-
-function UI:Show()
-	self:Initialize()
-	self:Refresh()
-	self.frame:Show()
-end
-
-function UI:Hide()
-	self.confirmAction = nil
-	if self.frame then self.frame:Hide() end
-end
-
-function UI:Toggle()
-	self:Initialize()
-	if self.frame:IsShown() then self:Hide() else self:Show() end
-end
-
-return UI
+_G.InfinityWorldBossUI = InfinityWorldBossUI
+return InfinityWorldBossUI

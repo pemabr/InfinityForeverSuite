@@ -14,28 +14,6 @@ InfinityEncounterAlerts.LEVEL_CRITICAL = 1
 InfinityEncounterAlerts.LEVEL_WARNING = 2
 InfinityEncounterAlerts.LEVEL_INFO = 3
 
-function InfinityEncounterAlerts:Initialize()
-    if self.frame then return end
-    local frame = CreateFrame("Frame", nil, UIParent)
-    frame:SetSize(500, 60)
-    frame:SetPoint("TOP", UIParent, "TOP", 0, -180)
-    local text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    text:SetPoint("CENTER")
-    text:SetWidth(500)
-    frame.text = text
-    frame:SetScript("OnUpdate", function()
-        local active = self:GetActiveAlerts()
-        local alert = active[#active]
-        if alert then
-            frame.text:SetText(alert.text)
-        else
-            frame:Hide()
-        end
-    end)
-    frame:Hide()
-    self.frame = frame
-end
-
 function InfinityEncounterAlerts:SendAlert(text, level, duration)
     if not self.enabled then return end
     
@@ -53,12 +31,11 @@ function InfinityEncounterAlerts:SendAlert(text, level, duration)
     table.insert(self.alerts, alert)
     table.insert(self.alert_history, alert)
     
-    if self.frame then
-        self.frame.text:SetText(text)
-        self.frame:Show()
-    end
-    if level <= self.LEVEL_WARNING and _G.PlaySound and _G.SOUNDKIT and _G.SOUNDKIT.RAID_WARNING then
-        _G.PlaySound(_G.SOUNDKIT.RAID_WARNING, "Master")
+    -- Play sound based on level
+    if level == self.LEVEL_CRITICAL then
+        PlaySoundFile("Interface\\AddOns\\InfinityForever\\Assets\\critical_alert.ogg", "Master")
+    elseif level == self.LEVEL_WARNING then
+        PlaySoundFile("Interface\\AddOns\\InfinityForever\\Assets\\warning_alert.ogg", "Master")
     end
     
     self:TriggerCallback("alert_sent", text, level)
@@ -142,7 +119,6 @@ end
 function InfinityEncounterAlerts:Clear()
     self.alerts = {}
     self.alert_history = {}
-    if self.frame then self.frame:Hide() end
 end
 
 return InfinityEncounterAlerts

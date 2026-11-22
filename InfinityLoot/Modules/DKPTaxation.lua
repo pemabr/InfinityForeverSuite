@@ -29,23 +29,26 @@ end
 
 function InfinityDKPTaxation:AwardForTax(playerName, goldAmount, reason)
 	if not self.config.enableTaxation then
-		InfinityUtils:Warning("Tax awards are disabled.", "Taxation")
 		return false
 	end
-	return self:_Award(playerName, goldAmount, self.config.taxRatePerGold, "tax", reason)
+	
+	local dkpAmount = math.floor(goldAmount * self.config.taxRatePerGold)
+	
+	if dkpAmount > 0 then
+		InfinityLootEPGP:AwardGP(playerName, dkpAmount, "tax:" .. reason)
+		self:_LogTaxation(playerName, goldAmount, dkpAmount, "tax", reason)
+		InfinityMessaging:Publish("dkp_tax_awarded", playerName, goldAmount, dkpAmount)
+		return true
+	end
+	
+	return false
 end
 
 function InfinityDKPTaxation:AwardForDonation(playerName, goldAmount, itemName, reason)
 	if not self.config.enableDonations then
-		InfinityUtils:Warning("Donation awards are disabled.", "Taxation")
 		return false
 	end
-	if _G.issecretvalue and _G.issecretvalue(itemName) then
-		InfinityUtils:Warning("Donation item is protected.", "Taxation"); return false
-	end
-	if type(itemName) ~= "string" or itemName == "" or itemName:find("[%c]") then
-		InfinityUtils:Warning("Enter a donation item.", "Taxation"); return false
-	end
+	
 	-- Check item filtering
 	if self.config.enableBlacklist and self:IsBlacklisted(itemName) then
 		InfinityUtils:Warning("Item " .. itemName .. " is blacklisted", "Taxation")
@@ -57,71 +60,28 @@ function InfinityDKPTaxation:AwardForDonation(playerName, goldAmount, itemName, 
 		return false
 	end
 	
-	return self:_Award(playerName, goldAmount, self.config.donationRatePerGold, "donation", reason, itemName)
-end
-
-function InfinityDKPTaxation:_Award(playerName, goldAmount, rate, kind, reason, itemName)
-	if _G.issecretvalue and (issecretvalue(playerName) or issecretvalue(goldAmount)
-		or issecretvalue(rate) or issecretvalue(reason)) then
-		InfinityUtils:Warning("Tax award input is protected.", "Taxation"); return false
+	local dkpAmount = math.floor(goldAmount * self.config.donationRatePerGold)
+	
+	if dkpAmount > 0 then
+		InfinityLootEPGP:AwardGP(playerName, dkpAmount, "donation:" .. (itemName or "gold"))
+		self:_LogTaxation(playerName, goldAmount, dkpAmount, "donation", reason)
+		InfinityMessaging:Publish("dkp_donation_awarded", playerName, goldAmount, dkpAmount, itemName)
+		return true
 	end
-	if type(playerName) ~= "string" or playerName == "" or playerName:find("[%c]")
-		or type(goldAmount) ~= "number" or goldAmount ~= goldAmount or goldAmount <= 0 or goldAmount >= math.huge
-		or type(rate) ~= "number" or rate ~= rate or rate < 0 or rate >= math.huge
-		or (reason ~= nil and (type(reason) ~= "string" or reason:find("[%c]"))) then
-		InfinityUtils:Warning("Invalid tax award input.", "Taxation"); return false
-	end
-	local engine = _G.InfinityDKPEngine
-	if not engine or type(engine.db) ~= "table" or type(engine.SYSTEM_DKP) ~= "string"
-		or engine.system_type ~= engine.SYSTEM_DKP
-		or type(engine.AdjustDKP) ~= "function" then
-		InfinityUtils:Warning("Initialized InfinityDKP in DKP mode is required.", "Taxation"); return false
-	end
-	local points = _G.InfinityDKPPoints
-	if not points or type(points.LogTransaction) ~= "function"
-		or type(engine.db.pointTransactions) ~= "table" or points.point_history ~= engine.db.pointTransactions then
-		InfinityUtils:Warning("InfinityDKP point history is unavailable.", "Taxation"); return false
-	end
-	if _G.InfinityDKPGuildSync and InfinityDKPGuildSync.outgoing then
-		InfinityUtils:Warning("Wait for the current DKP snapshot to finish.", "Taxation"); return false
-	end
-	local amount = goldAmount * rate
-	if amount ~= amount or amount >= math.huge or amount < 1 or amount > 1000000000 then
-		InfinityUtils:Warning("Calculated DKP must be between 1 and 1000000000.", "Taxation"); return false
-	end
-	amount = math.floor(amount)
-	reason = reason or ("Manual " .. kind .. (itemName and (": " .. itemName) or ""))
-	if not engine:AdjustDKP(playerName, amount, reason) then
-		InfinityUtils:Warning("DKP award failed; check the local player and balance.", "Taxation"); return false
-	end
-	points:LogTransaction(playerName, "dkp", amount, reason)
-	self:_LogTaxation(playerName, goldAmount, amount, kind, reason)
-	self:_SaveSettings()
-	if _G.InfinityDKPGuildSync and type(InfinityDKPGuildSync.MarkSnapshotsStale) == "function" then
-		InfinityDKPGuildSync:MarkSnapshotsStale("Local tax or donation points changed")
-	end
-	if _G.InfinityDKPUI and type(InfinityDKPUI.Update) == "function" then InfinityDKPUI:Update() end
-	InfinityMessaging:Publish(kind == "tax" and "dkp_tax_awarded" or "dkp_donation_awarded",
-		playerName, goldAmount, amount, itemName)
-	return true
+	
+	return false
 end
 
 function InfinityDKPTaxation:SetTaxRate(ratePerGold)
-	if _G.issecretvalue and _G.issecretvalue(ratePerGold) then return false end
-	if type(ratePerGold) ~= "number" or ratePerGold ~= ratePerGold or ratePerGold < 0 or ratePerGold >= math.huge then return false end
 	self.config.taxRatePerGold = ratePerGold
 	InfinityUtils:Info("Tax rate set to " .. ratePerGold .. " DKP per gold", "Taxation")
 	self:_SaveSettings()
-	return true
 end
 
 function InfinityDKPTaxation:SetDonationRate(ratePerGold)
-	if _G.issecretvalue and _G.issecretvalue(ratePerGold) then return false end
-	if type(ratePerGold) ~= "number" or ratePerGold ~= ratePerGold or ratePerGold < 0 or ratePerGold >= math.huge then return false end
 	self.config.donationRatePerGold = ratePerGold
 	InfinityUtils:Info("Donation rate set to " .. ratePerGold .. " DKP per gold", "Taxation")
 	self:_SaveSettings()
-	return true
 end
 
 function InfinityDKPTaxation:Whitelist(itemName)
@@ -207,7 +167,7 @@ function InfinityDKPTaxation:_LogTaxation(playerName, goldAmount, dkpAmount, typ
 		player = playerName,
 		gold = goldAmount,
 		dkp = dkpAmount,
-		timestamp = InfinityUtils:GetTimeStamp(),
+		timestamp = GetTime(),
 		type = type,
 		reason = reason,
 	})
@@ -218,11 +178,12 @@ function InfinityDKPTaxation:_LogTaxation(playerName, goldAmount, dkpAmount, typ
 end
 
 function InfinityDKPTaxation:_SaveSettings()
-	local settings = InfinityStorageManager:GetFeatureSettings("taxation")
-	settings.config = self.config
-	settings.whitelistedItems = self.whitelistedItems
-	settings.blacklistedItems = self.blacklistedItems
-	settings.taxHistory = self.taxHistory
+	InfinityStorageManager:SetFeatureSettings("taxation", {
+		config = self.config,
+		whitelistedItems = self.whitelistedItems,
+		blacklistedItems = self.blacklistedItems,
+		taxHistory = self.taxHistory,
+	})
 end
 
 return InfinityDKPTaxation

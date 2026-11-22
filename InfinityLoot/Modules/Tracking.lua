@@ -8,12 +8,6 @@ InfinityLootTracking = {
 	db = {},
 }
 
-local function ValidAmount(amount)
-	if _G.issecretvalue and _G.issecretvalue(amount) then return false end
-	return type(amount) == "number" and amount == amount and amount >= 0
-		and amount < math.huge and amount == math.floor(amount)
-end
-
 -- Session structure
 local function NewSession()
 	return {
@@ -72,14 +66,7 @@ end
 
 -- Start a new tracking session
 function InfinityLootTracking:StartNewSession()
-	local current = self.currentSession and self.db.sessions[self.currentSession]
-	if current and not current.endTime then self:EndSession(self.currentSession) end
 	local sessionId = "session_" .. InfinityUtils:GetTimeStamp()
-	local base, suffix = sessionId, 1
-	while self.db.sessions[sessionId] do
-		sessionId = base .. "_" .. suffix
-		suffix = suffix + 1
-	end
 	local session = NewSession()
 	
 	session.id = sessionId
@@ -102,11 +89,8 @@ function InfinityLootTracking:PauseSession()
 	end
 	
 	local session = self.db.sessions[self.currentSession]
-	if not session.running then return false end
-	local now = InfinityUtils:GetTimeStamp()
-	session.elapsed = session.elapsed + (now - session.startTime)
 	session.running = false
-	session.pausedTime = now
+	session.pausedTime = InfinityUtils:GetTimeStamp()
 	
 	InfinityUtils:Info("Loot tracking session paused", "InfinityLoot")
 	InfinityMessaging:Publish(INFINITY_EVENTS.DATA_CHANGED, "loot_tracking", "session_paused")
@@ -121,9 +105,11 @@ function InfinityLootTracking:ResumeSession()
 	end
 	
 	local session = self.db.sessions[self.currentSession]
-	if session.running or session.endTime then return false end
-	session.startTime = InfinityUtils:GetTimeStamp()
-	session.pausedTime = nil
+	if session.pausedTime then
+		-- Add pause duration to elapsed
+		session.elapsed = session.elapsed + (InfinityUtils:GetTimeStamp() - session.pausedTime)
+		session.pausedTime = nil
+	end
 	session.running = true
 	
 	InfinityUtils:Info("Loot tracking session resumed", "InfinityLoot")
@@ -139,14 +125,7 @@ function InfinityLootTracking:RecordLoot(itemLink, category, value)
 	end
 	
 	local session = self.db.sessions[self.currentSession]
-	if not session.running then return false end
 	category = category or "OTHER"
-	if (_G.issecretvalue and (issecretvalue(itemLink) or issecretvalue(category)))
-		or type(itemLink) ~= "string" or itemLink == "" or type(category) ~= "string"
-		or not session.categories[category] or not ValidAmount(value) then
-		InfinityUtils:Warning("Invalid loot tracking entry.", "InfinityLoot")
-		return false
-	end
 	
 	local lootEntry = {
 		id = session.nextId,
@@ -168,7 +147,8 @@ function InfinityLootTracking:RecordLoot(itemLink, category, value)
 	-- Check if should trigger alert
 	if value >= (self.db.settings.alertValue or 50000) then
 		local formattedValue = InfinityUtils:FormatGold(value)
-		InfinityUtils:Warning("HIGH VALUE DROP: " .. itemLink .. " (" .. formattedValue .. ")", "InfinityLoot")
+		local msg = INFINITY_COLORS.WARNING .. "HIGH VALUE DROP: " .. itemLink .. " (" .. formattedValue .. ")" .. INFINITY_COLORS.RESET
+		InfinityUIFramework:ShowNotification(msg, 5)
 	end
 	
 	session.nextId = session.nextId + 1
@@ -185,7 +165,6 @@ function InfinityLootTracking:RecordKill(mobName)
 	end
 	
 	local session = self.db.sessions[self.currentSession]
-	if not session.running then return false end
 	session.kills = session.kills + 1
 	
 	return true
@@ -198,7 +177,6 @@ function InfinityLootTracking:RecordLootedMob(mobName)
 	end
 	
 	local session = self.db.sessions[self.currentSession]
-	if not session.running then return false end
 	session.lootedMobs = session.lootedMobs + 1
 	
 	return true
@@ -211,8 +189,6 @@ function InfinityLootTracking:RecordCost(amount, type)
 	end
 	
 	local session = self.db.sessions[self.currentSession]
-	if not session.running then return false end
-	if not ValidAmount(amount) then InfinityUtils:Warning("Invalid tracking cost.", "InfinityLoot"); return false end
 	session.costs = session.costs + amount
 	
 	InfinityUtils:Debug("Cost recorded: " .. InfinityUtils:FormatGold(amount) .. " (" .. type .. ")", "InfinityLoot")
@@ -227,8 +203,6 @@ function InfinityLootTracking:RecordMoney(copperAmount)
 	end
 	
 	local session = self.db.sessions[self.currentSession]
-	if not session.running then return false end
-	if not ValidAmount(copperAmount) then InfinityUtils:Warning("Invalid tracked money amount.", "InfinityLoot"); return false end
 	session.coin = session.coin + copperAmount
 	
 	return true
@@ -268,7 +242,6 @@ function InfinityLootTracking:GetSessionStats(sessionId)
 	return {
 		id = sessionId,
 		running = session.running,
-		ended = session.endTime ~= nil,
 		totalValue = totalValue,
 		coinLooted = session.coin,
 		gearValue = session.categories.GEAR.value,
@@ -314,13 +287,13 @@ function InfinityLootTracking:EndSession(sessionId)
 	end
 	
 	local session = self.db.sessions[sessionId]
-	if session.endTime then return false end
-	local now = InfinityUtils:GetTimeStamp()
-	if session.running and session.startTime then
-		session.elapsed = session.elapsed + (now - session.startTime)
-	end
 	session.running = false
-	session.endTime = now
+	session.endTime = InfinityUtils:GetTimeStamp()
+	
+	-- Calculate final elapsed time
+	if session.startTime then
+		session.elapsed = session.elapsed + (session.endTime - session.startTime)
+	end
 	
 	InfinityUtils:Info("Loot tracking session ended", "InfinityLoot")
 	InfinityMessaging:Publish(INFINITY_EVENTS.DATA_CHANGED, "loot_tracking", "session_ended", sessionId)

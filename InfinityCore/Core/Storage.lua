@@ -88,37 +88,23 @@ function InfinityStorageManager:GetFeatureSetting(featureName, key, default)
 end
 
 function InfinityStorageManager:GetFeatureSettings(featureName)
-	local settings = self.db.global.settings
-	local feature = settings[featureName]
-	if feature == nil then
-		feature = {}
-		settings[featureName] = feature
-	elseif type(feature) ~= "table" then
-		error("Invalid saved settings for feature: " .. tostring(featureName))
-	end
-	return feature
+	return self.db.global.settings[featureName] or {}
 end
 
 -- Feature enabled/disabled
 function InfinityStorageManager:SetFeatureEnabled(featureName, enabled)
-	if _G.InfinityAddonManager then
-		return _G.InfinityAddonManager:SetAddonEnabled(featureName, enabled)
-	end
-	InfinityUtils:Error("Addon manager unavailable", "StorageManager")
-	return false
+	self.db.global.enabledFeatures[featureName] = enabled
+	return true
 end
 
 function InfinityStorageManager:IsFeatureEnabled(featureName)
-	if _G.InfinityAddonManager then
-		return _G.InfinityAddonManager:IsAddonEnabled(featureName)
-	end
-	return nil
+	return self.db.global.enabledFeatures[featureName] == true
 end
 
 function InfinityStorageManager:GetEnabledFeatures()
 	local enabled = {}
-	for _, name in pairs(INFINITY_FEATURES) do
-		if self:IsFeatureEnabled(name) then
+	for name, isEnabled in pairs(self.db.global.enabledFeatures) do
+		if isEnabled then
 			table.insert(enabled, name)
 		end
 	end

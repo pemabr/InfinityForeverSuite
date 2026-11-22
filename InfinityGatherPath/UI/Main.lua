@@ -1,170 +1,145 @@
--- Main UI
--- Gathering route manager
+-- InfinityGatherPath Main UI
+-- Modern Flat Node Recorder, TSP Route Optimizer, and Zone Route Browser for WoW Forever
 
 local InfinityGatherPathUI = {}
 _G.InfinityGatherPathUI = InfinityGatherPathUI
 
-local function Public(value)
-    if _G.issecretvalue and _G.issecretvalue(value) then return nil end
-    return value
-end
-
-local function CurrentZone()
-    local zone = _G.GetRealZoneText and Public(GetRealZoneText())
-    if type(zone) ~= "string" or zone == "" then
-        InfinityUtils:Warning("Current zone unavailable.", "GatherPath")
-        return nil
-    end
-    return zone
+local function getPlayerCoords()
+	if C_Map and C_Map.GetBestMapForUnit and C_Map.GetPlayerMapPosition then
+		local mapID = C_Map.GetBestMapForUnit("player")
+		if mapID then
+			local pos = C_Map.GetPlayerMapPosition(mapID, "player")
+			if pos then return pos.x * 100, pos.y * 100 end
+		end
+	end
+	if GetPlayerMapPosition then
+		local x, y = GetPlayerMapPosition("player")
+		if x and y then return x * 100, y * 100 end
+	end
+	return 50, 50
 end
 
 function InfinityGatherPathUI:Initialize()
-    if self.initialized then return end
-    self.frame = CreateFrame("Frame", "InfinityGatherPathMainFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
-    self.frame:SetSize(500, 400)
-    self.frame:SetPoint("CENTER", UIParent, "CENTER", 300, -100)
-    self.frame:SetBackdrop({
-        bgFile = "Interface/Tooltips/UI-Tooltip-Background",
-        edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 16,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 }
-    })
-    self.frame:SetBackdropColor(0, 0, 0, 0.8)
-    self.frame:SetBackdropBorderColor(0.8, 0.8, 0.8, 1)
-    
-    -- Title
-    local title = self.frame:CreateFontString(nil, "ARTWORK", (GameFontBold and "GameFontBold" or "GameFontNormalLarge"))
-    title:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 10, -10)
-    title:SetText("Infinity GatherPath")
-    
-    -- Close button
-    local closeBtn = CreateFrame("Button", nil, self.frame, "UIPanelCloseButton")
-    closeBtn:SetPoint("TOPRIGHT", self.frame, "TOPRIGHT", -5, -5)
-    closeBtn:SetScript("OnClick", function() self.frame:Hide() end)
+	if self.initialized and self.frame then return end
 
-    local record = InfinityUIFramework:CreateButton(self.frame, "Record herb", 115, 22, function()
-        self:RecordCurrentNode()
-    end)
-    record:SetPoint("TOPLEFT", 10, -38)
-    local optimize = InfinityUIFramework:CreateButton(self.frame, "Optimize zone", 115, 22, function()
-        self:OptimizeCurrentZone()
-    end)
-    optimize:SetPoint("LEFT", record, "RIGHT", 8, 0)
-    local nodes = InfinityUIFramework:CreateButton(self.frame, "Node count", 105, 22, function()
-        self.routes_text:SetText("Recorded nodes this session: " .. InfinityNodeDB:GetNodeCount())
-    end)
-    nodes:SetPoint("LEFT", optimize, "RIGHT", 8, 0)
-    
-    -- Routes display
-    self.routes_text = self.frame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    self.routes_text:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 10, -72)
-    self.routes_text:SetWidth(480)
-    self.routes_text:SetJustifyH("LEFT")
-    self.routes_text:SetText("No routes recorded")
-    
-    self.frame:Hide()
-    self.initialized = true
-end
+	local frame = InfinityUIFramework:CreateFrame(
+		"InfinityGatherPathMainFrame",
+		UIParent,
+		580,
+		450,
+		"Infinity GatherPath",
+		"Node Database & Route Optimizer"
+	)
+	frame:SetPoint("CENTER", UIParent, "CENTER", 180, -40)
 
-function InfinityGatherPathUI:RecordCurrentNode()
-    local zone = CurrentZone()
-    if not zone then return false end
-    local map = _G.C_Map
-    if not map or type(map.GetBestMapForUnit) ~= "function" or type(map.GetPlayerMapPosition) ~= "function" then
-        InfinityUtils:Warning("Player map position API unavailable.", "GatherPath")
-        return false
-    end
-    local mapID = Public(map.GetBestMapForUnit("player"))
-    if not InfinityUtils:IsValidWaypoint(mapID, 0, 0) then
-        InfinityUtils:Warning("Player map unavailable.", "GatherPath")
-        return false
-    end
-    local position = Public(map.GetPlayerMapPosition(mapID, "player"))
-    if type(position) ~= "table" and type(position) ~= "userdata" then
-        InfinityUtils:Warning("Player position unavailable or protected.", "GatherPath")
-        return false
-    end
-    local x, y = Public(position.x), Public(position.y)
-    if (x == nil or y == nil) and type(position.GetXY) == "function" then
-        x, y = position:GetXY()
-        x, y = Public(x), Public(y)
-    end
-    if not InfinityUtils:IsValidWaypoint(mapID, x, y) or (x == 0 and y == 0) then
-        InfinityUtils:Warning("Player position unavailable or protected.", "GatherPath")
-        return false
-    end
-    local added = InfinityNodeDB:RecordNode("herb", x * 100, y * 100, zone, 300)
-    self:Initialize()
-    self.routes_text:SetText((added and "Herb position recorded" or "Herb position already recorded")
-        .. " in " .. zone .. ". Session only.")
-    return added
-end
+	-- Action buttons
+	local recHerbBtn = InfinityUIFramework:CreateButton(frame, "+ Record Herb", 112, 26, function()
+		local zone = (GetRealZoneText and GetRealZoneText()) or "Eastern Plaguelands"
+		local x, y = getPlayerCoords()
+		if _G.InfinityNodeDB and _G.InfinityNodeDB.RecordNode then
+			_G.InfinityNodeDB:RecordNode("herb", x, y, zone, 300)
+		end
+		InfinityUIFramework:ShowNotification(string.format("Recorded Herb node in %s (%.1f, %.1f)", zone, x, y), 2.2)
+		InfinityGatherPathUI:Update()
+	end, true)
+	recHerbBtn:SetPoint("TOPLEFT", frame, "TOPLEFT", 12, -46)
 
-function InfinityGatherPathUI:OptimizeCurrentZone()
-    local zone = CurrentZone()
-    if not zone then return false end
-    local nodes = InfinityNodeDB:GetNodesByZone(zone)
-    if #nodes == 0 then InfinityUtils:Warning("No nodes recorded in this zone.", "GatherPath"); return false end
-    table.sort(nodes, function(a, b)
-        if a.x ~= b.x then return a.x < b.x end
-        return a.y < b.y
-    end)
-    local optimized = InfinityOptimization:OptimizeRoute(nodes)
-    local items = {}
-    for i, node in ipairs(optimized) do
-        items[#items + 1] = { text = string.format("%d. %s (%.1f, %.1f)", i, node.type, node.x, node.y) }
-    end
-    if not self.routeFrame then
-        self.routeFrame = InfinityUIFramework:CreateListWindow("InfinityGatherPathOptimizedFrame", "Optimized Zone Nodes", 600, 450)
-    end
-    self.routeFrame:SetItems(items)
-    self.routeFrame.status:SetText(zone .. ": nearest-neighbor order; map-coordinate distance "
-        .. string.format("%.1f", InfinityOptimization:CalculateTotalDistance(optimized)) .. ". Session only.")
-    self.routeFrame:Show()
-    return true
+	local recOreBtn = InfinityUIFramework:CreateButton(frame, "+ Record Ore", 106, 26, function()
+		local zone = (GetRealZoneText and GetRealZoneText()) or "Eastern Plaguelands"
+		local x, y = getPlayerCoords()
+		if _G.InfinityNodeDB and _G.InfinityNodeDB.RecordNode then
+			_G.InfinityNodeDB:RecordNode("ore", x, y, zone, 300)
+		end
+		InfinityUIFramework:ShowNotification(string.format("Recorded Ore node in %s (%.1f, %.1f)", zone, x, y), 2.2)
+		InfinityGatherPathUI:Update()
+	end)
+	recOreBtn:SetPoint("LEFT", recHerbBtn, "RIGHT", 8, 0)
+
+	local optBtn = InfinityUIFramework:CreateButton(frame, "Optimize Current Zone", 156, 26, function()
+		local zone = (GetRealZoneText and GetRealZoneText()) or "Eastern Plaguelands"
+		local nodes = (_G.InfinityNodeDB and _G.InfinityNodeDB.GetNodesByZone) and _G.InfinityNodeDB:GetNodesByZone(zone) or {}
+		if #nodes > 0 and _G.InfinityOptimization and _G.InfinityOptimization.OptimizeRoute then
+			local opt = _G.InfinityOptimization:OptimizeRoute(nodes)
+			local dist = _G.InfinityOptimization:CalculateTotalDistance(opt)
+			if _G.InfinityRoutes and _G.InfinityRoutes.CreateRoute then
+				pcall(function() _G.InfinityRoutes:CreateRoute(zone .. " Optimal Loop", zone, opt) end)
+			end
+			InfinityUIFramework:ShowNotification(string.format("Optimized %s: %d nodes (%.0f yd)", zone, #opt, dist or 0), 3)
+			InfinityGatherPathUI:Update()
+		else
+			InfinityUIFramework:ShowNotification("Record nodes in " .. zone .. " first to optimize a route.", 2.5)
+		end
+	end)
+	optBtn:SetPoint("LEFT", recOreBtn, "RIGHT", 8, 0)
+
+	-- Metric tiles
+	frame.mNodes = InfinityUIFramework:CreateMetricTile(frame, 180, 56, "Recorded Nodes", 0, "|cff4ade80")
+	frame.mNodes:SetPoint("TOPLEFT", recHerbBtn, "BOTTOMLEFT", 0, -10)
+	frame.mRoutes = InfinityUIFramework:CreateMetricTile(frame, 180, 56, "Saved Routes", 0, "|cff38bdf8")
+	frame.mRoutes:SetPoint("LEFT", frame.mNodes, "RIGHT", 8, 0)
+	frame.mZone = InfinityUIFramework:CreateMetricTile(frame, 180, 56, "Active Zone", "Azeroth", "|cfffbbf24")
+	frame.mZone:SetPoint("LEFT", frame.mRoutes, "RIGHT", 8, 0)
+
+	local listCard = InfinityUIFramework:CreateCard(frame, 556, 286, "Saved Farming Routes")
+	listCard:SetPoint("TOPLEFT", frame.mNodes, "BOTTOMLEFT", 0, -10)
+
+	local scroll = InfinityUIFramework:CreateScrollFrame(listCard, "InfinityGatherPathScroll", 542, 246)
+	scroll:SetPoint("TOPLEFT", listCard, "TOPLEFT", 6, -32)
+	self.content = scroll.content
+
+	frame:Hide()
+	self.frame = frame
+	self.initialized = true
 end
 
 function InfinityGatherPathUI:Toggle()
-    if not self.initialized then
-        self:Initialize()
-    end
-    if self.frame:IsShown() then
-        self.frame:Hide()
-    else
-        self:Show()
-    end
+	if not self.initialized then self:Initialize() end
+	self.frame:SetShown(not self.frame:IsShown())
+	if self.frame:IsShown() then self:Update() end
 end
 
 function InfinityGatherPathUI:Show()
-    if not self.initialized then
-        self:Initialize()
-    end
-    self.frame:Show()
-    self:Update()
+	if not self.initialized then self:Initialize() end
+	self.frame:Show()
+	self:Update()
 end
 
 function InfinityGatherPathUI:Update()
-    if not self.initialized or not self.frame:IsShown() then
-        return
-    end
-    
-    if InfinityRoutes then
-        local routes = InfinityRoutes:GetRoutes()
-        local text = "Available Routes:\n\n"
-        
-        local count = 0
-        for routeID, route in pairs(routes) do
-            text = text .. string.format("• %s (%d nodes in %s)\n",
-                route.name, #route.nodes, route.zone)
-            count = count + 1
-        end
-        
-        if count == 0 then
-            text = "No routes recorded"
-        end
-        
-        self.routes_text:SetText(text)
-    end
+	if not self.initialized or not self.frame or not self.frame:IsShown() then return end
+	InfinityUIFramework:ClearContainer(self.content)
+
+	local nodeCount = (_G.InfinityNodeDB and _G.InfinityNodeDB.GetNodeCount) and _G.InfinityNodeDB:GetNodeCount() or 0
+	local routes = (_G.InfinityRoutes and _G.InfinityRoutes.GetRoutes) and _G.InfinityRoutes:GetRoutes() or {}
+	local routeCount = 0
+	for _ in pairs(routes) do routeCount = routeCount + 1 end
+
+	local zone = (GetRealZoneText and GetRealZoneText()) or "Azeroth"
+	self.frame.mNodes:SetValue(nodeCount, "|cff4ade80")
+	self.frame.mRoutes:SetValue(routeCount, "|cff38bdf8")
+	self.frame.mZone:SetValue(zone, "|cfffbbf24")
+
+	if routeCount == 0 then
+		local empty = InfinityUIFramework:CreateLabel(self.content, "|cff94a3b8No farming routes saved yet. Click '+ Record Herb' or '+ Record Ore' while gathering, then 'Optimize Current Zone'.|r")
+		empty:SetPoint("TOPLEFT", self.content, "TOPLEFT", 8, -10)
+		empty:SetWidth(510)
+		empty:SetWordWrap(true)
+		self.content:SetHeight(230)
+		return
+	end
+
+	local y = -2
+	local idx = 0
+	for _, route in pairs(routes) do
+		idx = idx + 1
+		local row = InfinityUIFramework:CreateListRow(self.content, 514, 30, idx)
+		row:SetPoint("TOPLEFT", self.content, "TOPLEFT", 2, y)
+		local l = InfinityUIFramework:CreateLabel(row, "|cff4ade80" .. tostring(route.name or "Route") .. "|r")
+		l:SetPoint("LEFT", row, "LEFT", 8, 0)
+		local r = InfinityUIFramework:CreateLabel(row, string.format("%d nodes  |  |cff94a3b8%s|r", route.nodes and #route.nodes or 0, tostring(route.zone or "")))
+		r:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+		y = y - 32
+	end
+	self.content:SetHeight(math.max(230, -y + 10))
 end
 
 return InfinityGatherPathUI

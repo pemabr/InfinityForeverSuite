@@ -232,8 +232,8 @@ end
 
 -- Register admin commands
 if not IsTestingLua then
-    SLASH_CLICKCASTCFG1 = "/clickcastcfg"
-    SlashCmdList["CLICKCASTCFG"] = function(msg)
+    SLASH_CLICKCAST1 = "/clickcast"
+    SlashCmdList["CLICKCAST"] = function(msg)
         local cmd, args = msg:match("^(%S*)%s*(.*)$")
         cmd = cmd or ""
         

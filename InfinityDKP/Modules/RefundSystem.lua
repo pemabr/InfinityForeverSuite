@@ -188,7 +188,7 @@ function RefundSystem:ApproveRefund(refundRequestID, approverName)
     return true
 end
 
-function RefundSystem:DenyRefund(refundRequestID, denyReason)
+function RefundSystem:DenyRefund(refundRequestID, denyReasonReason)
     if not self.enabled or not self.db then
         return false
     end
@@ -314,15 +314,6 @@ end
 if not IsTestingLua then
     SLASH_REFUND1 = "/refund"
     SlashCmdList["REFUND"] = function(msg)
-        if not RefundSystem.enabled or not RefundSystem.db then
-            local ui = _G.InfinityDKPUI
-            if ui and type(ui.Initialize) == "function" and (msg == "" or msg == "pending") then
-                ui:Initialize()
-                if type(ui.ShowRefunds) == "function" then ui:ShowRefunds(); return end
-            end
-            InfinityUtils:Warning("Legacy refund requests are unavailable. Use DKP Actions for local loot refunds.", "DKP")
-            return
-        end
         local cmd, args = msg:match("^(%S*)%s*(.*)$")
         cmd = cmd or ""
         

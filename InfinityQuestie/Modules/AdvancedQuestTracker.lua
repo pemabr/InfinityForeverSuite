@@ -2,7 +2,7 @@
 -- Complete quest database, tracking, and navigation integration
 
 local QuestTracker = {}
-_G.InfinityAdvancedQuestTracker = QuestTracker
+_G.InfinityQuestTracker = QuestTracker
 
 -- ============================================================================
 -- CONFIGURATION

@@ -3,7 +3,6 @@
 -- Tracks available, active, and completed quests
 
 local QuestTrackingEngine = {}
-_G.QuestTrackingEngine = QuestTrackingEngine
 QuestTrackingEngine.enabled = false
 QuestTrackingEngine.db = nil
 QuestTrackingEngine.active_quests = {}
@@ -42,31 +41,7 @@ function QuestTrackingEngine:Initialize()
     self.abandoned_quests = self.db.abandoned_quests
     self.enabled = true
     
-    self:SyncFromGameQuestLog()
-    if not self.eventFrame then
-        self.eventFrame = CreateFrame("Frame")
-        self.eventFrame:RegisterEvent("QUEST_LOG_UPDATE")
-        self.eventFrame:RegisterEvent("PLAYER_LOGIN")
-        self.eventFrame:SetScript("OnEvent", function()
-            QuestTrackingEngine:SyncFromGameQuestLog()
-        end)
-    end
-
     self:Log("Initialized quest tracking engine")
-end
-
-function QuestTrackingEngine:SyncFromGameQuestLog()
-    if _G.C_QuestLog and _G.C_QuestLog.GetNumQuestLogEntries and _G.C_QuestLog.GetInfo then
-        local num = _G.C_QuestLog.GetNumQuestLogEntries() or 0
-        for i = 1, num do
-            local info = _G.C_QuestLog.GetInfo(i)
-            if info and not info.isHeader and info.questID and info.questID > 0 then
-                if not self:IsQuestActive(info.questID) then
-                    self:AddActiveQuest(info.questID, info.title or ("Quest #" .. info.questID), {})
-                end
-            end
-        end
-    end
 end
 
 function QuestTrackingEngine:AddActiveQuest(questId, questName, objectives)

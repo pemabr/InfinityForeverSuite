@@ -184,7 +184,7 @@ end
 
 function Caps:ScheduleWeeklyReset()
     -- Check every hour if it's time to reset
-    C_Timer.NewTicker(3600, function()
+    C_Timer.NewLoopingTimer(3600, function()
         if time() >= Caps.weekly_reset_time then
             Caps:ResetWeeklyCaps()
         end

@@ -73,7 +73,7 @@ function InfinityQoLMacros:GetMostUsedMacros(limit)
 		return (a.timesUsed or 0) > (b.timesUsed or 0) 
 	end)
 	
-	return { unpack(sorted, 1, math.min(limit, #sorted)) }
+	return { table.unpack(sorted, 1, math.min(limit, #sorted)) }
 end
 
 function InfinityQoLMacros:SaveMacros()

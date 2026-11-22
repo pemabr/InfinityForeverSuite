@@ -15,7 +15,6 @@ local function InitializeQoL()
 	
 	if Tweaks then pcall(function() Tweaks:Initialize() end) end
 	if Macros then pcall(function() Macros:Initialize() end) end
-	if UI and UI.Initialize then UI:Initialize() end
 	
 	_G.InfinityQoLTweaks = Tweaks
 	_G.InfinityQoLMacros = Macros
@@ -25,7 +24,7 @@ local function InitializeQoL()
 	
 	InfinityCommandRegistry:RegisterCommand({
 		name = "qol",
-		aliases = { "tweaks" },
+		aliases = { "tweaks", "settings" },
 		description = "Open QoL settings",
 		func = function() InfinityQoLUI:Toggle() end,
 	})
@@ -37,21 +36,24 @@ local function InitializeQoL()
 		action = function() InfinityQoLUI:Toggle() end,
 	})
 	
-	if _G.InfinityAddonManager then
-		_G.InfinityAddonManager:RegisterAddon("InfinityQoL", "1.0.0", {
-			description = "Quality of Life",
-			author = "Infinity Suite Team",
-			category = "QoL",
-			enabled = true,
-			settings = {}
-		})
-	end
-	
 	InfinityUtils:Info("InfinityQoL initialized successfully", "InfinityQoL")
 	InfinityMessaging:Publish("qol_addon_loaded", { addon = "InfinityQoL" })
 end
 
-local frame = CreateFrame("Frame")
+
+local function RegisterAddonWithInfinityManager()
+	if _G.InfinityAddonManager then
+		_G.InfinityAddonManager:RegisterAddon(ADDON_NAME, ADDON_VERSION, {
+			description = "Quality of Life",
+			author = "Infinity Suite Team",
+			category = "QoL",
+			enabled = true,
+			settings = {{}}
+		})
+	end
+end
+
+	local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:SetScript("OnEvent", function(self, event, addonName)
 	if addonName == "InfinityCore" then
@@ -60,7 +62,6 @@ frame:SetScript("OnEvent", function(self, event, addonName)
 	elseif addonName == "InfinityQoL" then
 		if _G.InfinityDataManager then
 			InitializeQoL()
-			self:UnregisterEvent("ADDON_LOADED")
 		end
 	end
 end)

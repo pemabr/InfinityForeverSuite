@@ -366,8 +366,8 @@ end
 
 -- Register admin commands
 if not IsTestingLua then
-    SLASH_QUESTFILTERUI1 = "/questfilterui"
-    SlashCmdList["QUESTFILTERUI"] = function(msg)
+    SLASH_QUESTFILTER1 = "/questfilter"
+    SlashCmdList["QUESTFILTER"] = function(msg)
         local cmd, args = msg:match("^(%S*)%s*(.*)$")
         cmd = cmd or ""
         

@@ -120,16 +120,6 @@ function InfinityDetailsActor:GetActor(guid)
     return self.actors[guid]
 end
 
-function InfinityDetailsActor:GetActorByName(name)
-    if not name then return nil end
-    for _, actor in pairs(self.actors) do
-        if actor.name == name then
-            return actor
-        end
-    end
-    return nil
-end
-
 function InfinityDetailsActor:GetAllActors()
     return self.actors
 end

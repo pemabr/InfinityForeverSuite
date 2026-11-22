@@ -10,7 +10,20 @@ if not InfinityCore or not InfinityDKPEngine then
     return
 end
 
-local frame = CreateFrame("Frame")
+
+local function RegisterAddonWithInfinityManager()
+	if _G.InfinityAddonManager then
+		_G.InfinityAddonManager:RegisterAddon(ADDON_NAME, ADDON_VERSION, {
+			description = "Track member attendance",
+			author = "Infinity Suite Team",
+			category = "Guild",
+			enabled = true,
+			settings = {{}}
+		})
+	end
+end
+
+	local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:SetScript("OnEvent", function(self, event, name)
     if name ~= addonName then return end

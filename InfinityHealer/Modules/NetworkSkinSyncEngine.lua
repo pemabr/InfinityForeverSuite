@@ -52,7 +52,7 @@ function NetworkSkinSyncEngine:RequestSkin(skinName, fromPlayer)
     -- Create request
     local request = {
         skin_name = skinName,
-        requester = UnitName("player") or "Unknown",
+        requester = GetPlayerName and GetPlayerName() or "Unknown",
         requested_from = fromPlayer,
         requested_at = GetTime(),
         expires_at = GetTime() + self.config.request_timeout,

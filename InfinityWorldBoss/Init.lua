@@ -1,83 +1,171 @@
-local initialized = false
+-- InfinityWorldBoss Initialization
+-- World boss respawn tracking with notifications and guild sharing
 
-local function Initialize()
-	if initialized then return end
-	if not InfinityCore or not InfinityCommandRegistry or not InfinityUIFramework
-		or not InfinityWorldBossCore or not InfinityWorldBossTimers or not InfinityWorldBossUI then
-		error("World boss modules unavailable")
+local addonName = "InfinityWorldBoss"
+local addonVersion = "1.0.0"
+
+local function InitializeWorldBoss()
+	if not _G.InfinityCore then
+		return
 	end
-	local core, ui = InfinityWorldBossCore, InfinityWorldBossUI
-	core:Initialize()
-	InfinityWorldBossTimers:Initialize()
-	InfinityCommandRegistry:RegisterCommand("worldboss", function(args)
-		local cmd = args and args[1]
-		if not cmd then
-			ui:Toggle()
-		elseif cmd == "show" then
-			ui:Show()
-		elseif cmd == "hide" then
-			ui:Hide()
-		elseif cmd == "register" then
-			local id, interval = tonumber(args[2]), tonumber(args[3])
-			local name = args[4] and table.concat(args, " ", 4)
-			local ok, problem = core:RegisterBoss(id, name, interval)
-			if not ok then
-				print("Usage: /worldboss register <encounter ID> <estimated seconds> <name>. " .. problem)
-			else
-				print("Boss registered. Times are local estimates, not confirmed spawns.")
-				ui:Refresh()
-			end
-		elseif cmd == "kill" then
-			local ok, problem = core:RecordBossKill(tonumber(args[2]), time())
-			if not ok then print(problem) else print("Local kill recorded; respawn is only an estimate.") end
-			ui:Refresh()
-		elseif cmd == "interval" then
-			local ok, problem = core:SetInterval(tonumber(args[2]), tonumber(args[3]))
-			if not ok then print(problem) else print("Estimated interval updated.") end
-			ui:Refresh()
-		elseif cmd == "forgetkill" then
-			if core:ClearKill(tonumber(args[2])) then print("Local kill record cleared.")
-			else print("Encounter ID is not registered.") end
-			ui:Refresh()
-		elseif cmd == "remove" then
-			if core:RemoveBoss(tonumber(args[2])) then print("Local boss removed.")
-			else print("Encounter ID is not registered.") end
-			ui:Refresh()
-		elseif cmd == "status" then
-			local list = core:GetAllBosses()
-			if #list == 0 then print("No bosses registered.") end
-			local now = time()
-			for _, entry in ipairs(list) do
-				print(string.format("%s [%d]: %s", entry.boss.name, entry.id, core:Describe(entry.boss, now)))
-			end
-		else
-			print("Usage: /worldboss [show|hide|register <ID> <estimated seconds> <name>|kill <ID>|interval <ID> <seconds>|forgetkill <ID>|remove <ID>|status]")
-		end
-	end)
-	local events = CreateFrame("Frame")
-	events:RegisterEvent("ENCOUNTER_END")
-	events:SetScript("OnEvent", function(_, _, id, _, _, _, success)
-		if _G.issecretvalue and (_G.issecretvalue(id) or _G.issecretvalue(success)) then return end
-		if success == 1 and type(id) == "number" and core.bosses[id] then
-			local timestamp = time()
-			local ok, problem = core:RecordBossKill(id, timestamp)
-			if not ok then InfinityUtils:Warning(problem, "WorldBoss") end
-			if ok and _G.InfinityGuildBossReports then
-				InfinityGuildBossReports:ObserveKill(id, core.bosses[id].name, timestamp)
-			end
-			ui:Refresh()
-		end
-	end)
-	InfinityCore:RegisterAddon("InfinityWorldBoss", {
-		version = "1.1.0", author = "Infinity Forever",
-		description = "Local manually configured world boss estimates", enabled = true,
+	
+	if not _G.InfinityDataCollector then
+		return
+	end
+	
+	-- Initialize modules
+	if InfinityWorldBossTimers then pcall(function() InfinityWorldBossTimers:Initialize() end) end
+	InfinityWorldBossUI:StartAutoUpdate()
+	
+	-- Make modules global
+	_G.InfinityWorldBoss = InfinityWorldBossCore
+	_G.InfinityWorldBossTimers = InfinityWorldBossTimers
+	_G.InfinityWorldBossUI = InfinityWorldBossUI
+	
+	-- Register with InfinityCore
+	_G.InfinityCore:RegisterAddon(addonName, {
+		version = addonVersion,
+		author = "Infinity Forever",
+		description = "World boss respawn tracking with notifications and guild sharing",
+		enabled = true,
 	})
-	initialized = true
-	print("InfinityWorldBoss loaded: local estimates only. Use /worldboss.")
+	
+	-- Register slash commands
+	if _G.InfinityCore.RegisterCommand then
+		_G.InfinityCore:RegisterCommand("/worldboss", "Toggle world boss tracker", function()
+			InfinityWorldBossUI:Toggle()
+		end)
+		
+		_G.InfinityCore:RegisterCommand("/worldboss show", "Show boss timer window", function()
+			InfinityWorldBossUI:Show()
+		end)
+		
+		_G.InfinityCore:RegisterCommand("/worldboss hide", "Hide boss timer window", function()
+			InfinityWorldBossUI:Hide()
+		end)
+		
+		_G.InfinityCore:RegisterCommand("/worldboss register", "Register a world boss", function(bossID, bossName)
+			if bossID and bossName then
+				InfinityWorldBossCore:RegisterBoss(tonumber(bossID), bossName, GetRealZoneText(), 14400)
+				print("Registered boss: " .. bossName)
+			else
+				print("Usage: /worldboss register <id> <name>")
+			end
+		end)
+		
+		_G.InfinityCore:RegisterCommand("/worldboss kill", "Record a boss kill", function(bossID)
+			if bossID then
+				InfinityWorldBossCore:RecordBossKill(tonumber(bossID), UnitName("player"), GetGuildInfo("player"))
+				local boss = InfinityWorldBossCore:GetBossInfo(tonumber(bossID))
+				if boss then
+					print("Recorded kill: " .. boss.name .. " - Next respawn in " .. 
+						InfinityWorldBossCore:FormatTimeRemaining(boss.respawnTime))
+				end
+			else
+				print("Usage: /worldboss kill <boss_id>")
+			end
+		end)
+		
+		_G.InfinityCore:RegisterCommand("/worldboss status", "Show current boss statuses", function()
+			local bosses = InfinityWorldBossCore:GetAllBosses()
+			print("|cFFFFD700World Boss Status|r")
+			for _, boss in ipairs(bosses) do
+				local timer = InfinityWorldBossCore:GetRespawnTimer(boss.id)
+				if timer then
+					local timeLeft = InfinityWorldBossCore:GetTimeToRespawn(boss.id)
+					print(string.format("  %s: %s", boss.name, 
+						InfinityWorldBossCore:FormatTimeRemaining(timeLeft)))
+				else
+					print(string.format("  %s: Alive", boss.name))
+				end
+			end
+		end)
+	end
+	
+	-- Set up encounter tracking hook for automatic boss kills
+	local encounterFrame = CreateFrame("Frame")
+	encounterFrame:RegisterEvent("ENCOUNTER_END")
+	encounterFrame:SetScript("OnEvent", function(self, event, encounterID, encounterName, difficultyID, groupSize, success)
+		if event == "ENCOUNTER_END" and success then
+			-- Register boss if not already registered
+			if not InfinityWorldBossCore:GetBossInfo(encounterID) then
+				InfinityWorldBossCore:RegisterBoss(encounterID, encounterName, GetRealZoneText(), 14400)
+			end
+			
+			-- Record kill
+			InfinityWorldBossCore:RecordBossKill(encounterID, UnitName("player"), GetGuildInfo("player") or "Unknown")
+			
+			-- Notify guild
+			if IsInGuild() then
+				SendChatMessage("|cFFFFD700[World Boss]|r " .. encounterName .. " killed! Next respawn: ~4 hours", "GUILD")
+			end
+		end
+	end)
+	
+	-- Hook into data collector for P2P sharing
+	if _G.InfinityMessaging then
+		_G.InfinityMessaging:Subscribe("DataCollector:RequestData", function(requestID, fromPlayer, dataTypes)
+			-- Share world boss data if requested
+			if table.concat(dataTypes):find("worldboss") then
+				local bossData = InfinityWorldBossCore:ExportBossData()
+				_G.InfinityMessaging:Publish("DataCollector:DataResponse", requestID, {
+					worldboss = bossData
+				})
+			end
+		end, 5)
+	end
+	
+	-- Register classic world bosses (expandable with more)
+	InfinityWorldBossCore:RegisterBoss(1, "Azuregos", "Azshara", 48000)
+	InfinityWorldBossCore:RegisterBoss(2, "Lord Kazzak", "The Tainted Scar", 43200)
+	InfinityWorldBossCore:RegisterBoss(3, "The Four Dragons of Nightmare", "Duskwood", 14400)
+	InfinityWorldBossCore:RegisterBoss(4, "Taerar", "Ashenvale", 14400)
+	InfinityWorldBossCore:RegisterBoss(5, "Ysondre", "Hinterlands", 14400)
+	InfinityWorldBossCore:RegisterBoss(6, "Lethendris", "Feralas", 14400)
+	
+	print("InfinityWorldBoss loaded")
+	print("  - Respawn tracking: ACTIVE")
+	print("  - Notifications: " .. (InfinityWorldBossCore.notificationEnabled and "ENABLED" or "DISABLED"))
+	print("  - Guild sharing: " .. (InfinityWorldBossCore.guildSharingEnabled and "ENABLED" or "DISABLED"))
+	print("  - Use /worldboss for tracker window")
+	print("  - Use /worldboss status for quick status")
 end
 
-local frame = CreateFrame("Frame")
+
+local function RegisterAddonWithInfinityManager()
+	if _G.InfinityAddonManager then
+		_G.InfinityAddonManager:RegisterAddon(ADDON_NAME, ADDON_VERSION, {
+			description = "World bosses",
+			author = "Infinity Suite Team",
+			category = "Raid",
+			enabled = true,
+			settings = {{}}
+		})
+	end
+end
+
+	local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
-frame:SetScript("OnEvent", function(_, _, name)
-	if name == "InfinityWorldBoss" then Initialize() end
+
+local addonLoaded = false
+
+frame:SetScript("OnEvent", function(self, event, name)
+	if event == "ADDON_LOADED" and name == addonName then
+		addonLoaded = true
+		if _G.InfinityCore and _G.InfinityDataCollector then
+			InitializeWorldBoss()
+		end
+	elseif event == "INFINITY_DATA_LOADED" and addonLoaded then
+		InitializeWorldBoss()
+	end
 end)
+
+if _G.InfinityMessaging then
+	_G.InfinityMessaging:Subscribe("INFINITY_DATA_LOADED", function()
+		if addonLoaded then
+			InitializeWorldBoss()
+		end
+	end)
+end
+
+

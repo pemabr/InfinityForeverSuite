@@ -1,174 +1,361 @@
-local Compass = { followWaypoint = true, history = {} }
-_G.InfinityQuestCompass = Compass
+-- QuestNavCompassEngine.lua - Navigation compass display for active quests
+-- Part of InfinityQuestie addon suite
+-- Displays compass showing direction and distance to quest objectives
 
-local function Public(value)
-	if _G.issecretvalue and _G.issecretvalue(value) then return nil end
-	return value
+local QuestNavCompassEngine = {}
+QuestNavCompassEngine.enabled = false
+QuestNavCompassEngine.db = nil
+QuestNavCompassEngine.compass_data = {}
+QuestNavCompassEngine.compass_config = {}
+QuestNavCompassEngine.target_waypoint = nil
+
+-- Configuration
+QuestNavCompassEngine.config = {
+    enabled = true,
+    show_compass = true,
+    update_frequency = 1,  -- seconds
+    show_distance = true,
+    show_arrow = true,
+    compass_size = 128,
+}
+
+function QuestNavCompassEngine:Initialize()
+    if not InfinityCore then return end
+    
+    self.db = InfinityCore:GetDatabase("InfinityQuestie")
+    if not self.db then
+        self.db = {}
+    end
+    
+    if not self.db.compass_data then
+        self.db.compass_data = {}
+    end
+    
+    if not self.db.compass_config then
+        self.db.compass_config = {}
+    end
+    
+    self.compass_data = self.db.compass_data
+    self.compass_config = self.db.compass_config
+    self.enabled = true
+    
+    self:Log("Initialized navigation compass engine")
 end
 
-local function Finite(value)
-	return type(value) == "number" and value == value and value > -math.huge and value < math.huge
+function QuestNavCompassEngine:SetTargetWaypoint(x, y, z)
+    if not x or not y then
+        return false
+    end
+    
+    self.target_waypoint = {
+        x = tonumber(x),
+        y = tonumber(y),
+        z = z and tonumber(z) or nil,
+        set_at = GetTime(),
+    }
+    
+    self:Log("Set target waypoint: (" .. x .. ", " .. y .. ")")
+    
+    return true
 end
 
-local function ValidPoint(mapID, x, y)
-	return Finite(mapID) and mapID > 0 and mapID == math.floor(mapID)
-		and Finite(x) and x >= 0 and x <= 1 and Finite(y) and y >= 0 and y <= 1
+function QuestNavCompassEngine:CalculateDirection(playerX, playerY, targetX, targetY)
+    if not playerX or not playerY or not targetX or not targetY then
+        return nil
+    end
+    
+    -- Calculate angle in degrees (0 = North, 90 = East, 180 = South, 270 = West)
+    local dx = targetX - playerX
+    local dy = targetY - playerY
+    
+    local angle = math.atan2(dy, dx) * 180 / math.pi
+    -- Normalize to 0-360
+    angle = (angle + 450) % 360
+    
+    return angle
 end
 
-local function WorldPosition(point)
-	if not (_G.C_Map and C_Map.GetWorldPosFromMapPos and _G.CreateVector2D) then return nil end
-	local instance, position = C_Map.GetWorldPosFromMapPos(point.mapID, CreateVector2D(point.x, point.y))
-	instance, position = Public(instance), Public(position)
-	if not Finite(instance) or (type(position) ~= "table" and type(position) ~= "userdata") then return nil end
-	local x, y = Public(position.x), Public(position.y)
-	if (x == nil or y == nil) and type(position.GetXY) == "function" then
-		x, y = position:GetXY()
-		x, y = Public(x), Public(y)
-	end
-	if not Finite(x) or not Finite(y) then return nil end
-	return { instance = instance, x = x, y = y }
+function QuestNavCompassEngine:CalculateDistance(playerX, playerY, playerZ, targetX, targetY, targetZ)
+    if not playerX or not playerY or not targetX or not targetY then
+        return nil
+    end
+    
+    local dx = targetX - playerX
+    local dy = targetY - playerY
+    local dz = (targetZ and playerZ) and (targetZ - playerZ) or 0
+    
+    local distance = math.sqrt(dx * dx + dy * dy + dz * dz)
+    
+    return distance
 end
 
-function Compass:GetTarget()
-	if not self.followWaypoint then return self.target end
-	if not (_G.C_Map and C_Map.GetUserWaypoint) then return nil end
-	local point = Public(C_Map.GetUserWaypoint())
-	if type(point) ~= "table" then return nil end
-	local mapID, pos = Public(point.uiMapID), Public(point.position)
-	if type(pos) ~= "table" and type(pos) ~= "userdata" then return nil end
-	local x, y = Public(pos.x), Public(pos.y)
-	if not ValidPoint(mapID, x, y) then return nil end
-	return { mapID = mapID, x = x, y = y }
+function QuestNavCompassEngine:GetDirectionName(angle)
+    if not angle then
+        return "Unknown"
+    end
+    
+    if angle < 22.5 or angle >= 337.5 then
+        return "North"
+    elseif angle < 67.5 then
+        return "Northeast"
+    elseif angle < 112.5 then
+        return "East"
+    elseif angle < 157.5 then
+        return "Southeast"
+    elseif angle < 202.5 then
+        return "South"
+    elseif angle < 247.5 then
+        return "Southwest"
+    elseif angle < 292.5 then
+        return "West"
+    else
+        return "Northwest"
+    end
 end
 
-function Compass:SetTarget(x, y, mapID)
-	x, y, mapID = Public(x), Public(y), Public(mapID)
-	if not Finite(x) or not Finite(y) then return false end
-	if mapID == nil then
-		local player = InfinityQuestRouter:GetPlayerPosition()
-		mapID = player and player.mapID
-	end
-	if not ValidPoint(mapID, x / 100, y / 100) then return false end
-	self.target = { mapID = mapID, x = x / 100, y = y / 100 }
-	self.followWaypoint, self.history, self.lastTarget = false, {}, nil
-	return true
+local function getLivePlayerPosition()
+    if C_Map and C_Map.GetBestMapForUnit and C_Map.GetPlayerMapPosition then
+        local mapID = C_Map.GetBestMapForUnit("player")
+        if mapID then
+            local pos = C_Map.GetPlayerMapPosition(mapID, "player")
+            if pos then
+                return pos.x * 100, pos.y * 100, 0
+            end
+        end
+    end
+    if GetPlayerMapPosition then
+        local x, y = GetPlayerMapPosition("player")
+        if x and y then
+            return x * 100, y * 100, 0
+        end
+    end
+    return 0, 0, 0
 end
 
-function Compass:FollowWaypoint()
-	self.followWaypoint, self.target, self.history, self.lastTarget = true, nil, {}, nil
+function QuestNavCompassEngine:GetCompassData()
+    if not self.target_waypoint then
+        return nil
+    end
+    
+    local playerX, playerY, playerZ = getLivePlayerPosition()
+    
+    local direction = self:CalculateDirection(playerX, playerY, 
+                                            self.target_waypoint.x, 
+                                            self.target_waypoint.y)
+    
+    local distance = self:CalculateDistance(playerX, playerY, playerZ,
+                                           self.target_waypoint.x,
+                                           self.target_waypoint.y,
+                                           self.target_waypoint.z or 0)
+    
+    local compass = {
+        angle = direction,
+        direction_name = self:GetDirectionName(direction),
+        distance = distance,
+        target_x = self.target_waypoint.x,
+        target_y = self.target_waypoint.y,
+        is_close = distance < 50,
+        is_very_close = distance < 10,
+    }
+    
+    return compass
 end
 
-function Compass:ClearTarget()
-	self.followWaypoint, self.target, self.history, self.lastTarget = false, nil, {}, nil
+function QuestNavCompassEngine:IsWaypointReached(threshold)
+    threshold = threshold or 5
+    
+    if not self.target_waypoint then
+        return false
+    end
+    
+    local playerX, playerY, playerZ = getLivePlayerPosition()
+    local distance = self:CalculateDistance(playerX, playerY, playerZ,
+                                           self.target_waypoint.x,
+                                           self.target_waypoint.y,
+                                           self.target_waypoint.z or 0)
+    
+    return distance < threshold
 end
 
-function Compass:GetCompassData()
-	local target = self:GetTarget()
-	if not target then return nil, "No target; set coordinates or follow a user waypoint." end
-	local player = InfinityQuestRouter:GetPlayerPosition()
-	if not player then return nil, "Player position unavailable." end
-	local origin, destination = WorldPosition(player), WorldPosition(target)
-	if not origin or not destination then return nil, "World coordinates unavailable." end
-	if origin.instance ~= destination.instance then return nil, "Target is on a different continent or instance." end
-	local north, east = destination.x - origin.x, origin.y - destination.y
-	local distance = math.sqrt(north * north + east * east)
-	if not Finite(distance) then return nil, "Distance unavailable." end
-	local angle, direction
-	if distance < 0.1 then
-		direction = "At target"
-	else
-		angle = (math.atan2(east, north) * 180 / math.pi + 360) % 360
-		local names = { "North", "Northeast", "East", "Southeast", "South", "Southwest", "West", "Northwest" }
-		direction = names[math.floor((angle + 22.5) / 45) % 8 + 1]
-	end
-	return { target = target, distance = distance, angle = angle, direction = direction }
+function QuestNavCompassEngine:ClearTarget()
+    self.target_waypoint = nil
+    self:Log("Cleared target waypoint")
+    return true
 end
 
-function Compass:Update()
-	if not self.frame or not self.frame:IsShown() then return end
-	local data, problem = self:GetCompassData()
-	if not data then
-		self.frame.display:SetText(problem)
-		self.history, self.lastTarget = {}, nil
-		return
-	end
-	local point = data.target
-	local key = string.format("%d:%.6f:%.6f", point.mapID, point.x, point.y)
-	if key ~= self.lastTarget then self.history, self.lastTarget = {}, key end
-	self.history[#self.history + 1] = data.distance
-	if #self.history > 100 then table.remove(self.history, 1) end
-	self.frame.display:SetText(string.format("%s  |  %.0f yards (straight line)\nMap %d: %.1f, %.1f",
-		data.direction, data.distance, point.mapID, point.x * 100, point.y * 100))
+function QuestNavCompassEngine:GetTargetWaypoint()
+    return self.target_waypoint
 end
 
-function Compass:Toggle()
-	if not self.frame then
-		local frame = InfinityUIFramework:CreateFrame("InfinityQuestCompassFrame", UIParent, 320, 100)
-		frame:SetPoint("CENTER", UIParent, "CENTER", 0, 180)
-		frame:SetMovable(true)
-		frame:EnableMouse(true)
-		frame:RegisterForDrag("LeftButton")
-		frame:SetScript("OnDragStart", function(window) window:StartMoving() end)
-		frame:SetScript("OnDragStop", function(window) window:StopMovingOrSizing() end)
-		local title = InfinityUIFramework:CreateLabel(frame, "Quest compass")
-		title:SetPoint("TOPLEFT", 12, -10)
-		local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
-		close:SetPoint("TOPRIGHT", -5, -5)
-		close:SetScript("OnClick", function() frame:Hide() end)
-		frame.display = InfinityUIFramework:CreateLabel(frame, "")
-		frame.display:SetPoint("TOPLEFT", 12, -35)
-		frame.display:SetWidth(290)
-		frame.display:SetJustifyH("LEFT")
-		local elapsed = 0
-		frame:SetScript("OnUpdate", function(_, dt)
-			elapsed = elapsed + dt
-			if elapsed >= 1 then elapsed = 0; self:Update() end
-		end)
-		frame:Hide()
-		self.frame = frame
-	end
-	if self.frame:IsShown() then self.frame:Hide() else self.frame:Show(); self:Update() end
+function QuestNavCompassEngine:RecordCompassView(compassData)
+    if not compassData then
+        return false
+    end
+    
+    table.insert(self.compass_data, {
+        timestamp = GetTime(),
+        angle = compassData.angle,
+        distance = compassData.distance,
+        direction = compassData.direction_name,
+    })
+    
+    -- Keep only last 100 records
+    while #self.compass_data > 100 do
+        table.remove(self.compass_data, 1)
+    end
+    
+    return true
 end
 
-function Compass:HandleCommand(message)
-	local cmd, args = (message or ""):match("^%s*(%S*)%s*(.-)%s*$")
-	cmd = cmd:lower()
-	if cmd == "" or cmd == "show" then
-		self:Toggle()
-	elseif cmd == "set" then
-		local x, y, rest = args:match("^(%S+)%s+(%S+)%s*(.-)$")
-		local mapID = rest ~= "" and tonumber(rest) or nil
-		if not x or not y or (rest ~= "" and not mapID) or not self:SetTarget(tonumber(x), tonumber(y), mapID) then
-			print("Usage: /questcompass set <x 0-100> <y 0-100> [map ID]")
-		else
-			print("Compass target set; the native waypoint was not changed.")
-			self:Update()
-		end
-	elseif cmd == "waypoint" then
-		self:FollowWaypoint()
-		print("Compass follows the native user waypoint.")
-		self:Update()
-	elseif cmd == "clear" then
-		self:ClearTarget()
-		print("Compass target cleared; the native waypoint was not changed.")
-		self:Update()
-	elseif cmd == "compass" or cmd == "target" then
-		local data, problem = self:GetCompassData()
-		if data then
-			print(string.format("%s: %.0f yards straight line, map %d (%.1f, %.1f).",
-				data.direction, data.distance, data.target.mapID, data.target.x * 100, data.target.y * 100))
-		else
-			print(problem)
-		end
-	elseif cmd == "heading" then
-		local count = #self.history
-		if count < 2 then print("Open the compass and wait for two position samples.")
-		elseif self.history[count] < self.history[count - 1] then print("Distance decreased since the previous sample.")
-		elseif self.history[count] > self.history[count - 1] then print("Distance increased since the previous sample.")
-		else print("Distance unchanged since the previous sample.") end
-	else
-		print("Usage: /questcompass [show|set <x> <y> [map ID]|waypoint|clear|compass|heading]")
-	end
+function QuestNavCompassEngine:GetCompassHistory()
+    return self.compass_data
 end
 
-return Compass
+function QuestNavCompassEngine:CalculatePathTaken()
+    if #self.compass_data < 2 then
+        return 0
+    end
+    
+    local totalDistance = 0
+    
+    for i = 1, #self.compass_data - 1 do
+        -- Estimate based on distance changes
+        local distDiff = self.compass_data[i + 1].distance - self.compass_data[i].distance
+        
+        if distDiff > 0 then
+            -- Player moved away
+            totalDistance = totalDistance + distDiff
+        end
+    end
+    
+    return totalDistance
+end
+
+function QuestNavCompassEngine:GetAverageDistance()
+    if #self.compass_data == 0 then
+        return 0
+    end
+    
+    local totalDistance = 0
+    
+    for _, record in ipairs(self.compass_data) do
+        totalDistance = totalDistance + record.distance
+    end
+    
+    return totalDistance / #self.compass_data
+end
+
+function QuestNavCompassEngine:IsHeadingTowardWaypoint()
+    if #self.compass_data < 2 then
+        return nil
+    end
+    
+    local prevDistance = self.compass_data[#self.compass_data - 1].distance
+    local currentDistance = self.compass_data[#self.compass_data].distance
+    
+    return currentDistance < prevDistance
+end
+
+function QuestNavCompassEngine:UpdateConfig(key, value)
+    if not key then
+        return false
+    end
+    
+    if self.config[key] ~= nil then
+        self.config[key] = value
+        self:Log("Config updated: " .. key .. " = " .. tostring(value))
+        return true
+    end
+    
+    return false
+end
+
+function QuestNavCompassEngine:GetStatus()
+    local hasTarget = self.target_waypoint ~= nil
+    
+    return {
+        enabled = self.enabled,
+        show_compass = self.config.show_compass,
+        has_target = hasTarget,
+        history_entries = #self.compass_data,
+        compass_size = self.config.compass_size,
+    }
+end
+
+function QuestNavCompassEngine:Log(message)
+    if InfinityCore and InfinityCore.Log then
+        InfinityCore.Log("[QuestNavCompassEngine] " .. message)
+    else
+        print("[QuestNavCompassEngine] " .. message)
+    end
+end
+
+-- Register admin commands
+if not IsTestingLua then
+    SLASH_QUESTCOMPASS1 = "/questcompass"
+    SlashCmdList["QUESTCOMPASS"] = function(msg)
+        local cmd, args = msg:match("^(%S*)%s*(.*)$")
+        cmd = cmd or ""
+        
+        if cmd == "set" then
+            local x, y = args:match("^([%d.]+)%s+([%d.]+)$")
+            if x and y then
+                x = tonumber(x)
+                y = tonumber(y)
+                QuestNavCompassEngine:SetTargetWaypoint(x, y)
+                print("Target waypoint set to (" .. x .. ", " .. y .. ")")
+            else
+                print("Usage: /questcompass set <x> <y> [z]")
+            end
+        elseif cmd == "clear" then
+            QuestNavCompassEngine:ClearTarget()
+            print("Target waypoint cleared")
+        elseif cmd == "target" then
+            local waypoint = QuestNavCompassEngine:GetTargetWaypoint()
+            if waypoint then
+                print("Current target: (" .. waypoint.x .. ", " .. waypoint.y .. ")")
+            else
+                print("No target waypoint set")
+            end
+        elseif cmd == "compass" then
+            local data = QuestNavCompassEngine:GetCompassData()
+            if data then
+                print("Compass Data:")
+                print("  Direction: " .. data.direction_name .. " (" .. string.format("%.1f", data.angle) .. "°)")
+                print("  Distance: " .. string.format("%.1f", data.distance))
+                print("  Close: " .. (data.is_close and "Yes" or "No"))
+            else
+                print("No target waypoint")
+            end
+        elseif cmd == "heading" then
+            local heading = QuestNavCompassEngine:IsHeadingTowardWaypoint()
+            if heading == true then
+                print("Status: Heading toward waypoint")
+            elseif heading == false then
+                print("Status: Moving away from waypoint")
+            else
+                print("Status: Not enough data")
+            end
+        elseif cmd == "distance" then
+            local avg = QuestNavCompassEngine:GetAverageDistance()
+            print("Average distance: " .. string.format("%.1f", avg))
+        elseif cmd == "status" then
+            local status = QuestNavCompassEngine:GetStatus()
+            print("Quest Navigation Compass Status:")
+            print("  Enabled: " .. (status.enabled and "Yes" or "No"))
+            print("  Has Target: " .. (status.has_target and "Yes" or "No"))
+            print("  History: " .. status.history_entries .. " entries")
+        else
+            print("Quest Navigation Compass Commands:")
+            print("  /questcompass set <x> <y> [z] - Set target waypoint")
+            print("  /questcompass clear - Clear target")
+            print("  /questcompass target - Show current target")
+            print("  /questcompass compass - Show compass data")
+            print("  /questcompass heading - Check if heading toward waypoint")
+            print("  /questcompass distance - Show average distance")
+            print("  /questcompass status - Show engine status")
+        end
+    end
+end
+
+return QuestNavCompassEngine

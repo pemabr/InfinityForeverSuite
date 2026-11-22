@@ -1,397 +1,148 @@
--- Main UI
--- Encounter window and status display
+-- InfinityEncounter Main UI
+-- Live Boss Health Bar, Ability Countdown StatusBars, and 10s Pull Timer Controls
 
-local InfinityEncounterUI = {}
+local InfinityEncounterUI = {
+	lastUpdate = 0,
+	timerBars = {},
+}
 _G.InfinityEncounterUI = InfinityEncounterUI
 
 function InfinityEncounterUI:Initialize()
-    if self.initialized then return end
-    self.frame = CreateFrame("Frame", "InfinityEncounterMainFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
-    self.frame:SetSize(400, 300)
-    self.frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-    self.frame:SetBackdrop({
-        bgFile = "Interface/Tooltips/UI-Tooltip-Background",
-        edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 16,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 }
-    })
-    self.frame:SetBackdropColor(0, 0, 0, 0.8)
-    self.frame:SetBackdropBorderColor(0.8, 0.8, 0.8, 1)
-    
-    -- Title
-    local title = self.frame:CreateFontString(nil, "ARTWORK", (GameFontBold and "GameFontBold" or "GameFontNormalLarge"))
-    title:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 10, -10)
-    title:SetText("Infinity Encounter")
-    
-    -- Close button
-    local closeBtn = CreateFrame("Button", nil, self.frame, "UIPanelCloseButton")
-    closeBtn:SetPoint("TOPRIGHT", self.frame, "TOPRIGHT", -5, -5)
-    closeBtn:SetScript("OnClick", function() self.frame:Hide() end)
-    
-    -- Status text
-    self.status_text = self.frame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    self.status_text:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -10)
-    self.status_text:SetWidth(380)
-    self.status_text:SetJustifyH("LEFT")
-    self.status_text:SetText("No encounter active")
-    
-    -- Abilities section
-    self.abilities_frame = CreateFrame("Frame", nil, self.frame, BackdropTemplateMixin and "BackdropTemplate" or nil)
-    self.abilities_frame:SetSize(380, 100)
-    self.abilities_frame:SetPoint("TOPLEFT", self.status_text, "BOTTOMLEFT", 0, -20)
-    
-    -- Timer section
-    self.timer_frame = CreateFrame("Frame", nil, self.frame, BackdropTemplateMixin and "BackdropTemplate" or nil)
-    self.timer_frame:SetSize(380, 50)
-    self.timer_frame:SetPoint("TOPLEFT", self.abilities_frame, "BOTTOMLEFT", 0, -10)
+	if self.initialized and self.frame then return end
 
-    local journalButton = CreateFrame("Button", nil, self.frame, "UIPanelButtonTemplate")
-    journalButton:SetSize(130, 22)
-    journalButton:SetPoint("BOTTOMLEFT", self.frame, "BOTTOMLEFT", 10, 10)
-    journalButton:SetText("Journal")
-    journalButton:SetScript("OnClick", function() self:ShowJournal() end)
-    local controls = CreateFrame("Button", nil, self.frame, "UIPanelButtonTemplate")
-    controls:SetSize(130, 22)
-    controls:SetPoint("LEFT", journalButton, "RIGHT", 8, 0)
-    controls:SetText("Controls")
-    controls:SetScript("OnClick", function() self:ShowControls() end)
-    
-    self.frame:Hide()
-    self.initialized = true
-end
+	local frame = InfinityUIFramework:CreateFrame(
+		"InfinityEncounterMainFrame",
+		UIParent,
+		460,
+		380,
+		"Infinity Encounter",
+		"Boss Timers & Alerts"
+	)
+	frame:SetPoint("CENTER", UIParent, "CENTER", 0, 80)
 
-local function EncounterInput(box)
-    local value = box:GetText()
-    if _G.issecretvalue and _G.issecretvalue(value) then
-        InfinityUtils:Warning("Protected input cannot be used.", "Encounter")
-        return nil
-    end
-    if type(value) ~= "string" then
-        InfinityUtils:Warning("Encounter input is unavailable.", "Encounter")
-        return nil
-    end
-    return value:match("^%s*(.-)%s*$")
-end
+	-- Quick controls
+	local pullBtn = InfinityUIFramework:CreateButton(frame, "Pull 10s", 88, 24, function()
+		if _G.InfinityEncounterTimer and _G.InfinityEncounterTimer.CreateTimer then
+			_G.InfinityEncounterTimer:CreateTimer("Pull Countdown", 10)
+		end
+		if _G.InfinityEncounterAlerts and _G.InfinityEncounterAlerts.SendAlert then
+			_G.InfinityEncounterAlerts:SendAlert("Pull in 10 seconds!", _G.InfinityEncounterAlerts.LEVEL_WARNING)
+		end
+		InfinityUIFramework:ShowNotification("|cfffbbf24Pull timer started: 10s|r", 2.5)
+		InfinityEncounterUI:Update(true)
+	end, true)
+	pullBtn:SetPoint("TOPLEFT", frame, "TOPLEFT", 12, -46)
 
-function InfinityEncounterUI:RunAction(action, input)
-    local callback = self.actions and self.actions[action]
-    if not callback then InfinityUtils:Warning("Encounter action is unavailable.", "Encounter"); return end
-    callback(input or "")
-end
+	local testBtn = InfinityUIFramework:CreateButton(frame, "Test Timers", 96, 24, function()
+		if _G.InfinityEncounterTimer and _G.InfinityEncounterTimer.CreateTimer then
+			_G.InfinityEncounterTimer:CreateTimer("Locust Swarm", 25)
+			_G.InfinityEncounterTimer:CreateTimer("Frost Blast", 18)
+			_G.InfinityEncounterTimer:CreateTimer("Void Zone", 12)
+		end
+		InfinityEncounterUI:Update(true)
+	end)
+	testBtn:SetPoint("LEFT", pullBtn, "RIGHT", 8, 0)
 
-function InfinityEncounterUI:ShowControls()
-    if not _G.InfinityUIFramework then InfinityUtils:Warning("Encounter controls unavailable.", "Encounter"); return end
-    if not self.controls then
-        local frame = InfinityUIFramework:CreateListWindow("InfinityEncounterControlsWindow", "Encounter Controls", 680, 500)
-        local textLabel = InfinityUIFramework:CreateLabel(frame, "Name / label")
-        textLabel:SetPoint("TOPLEFT", 15, -43)
-        local text = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
-        text:SetSize(220, 20)
-        text:SetPoint("TOPLEFT", 105, -38)
-        text:SetAutoFocus(false)
-        text:SetMaxLetters(80)
-        local idLabel = InfinityUIFramework:CreateLabel(frame, "ID / seconds")
-        idLabel:SetPoint("TOPLEFT", 345, -43)
-        local id = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
-        id:SetSize(100, 20)
-        id:SetPoint("TOPLEFT", 440, -38)
-        id:SetAutoFocus(false)
-        id:SetMaxLetters(10)
-        self.controls, self.controlText, self.controlID = frame, text, id
-    end
-    self.confirmControl = nil
-    self:RefreshControls()
-    self.controls:Show()
-end
+	local resetBtn = InfinityUIFramework:CreateButton(frame, "Reset", 74, 24, function()
+		if _G.InfinityEncounterMgr and _G.InfinityEncounterMgr.Reset then _G.InfinityEncounterMgr:Reset() end
+		if _G.InfinityEncounterAbilities and _G.InfinityEncounterAbilities.Reset then _G.InfinityEncounterAbilities:Reset() end
+		if _G.InfinityEncounterAlerts and _G.InfinityEncounterAlerts.Clear then _G.InfinityEncounterAlerts:Clear() end
+		if _G.InfinityEncounterTimer and _G.InfinityEncounterTimer.timers then _G.InfinityEncounterTimer.timers = {} end
+		InfinityEncounterUI:Update(true)
+	end)
+	resetBtn:SetPoint("LEFT", testBtn, "RIGHT", 8, 0)
 
-function InfinityEncounterUI:RefreshControls()
-    if not self.controls then return end
-    local function Inputs()
-        local text, id = EncounterInput(self.controlText), EncounterInput(self.controlID)
-        if text == nil or id == nil then return nil end
-        return text, id
-    end
-    local actions = {
-        { "Start manual timer | seconds and name", function()
-            local text, id = Inputs()
-            if text then self:RunAction("timer", id .. " " .. text) end
-        end },
-        { "Stop manual timer | name", function()
-            local text = Inputs()
-            if text then self:RunAction("timer stop", text) end
-        end },
-        { "Open journal encounter | ID (optional)", function()
-            local text, id = Inputs()
-            if text then self:RunAction("journal", id) end
-        end },
-        { "Watch boss spell | spell ID and optional label", function()
-            local text, id = Inputs()
-            if text then self:RunAction("watch add", id .. " " .. text) end
-        end },
-        { "Manage watched boss spells", function() self:ShowWatches() end },
-        { "Save current watches as preset | name", function()
-            local text = Inputs()
-            if text then self:RunAction("preset", "create " .. text) end
-        end },
-        { "Manage boss presets", function() self:ShowPresets() end },
-        { "Enable DBM live timers", function() self:RunAction("dbm", "on") end },
-        { "Disable DBM live timers", function() self:RunAction("dbm", "off") end },
-        { "Allow DBM preset imports", function() self:RunAction("dbm import", "on") end },
-        { "Disable DBM preset imports", function() self:RunAction("dbm import", "off") end },
-        { "Browse loaded DBM modules | optional name filter", function()
-            local text = Inputs()
-            if text then self:ShowDBMModules(text) end
-        end },
-        { "Test encounter alerts", function() self:RunAction("test") end },
-        { "Reset encounter data | click twice to confirm", function()
-            if self.confirmControl ~= "reset" then
-                self.confirmControl = "reset"
-                self.controls.status:SetText("Reset encounter data? Click the same action again to confirm.")
-            else self.confirmControl = nil; self:RunAction("reset") end
-        end },
-    }
-    local rows = {}
-    for _, action in ipairs(actions) do
-        local item = action
-        rows[#rows + 1] = { text = item[1], onClick = function()
-            if self.lastControl ~= item[1] then self.confirmControl = nil end
-            self.lastControl = item[1]
-            item[2]()
-        end }
-    end
-    self.controls.status:SetText("Enter the requested values above and click an action.")
-    self.controls:SetItems(rows)
-end
+	-- Boss health bar card
+	local bossCard = InfinityUIFramework:CreateCard(frame, 436, 74, "Active Boss Target")
+	bossCard:SetPoint("TOPLEFT", frame, "TOPLEFT", 12, -80)
 
-function InfinityEncounterUI:ShowWatches()
-    local abilities = _G.InfinityEncounterAbilities
-    if not abilities or type(abilities.watchedSpells) ~= "table" then
-        InfinityUtils:Warning("Encounter watches unavailable.", "Encounter")
-        return
-    end
-    if not self.watches then self.watches = InfinityUIFramework:CreateListWindow("InfinityEncounterWatchesWindow", "Boss Spell Watches", 600, 450) end
-    local ids, rows = {}, {}
-    for id in pairs(abilities.watchedSpells) do if type(id) == "number" then ids[#ids + 1] = id end end
-    table.sort(ids)
-    for _, id in ipairs(ids) do
-        local spellID = id
-        rows[#rows + 1] = { text = spellID .. " - " .. tostring(abilities.watchedSpells[spellID]) .. " | click twice to remove",
-            onClick = function()
-                if self.confirmWatch ~= spellID then
-                    self.confirmWatch = spellID
-                    self.watches.status:SetText("Remove watch " .. spellID .. "? Click again to confirm.")
-                else
-                    self.confirmWatch = nil
-                    self:RunAction("watch remove", tostring(spellID))
-                    self:ShowWatches()
-                end
-            end }
-    end
-    if #rows == 0 then rows[1] = { text = "No watched boss spells." } end
-    if not self.watches:IsShown() then self.confirmWatch = nil end
-    self.watches.status:SetText("Add a watch in Encounter Controls.")
-    self.watches:SetItems(rows)
-    self.watches:Show()
-end
+	local bossBar = InfinityUIFramework:CreateStatusBar(bossCard, 412, 26, 0.88, 0.24, 0.26)
+	bossBar:SetPoint("TOPLEFT", bossCard, "TOPLEFT", 12, -34)
+	bossBar:SetBarData(0, "No boss engaged", "Idle")
+	self.bossBar = bossBar
 
-function InfinityEncounterUI:ShowPresets()
-    local presets = _G.InfinityEncounterPresets
-    if not presets then InfinityUtils:Warning("Boss presets unavailable.", "Encounter"); return end
-    local entries = presets:GetAll()
-    if not entries then return end
-    if not self.presetsWindow then self.presetsWindow = InfinityUIFramework:CreateListWindow("InfinityEncounterPresetsWindow", "Boss Presets", 650, 450) end
-    local rows = {}
-    local function Add(text, key, fn)
-        rows[#rows + 1] = { text = text, onClick = function()
-            if self.confirmPreset ~= key then
-                self.confirmPreset = key
-                self.presetsWindow.status:SetText("Click the same action again to confirm: " .. text)
-            else
-                self.confirmPreset = nil
-                fn()
-                self:ShowPresets()
-            end
-        end }
-    end
-    Add("Disable all boss watches", "none", function() presets:Use("none") end)
-    for _, entry in ipairs(entries) do
-        local id, name = entry.id, entry.preset.name
-        Add("Apply " .. name .. " (" .. id .. ") | replaces current watches", "use:" .. id, function() presets:Use(id) end)
-        rows[#rows + 1] = { text = "Share " .. name .. " with guild", onClick = function()
-            self.confirmPreset = nil
-            presets:Send(id)
-        end }
-        Add("Delete " .. name .. " (" .. id .. ")", "delete:" .. id, function() presets:Delete(id) end)
-    end
-    if not self.presetsWindow:IsShown() then self.confirmPreset = nil end
-    self.presetsWindow.status:SetText("Applying or deleting requires two clicks.")
-    self.presetsWindow:SetItems(rows)
-    self.presetsWindow:Show()
-end
+	-- Active ability timers card
+	local timersCard = InfinityUIFramework:CreateCard(frame, 436, 206, "Upcoming Boss Ability Timers")
+	timersCard:SetPoint("TOPLEFT", bossCard, "BOTTOMLEFT", 0, -10)
+	self.timersCard = timersCard
 
-function InfinityEncounterUI:ShowDBMModules(filter)
-    local bridge = _G.InfinityEncounterDBMBridge
-    if not bridge then InfinityUtils:Warning("DBM imports unavailable.", "Encounter"); return end
-    local ids = bridge:GetModules(filter)
-    if not ids then return end
-    if not self.dbmWindow then self.dbmWindow = InfinityUIFramework:CreateListWindow("InfinityEncounterDBMModulesWindow", "DBM Modules", 600, 450) end
-    local rows = {}
-    for index = 1, math.min(#ids, 100) do
-        local id = ids[index]
-        rows[#rows + 1] = { text = id .. " | click to import as preset", onClick = function() bridge:ImportModule(id) end }
-    end
-    if #rows == 0 then rows[1] = { text = "No matching DBM modules loaded." } end
-    self.dbmWindow.status:SetText(#ids > 100 and "First 100 shown; use a name filter." or "Enable DBM imports in Encounter Controls first.")
-    self.dbmWindow:SetItems(rows)
-    self.dbmWindow:Show()
+	-- Pre-allocate 6 reusable StatusBars for zero-GC live 0.1s updates
+	self.timerBars = {}
+	for i = 1, 6 do
+		local tb = InfinityUIFramework:CreateStatusBar(timersCard, 412, 24, 0.16, 0.56, 0.94)
+		tb:SetPoint("TOPLEFT", timersCard, "TOPLEFT", 12, -32 - (i - 1) * 28)
+		tb:Hide()
+		self.timerBars[i] = tb
+	end
+
+	local emptyLbl = InfinityUIFramework:CreateLabel(timersCard, "|cff94a3b8No active ability timers. Click 'Pull 10s' or 'Test Timers' to preview.|r")
+	emptyLbl:SetPoint("TOPLEFT", timersCard, "TOPLEFT", 12, -36)
+	self.emptyTimersLabel = emptyLbl
+
+	frame:Hide()
+	self.frame = frame
+	self.initialized = true
 end
 
 function InfinityEncounterUI:Toggle()
-    if not self.initialized then
-        self:Initialize()
-    end
-    self.frame:SetShown(not self.frame:IsShown())
+	if not self.initialized then self:Initialize() end
+	self.frame:SetShown(not self.frame:IsShown())
+	if self.frame:IsShown() then self:Update(true) end
 end
 
 function InfinityEncounterUI:Show()
-    if not self.initialized then
-        self:Initialize()
-    end
-    self.frame:Show()
+	if not self.initialized then self:Initialize() end
+	self.frame:Show()
+	self:Update(true)
 end
 
 function InfinityEncounterUI:Hide()
-    if self.frame then
-        self.frame:Hide()
-    end
+	if self.frame then self.frame:Hide() end
 end
 
-function InfinityEncounterUI:ShowJournal(journalID)
-    local database = _G.InfinityEncounterDB
-    if not database then
-        InfinityUtils:Warning("Encounter Journal database is unavailable.", "Encounter")
-        return false
-    end
-    local ok, text, err = pcall(function()
-        if journalID then return database:GetJournalEncounter(journalID) end
-        return database:GetJournalList()
-    end)
-    if not ok then
-        if _G.issecretvalue and _G.issecretvalue(text) then text = nil end
-        InfinityUtils:Warning("Encounter Journal lookup failed: " .. tostring(text or "protected error"), "Encounter")
-        return false
-    end
-    if not text then
-        InfinityUtils:Warning(err, "Encounter")
-        return false
-    end
-    if not self.journalFrame then
-        local frame = CreateFrame("Frame", "InfinityEncounterJournalFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
-        frame:SetSize(600, 480)
-        frame:SetPoint("CENTER")
-        frame:SetBackdrop({
-            bgFile = "Interface/Tooltips/UI-Tooltip-Background",
-            edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
-            tile = true, tileSize = 16, edgeSize = 16,
-            insets = { left = 3, right = 3, top = 3, bottom = 3 },
-        })
-        frame:SetBackdropColor(0, 0, 0, 0.9)
-        frame:SetBackdropBorderColor(0.8, 0.8, 0.8, 1)
-        local title = frame:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-        title:SetPoint("TOPLEFT", frame, "TOPLEFT", 15, -12)
-        title:SetText("Encounter Journal")
-        local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
-        close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -5, -5)
-        close:SetScript("OnClick", function() frame:Hide() end)
-        local scroll = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
-        scroll:SetPoint("TOPLEFT", frame, "TOPLEFT", 15, -40)
-        scroll:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -30, 15)
-        local child = CreateFrame("Frame", nil, scroll)
-        child:SetSize(550, 425)
-        scroll:SetScrollChild(child)
-        local content = child:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-        content:SetPoint("TOPLEFT", child, "TOPLEFT", 0, 0)
-        content:SetWidth(550)
-        content:SetJustifyH("LEFT")
-        self.journalFrame, self.journalScroll, self.journalChild, self.journalText = frame, scroll, child, content
-    end
-    self.journalText:SetText(text)
-    local height = self.journalText:GetStringHeight()
-    if _G.issecretvalue and _G.issecretvalue(height) then height = nil end
-    self.journalChild:SetHeight(math.max(425, type(height) == "number" and height + 10 or 0))
-    self.journalScroll:SetVerticalScroll(0)
-    self.journalFrame:Show()
-    return true
-end
+function InfinityEncounterUI:Update(force)
+	if not self.initialized or not self.frame or not self.frame:IsShown() then return end
+	local now = GetTime and GetTime() or 0
+	if not force and (now - self.lastUpdate) < 0.1 then return end
+	self.lastUpdate = now
 
-function InfinityEncounterUI:Update()
-    if not self.initialized or not self.frame:IsShown() then
-        return
-    end
-    
-    -- Update status
-    local boss = InfinityEncounterMgr:GetCurrentBoss()
-    if boss then
-        local text = "Boss: " .. tostring(boss.name or "Boss")
-        if boss.healthPercent then
-            text = text .. string.format("\nHealth: %.1f%% (%d/%d)", boss.healthPercent, boss.health, boss.maxHealth)
-        else
-            text = text .. "\nHealth: unavailable"
-        end
-        self.status_text:SetText(text)
-    else
-        local active = InfinityEncounterMgr.active_encounters
-        local encounter = active and active[#active]
-        self.status_text:SetText(encounter and ("Encounter: " .. encounter.name) or "No encounter active")
-    end
+	-- Boss health status bar
+	local boss = (_G.InfinityEncounterMgr and _G.InfinityEncounterMgr.GetCurrentBoss) and _G.InfinityEncounterMgr:GetCurrentBoss() or nil
+	if boss then
+		local pct = boss.healthPercent or 0
+		self.bossBar:SetBarData(pct, "|cffffffff" .. tostring(boss.name) .. "|r", string.format("%.1f%% (%d / %d)", pct, boss.health or 0, boss.maxHealth or 0), 0.88, 0.24, 0.26)
+	else
+		self.bossBar:SetBarData(0, "|cff94a3b8No boss engaged|r", "Out of combat", 0.35, 0.42, 0.52)
+	end
 
-    -- Update abilities
-    if InfinityEncounterAbilities then
-        local history = InfinityEncounterAbilities.ability_history or {}
-        local abilityText = ""
-        local startIdx = math.max(1, #history - 4)
-        for i = #history, startIdx, -1 do
-            local ab = history[i]
-            abilityText = abilityText .. string.format("• %s (ID %s)\n", tostring(ab.name or "Unknown"), tostring(ab.spellID or "?"))
-        end
-        if abilityText == "" then
-            abilityText = "No boss abilities recorded yet"
-        end
-        if not self.abilities_text then
-            self.abilities_text = self.abilities_frame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-            self.abilities_text:SetPoint("TOPLEFT", self.abilities_frame, "TOPLEFT", 0, 0)
-            self.abilities_text:SetWidth(380)
-            self.abilities_text:SetJustifyH("LEFT")
-        end
-        self.abilities_text:SetText(abilityText)
-    end
-    
-    -- Update timers
-    if InfinityEncounterTimer then
-        local timers = {}
-        for _, timer in ipairs(InfinityEncounterTimer:GetActiveTimers()) do
-            timers[#timers + 1] = { timer = timer, remaining = timer:GetRemaining() }
-        end
-        table.sort(timers, function(a, b) return a.remaining < b.remaining end)
-        local timerText = ""
-        for i = 1, math.min(3, #timers) do
-            local timer, remaining = timers[i].timer, timers[i].remaining
-            timerText = timerText .. string.format("%s: %.1fs%s\n", timer.name, remaining,
-                timer.pausedRemaining ~= nil and " (paused)" or "")
-        end
-        
-        if timerText == "" then
-            timerText = "No active timers"
-        end
-        
-        if not self.timer_text then
-            self.timer_text = self.timer_frame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-            self.timer_text:SetPoint("TOPLEFT", self.timer_frame, "TOPLEFT", 0, 0)
-            self.timer_text:SetWidth(380)
-            self.timer_text:SetJustifyH("LEFT")
-        end
-        self.timer_text:SetText(timerText)
-    end
+	-- Active ability timers
+	local active = (_G.InfinityEncounterTimer and _G.InfinityEncounterTimer.GetActiveTimers) and _G.InfinityEncounterTimer:GetActiveTimers() or {}
+	if #active == 0 then
+		self.emptyTimersLabel:Show()
+		for i = 1, #self.timerBars do self.timerBars[i]:Hide() end
+		return
+	end
+
+	self.emptyTimersLabel:Hide()
+	for i = 1, #self.timerBars do
+		local timer = active[i]
+		local bar = self.timerBars[i]
+		if timer then
+			local rem = (timer.GetRemaining and timer:GetRemaining()) or 0
+			local total = math.max(1, timer.duration or 15)
+			local pct = math.max(0, math.min(100, (rem / total) * 100))
+			local r, g, b = 0.16, 0.56, 0.94
+			if rem <= 5 then
+				r, g, b = 0.92, 0.28, 0.28
+			elseif rem <= 10 then
+				r, g, b = 0.94, 0.68, 0.18
+			end
+			bar:SetBarData(pct, tostring(timer.name or "Ability"), string.format("%.1fs", rem), r, g, b)
+			bar:Show()
+		else
+			bar:Hide()
+		end
+	end
 end
 
 return InfinityEncounterUI

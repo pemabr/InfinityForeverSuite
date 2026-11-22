@@ -184,7 +184,7 @@ function HotDurationEngine:GetCriticalHoTs(unitID)
         return {}
     end
     
-    local hots = self:GetPlayerHoTs(unitID) or {}
+    local hots = self:GetPlayerHoTs(unitID)
     local critical = {}
     
     for _, hot in ipairs(hots) do
@@ -201,7 +201,7 @@ function HotDurationEngine:GetHoTSummary(unitID)
         return nil
     end
     
-    local hots = self:GetPlayerHoTs(unitID) or {}
+    local hots = self:GetPlayerHoTs(unitID)
     
     if #hots == 0 then
         return {

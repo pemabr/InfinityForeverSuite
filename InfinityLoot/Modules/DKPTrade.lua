@@ -13,22 +13,59 @@ function InfinityDKPTrade:Initialize()
 end
 
 function InfinityDKPTrade:RequestTrade(targetPlayer, amount)
-	local trading = _G.InfinityDKPPlayerTrading
-	if not trading or type(trading.Offer) ~= "function" then
-		InfinityUtils:Warning("InfinityDKP guild trading is unavailable.", "DKPTrade")
+	if not UnitInGuild("player") then
+		InfinityUtils:Warning("You must be in a guild to trade DKP", "DKPTrade")
 		return false
 	end
-	return trading:Offer(targetPlayer, amount)
+	
+	local playerName = UnitName("player")
+	local playerDKP = InfinityLootEPGP:GetPlayerDKP(playerName)
+	
+	if playerDKP < amount then
+		InfinityUtils:Warning("Insufficient DKP. You have " .. playerDKP .. " DKP.", "DKPTrade")
+		return false
+	end
+	
+	local msg = "dkp_trade_request:" .. playerName .. ":" .. targetPlayer .. ":" .. amount
+	InfinityMessaging:Publish("dkp_trade_request", playerName, targetPlayer, amount)
+	
+	InfinityUtils:Info("Trade request sent to " .. targetPlayer .. " for " .. amount .. " DKP", "DKPTrade")
+	return true
 end
 
 function InfinityDKPTrade:ApproveTrade(fromPlayer, amount)
-	InfinityUtils:Warning("Use the InfinityDKP trade controls with the trade ID to accept an offer.", "DKPTrade")
-	return false
+	local playerName = UnitName("player")
+	local playerDKP = InfinityLootEPGP:GetPlayerDKP(playerName)
+	
+	if playerDKP < amount then
+		InfinityUtils:Warning("Insufficient DKP to accept this trade", "DKPTrade")
+		return false
+	end
+	
+	-- Execute the trade
+	InfinityLootEPGP:AwardGP(playerName, amount, "dkp_trade_to:" .. fromPlayer)
+	InfinityLootEPGP:AwardGP(fromPlayer, -amount, "dkp_trade_from:" .. playerName)
+	
+	-- Log trade
+	table.insert(self.tradeHistory, {
+		from = fromPlayer,
+		to = playerName,
+		amount = amount,
+		timestamp = GetTime(),
+	})
+	
+	if #self.tradeHistory > self.maxHistorySize then
+		table.remove(self.tradeHistory, 1)
+	end
+	
+	InfinityUtils:Info("DKP trade completed: " .. amount .. " DKP from " .. fromPlayer, "DKPTrade")
+	InfinityMessaging:Publish("dkp_trade_completed", fromPlayer, playerName, amount)
+	return true
 end
 
 function InfinityDKPTrade:DenyTrade(fromPlayer, amount)
-	InfinityUtils:Warning("Use the InfinityDKP trade controls with the trade ID to cancel an offer.", "DKPTrade")
-	return false
+	InfinityMessaging:Publish("dkp_trade_denied", fromPlayer, UnitName("player"), amount)
+	InfinityUtils:Info("DKP trade request denied", "DKPTrade")
 end
 
 function InfinityDKPTrade:GetTradeHistory()

@@ -58,8 +58,8 @@ function InfinityQuestDB:SearchQuests(searchTerm)
     searchTerm = searchTerm:lower()
     
     for questID, quest in pairs(self.quests) do
-        if quest.name:lower():find(searchTerm, 1, true) or
-           quest.description:lower():find(searchTerm, 1, true) then
+        if quest.name:lower():find(searchTerm) or 
+           quest.description:lower():find(searchTerm) then
             table.insert(result, quest)
         end
     end

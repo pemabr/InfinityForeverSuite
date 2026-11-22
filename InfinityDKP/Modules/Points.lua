@@ -7,12 +7,6 @@ _G.InfinityDKPPoints = InfinityDKPPoints
 InfinityDKPPoints.point_history = {}
 InfinityDKPPoints.callbacks = {}
 
-function InfinityDKPPoints:Initialize(db)
-    if db.pointTransactions == nil then db.pointTransactions = {} end
-    if type(db.pointTransactions) ~= "table" then error("Invalid saved point transactions") end
-    self.point_history = db.pointTransactions
-end
-
 function InfinityDKPPoints:LogTransaction(playerName, pointType, amount, reason)
     if not playerName or not pointType or not amount then return false end
     
@@ -21,7 +15,7 @@ function InfinityDKPPoints:LogTransaction(playerName, pointType, amount, reason)
         type = pointType,
         amount = amount,
         reason = reason or "No reason",
-        time = time(),
+        time = GetTime(),
         timestamp = date("%Y-%m-%d %H:%M:%S"),
     }
     
@@ -34,13 +28,11 @@ end
 function InfinityDKPPoints:GetHistory(playerName, limit)
     limit = limit or 50
     local history = {}
-    if limit <= 0 then return history end
     
-    for i = #self.point_history, 1, -1 do
+    for i = #self.point_history, math.max(1, #self.point_history - limit + 1), -1 do
         local trans = self.point_history[i]
         if not playerName or trans.player == playerName then
             table.insert(history, 1, trans)
-            if #history >= limit then break end
         end
     end
     

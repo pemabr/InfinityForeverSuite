@@ -166,8 +166,23 @@ function QuestAchievementIntegrationEngine:GetAchievementCompletionPercentage(ac
         return 0
     end
     
-    -- Placeholder - would check actual quest completion status
-    return (#quests / 10) * 100
+    local completed = 0
+    for _, q in ipairs(quests) do
+        local qid = type(q) == "table" and (q.id or q.quest_id) or q
+        if qid then
+            local done = false
+            if C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted then
+                local ok, res = pcall(C_QuestLog.IsQuestFlaggedCompleted, qid)
+                done = ok and res == true
+            elseif IsQuestFlaggedCompleted then
+                local ok, res = pcall(IsQuestFlaggedCompleted, qid)
+                done = ok and res == true
+            end
+            if done then completed = completed + 1 end
+        end
+    end
+    
+    return (completed / #quests) * 100
 end
 
 function QuestAchievementIntegrationEngine:FilterQuestsByAchievementCategory(questList, category)

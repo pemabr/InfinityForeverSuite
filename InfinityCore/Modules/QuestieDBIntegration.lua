@@ -154,7 +154,7 @@ function QuestieDBIntegration:GetItemData(itemId)
 	end
 	
 	-- Fallback to game API
-	local itemName, itemLink, rarity, itemLevel = InfinityUtils:GetItemInfo(itemId)
+	local itemName, itemLink, rarity, itemLevel = GetItemInfo(itemId)
 	if itemName then
 		local data = {
 			id = itemId,

@@ -15,7 +15,6 @@ local function InitializeRaid()
 	
 	if Encounters then pcall(function() Encounters:Initialize() end) end
 	if Assignments then pcall(function() Assignments:Initialize() end) end
-	if UI and UI.Initialize then UI:Initialize() end
 	
 	_G.InfinityRaidEncounters = Encounters
 	_G.InfinityRaidAssignments = Assignments
@@ -24,8 +23,8 @@ local function InitializeRaid()
 	InfinityDataManager:RegisterSource("InfinityRaid", { encounters = {}, assignments = {} })
 	
 	InfinityCommandRegistry:RegisterCommand({
-		name = "infraid",
-		aliases = {},
+		name = "raid",
+		aliases = { "r" },
 		description = "Open raid manager",
 		func = function()
 			InfinityRaidUI:Toggle()
@@ -41,21 +40,24 @@ local function InitializeRaid()
 		end,
 	})
 	
-	if _G.InfinityAddonManager then
-		_G.InfinityAddonManager:RegisterAddon("InfinityRaid", "1.3.0", {
-			description = "Raid management",
-			author = "Infinity Suite Team",
-			category = "Raid",
-			enabled = true,
-			settings = {}
-		})
-	end
-	
 	InfinityUtils:Info("InfinityRaid initialized successfully", "InfinityRaid")
 	InfinityMessaging:Publish("raid_addon_loaded", { addon = "InfinityRaid" })
 end
 
-local frame = CreateFrame("Frame")
+
+local function RegisterAddonWithInfinityManager()
+	if _G.InfinityAddonManager then
+		_G.InfinityAddonManager:RegisterAddon(ADDON_NAME, ADDON_VERSION, {
+			description = "Raid management",
+			author = "Infinity Suite Team",
+			category = "Raid",
+			enabled = true,
+			settings = {{}}
+		})
+	end
+end
+
+	local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:SetScript("OnEvent", function(self, event, addonName)
 	if addonName == "InfinityCore" then
@@ -64,7 +66,6 @@ frame:SetScript("OnEvent", function(self, event, addonName)
 	elseif addonName == "InfinityRaid" then
 		if _G.InfinityDataManager then
 			InitializeRaid()
-			self:UnregisterEvent("ADDON_LOADED")
 		end
 	end
 end)

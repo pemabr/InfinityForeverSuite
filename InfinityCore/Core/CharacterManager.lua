@@ -8,44 +8,25 @@ InfinityCharacterManager.currentChar = nil
 -- Compatibility layer for WoW APIs across expansions
 local function GetPlayerLevel()
 	if C_Unit and C_Unit.GetLevel then
-		local ok, lvl = pcall(C_Unit.GetLevel, "player")
-		if ok and lvl then return lvl end
+		return C_Unit.GetLevel("player") or 1
 	end
 	return UnitLevel("player") or 1
 end
 
 local function GetPlayerClass()
-	if UnitClass then
-		local _, classFile = UnitClass("player")
-		if classFile then return classFile end
+	if C_PlayerInfo and C_PlayerInfo.GetClass then
+		local classInfo = C_PlayerInfo.GetClass("player")
+		return classInfo and classInfo.classID or select(2, UnitClass("player"))
 	end
-	if PlayerLocation and PlayerLocation.CreateFromUnit and C_PlayerInfo and C_PlayerInfo.GetClass then
-		local ok, loc = pcall(PlayerLocation.CreateFromUnit, PlayerLocation, "player")
-		if ok and loc then
-			local ok2, classInfo = pcall(C_PlayerInfo.GetClass, loc)
-			if ok2 and classInfo then
-				return classInfo.classFile or classInfo.className or classInfo.classID
-			end
-		end
-	end
-	return "UNKNOWN"
+	return select(2, UnitClass("player"))
 end
 
 local function GetPlayerRace()
-	if UnitRace then
-		local raceName = UnitRace("player")
-		if raceName then return raceName end
+	if C_PlayerInfo and C_PlayerInfo.GetRace then
+		local raceInfo = C_PlayerInfo.GetRace("player")
+		return raceInfo and raceInfo.raceID or select(2, UnitRace("player"))
 	end
-	if PlayerLocation and PlayerLocation.CreateFromUnit and C_PlayerInfo and C_PlayerInfo.GetRace then
-		local ok, loc = pcall(PlayerLocation.CreateFromUnit, PlayerLocation, "player")
-		if ok and loc then
-			local ok2, raceInfo = pcall(C_PlayerInfo.GetRace, loc)
-			if ok2 and raceInfo then
-				return raceInfo.raceName or raceInfo.raceID
-			end
-		end
-	end
-	return "UNKNOWN"
+	return select(2, UnitRace("player"))
 end
 
 function InfinityCharacterManager:Initialize()
@@ -68,12 +49,9 @@ function InfinityCharacterManager:Initialize()
 	local charKey = self.currentChar.name .. "-" .. self.currentChar.realm
 	
 	if self.characters[charKey] then
-		-- Character exists, update info and keep stored main/twink flags
+		-- Character exists, update info
 		self.characters[charKey].level = self.currentChar.level
-		self.characters[charKey].class = self.currentChar.class
-		self.characters[charKey].race = self.currentChar.race
 		self.characters[charKey].lastSeen = InfinityUtils:GetTimeStamp()
-		self.currentChar = self.characters[charKey]
 	else
 		-- New character detected
 		self.characters[charKey] = self.currentChar
@@ -95,15 +73,15 @@ function InfinityCharacterManager:IdentifyCharacterType()
 	if char.level >= 60 then
 		-- Check if we already have a main
 		local hasMain = false
-		for key, existingChar in pairs(self.characters) do
-			if existingChar.isMain and key ~= charKey then
+		for _, existingChar in pairs(self.characters) do
+			if existingChar.isMain and existingChar.name ~= char.name then
 				hasMain = true
 				break
 			end
 		end
 		
-		-- Keep the existing main until the user selects another one.
-		if not hasMain then
+		-- If no main exists yet, or this is higher level, mark as main
+		if not hasMain or (char.level > 60) then
 			char.isMain = true
 			InfinityMessaging:Publish("character_marked_main", { character = char.name })
 		else
@@ -203,32 +181,16 @@ function InfinityCharacterManager:GetCharacterFamily(mainName)
 	return family
 end
 
-function InfinityCharacterManager:MarkAsMain(charNameOrKey)
-	local charKey = nil
-	if self.characters[charNameOrKey] then
-		charKey = charNameOrKey
-	else
-		local byRealm = self:GetCharacterKey(charNameOrKey)
-		if self.characters[byRealm] then
-			charKey = byRealm
-		else
-			for k, c in pairs(self.characters) do
-				if c.name == charNameOrKey then
-					charKey = k
-					break
-				end
-			end
-		end
-	end
+function InfinityCharacterManager:MarkAsMain(charName)
+	local charKey = self.GetCharacterKey(self, charName)
 	
-	if not charKey or not self.characters[charKey] then return nil end
-	local newMainName = self.characters[charKey].name
+	if not self.characters[charKey] then return nil end
 	
-	-- Unmark any existing main and link non-mains to the new main
+	-- Unmark any existing main on this account
 	for key, char in pairs(self.characters) do
-		if key ~= charKey then
+		if char.isMain then
 			char.isMain = false
-			char.linkedTo = newMainName
+			char.linkedTo = charName -- Link old main as twink to new main
 		end
 	end
 	
@@ -236,17 +198,8 @@ function InfinityCharacterManager:MarkAsMain(charNameOrKey)
 	self.characters[charKey].isMain = true
 	self.characters[charKey].linkedTo = nil
 	
-	if self.currentChar then
-		local curKey = self:GetCharacterKey(self.currentChar.name, self.currentChar.realm)
-		if self.characters[curKey] then
-			self.currentChar = self.characters[curKey]
-		end
-	end
-	
 	self:SaveCharacters()
-	if InfinityMessaging then
-		InfinityMessaging:Publish("character_marked_main", { character = newMainName })
-	end
+	InfinityMessaging:Publish("character_marked_main", { character = charName })
 	
 	return self.characters[charKey]
 end

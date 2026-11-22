@@ -44,7 +44,7 @@ function TargetIndicatorEngine:CreateTargetIndicator(frame)
     end
     
     -- Create target highlight border
-    local targetBorder = CreateFrame("Frame", nil, frame, BackdropTemplateMixin and "BackdropTemplate" or nil)
+    local targetBorder = CreateFrame("Frame", nil, frame)
     targetBorder:SetAllPoints(frame)
     targetBorder:SetBackdrop({
         edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
@@ -56,7 +56,7 @@ function TargetIndicatorEngine:CreateTargetIndicator(frame)
     targetBorder:Hide()
     
     -- Create focus highlight (thinner border)
-    local focusBorder = CreateFrame("Frame", nil, frame, BackdropTemplateMixin and "BackdropTemplate" or nil)
+    local focusBorder = CreateFrame("Frame", nil, frame)
     focusBorder:SetAllPoints(frame)
     focusBorder:SetBackdrop({
         edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
@@ -68,7 +68,7 @@ function TargetIndicatorEngine:CreateTargetIndicator(frame)
     focusBorder:Hide()
     
     -- Create assist highlight
-    local assistBorder = CreateFrame("Frame", nil, frame, BackdropTemplateMixin and "BackdropTemplate" or nil)
+    local assistBorder = CreateFrame("Frame", nil, frame)
     assistBorder:SetAllPoints(frame)
     assistBorder:SetBackdrop({
         edgeFile = "Interface/Tooltips/UI-Tooltip-Border",

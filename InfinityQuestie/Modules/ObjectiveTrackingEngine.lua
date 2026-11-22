@@ -3,7 +3,6 @@
 -- Monitors progress on objectives like kills, collection, travel, etc.
 
 local ObjectiveTrackingEngine = {}
-_G.ObjectiveTrackingEngine = ObjectiveTrackingEngine
 ObjectiveTrackingEngine.enabled = false
 ObjectiveTrackingEngine.db = nil
 ObjectiveTrackingEngine.objectives = {}

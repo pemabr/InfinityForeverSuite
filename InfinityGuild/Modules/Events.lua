@@ -15,11 +15,6 @@ end
 
 function InfinityGuildEvents:CreateRaid(raidName, raidType, difficulty, timestamp)
 	local raidId = "raid_" .. InfinityUtils:GetTimeStamp()
-	local base, suffix = raidId, 1
-	while self.raids[raidId] do
-		raidId = base .. "_" .. suffix
-		suffix = suffix + 1
-	end
 	
 	local raid = {
 		id = raidId,
@@ -184,11 +179,6 @@ end
 
 function InfinityGuildEvents:CreateEvent(eventName, eventType, eventDate, description)
 	local eventId = "event_" .. InfinityUtils:GetTimeStamp()
-	local base, suffix = eventId, 1
-	while self.events[eventId] do
-		eventId = base .. "_" .. suffix
-		suffix = suffix + 1
-	end
 	
 	local event = {
 		id = eventId,

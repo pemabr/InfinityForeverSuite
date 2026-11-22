@@ -40,49 +40,6 @@ InfinityDKPGuildBankDonations.donationHistory = {}
 -- Callbacks
 InfinityDKPGuildBankDonations.callbacks = {}
 
-local function FiniteNumber(value)
-	if _G.issecretvalue and issecretvalue(value) then return nil end
-	if type(value) ~= "number" and type(value) ~= "string" then return nil end
-	value = tonumber(value)
-	if not value or value ~= value or value <= -math.huge or value >= math.huge then return nil end
-	return value
-end
-
-function InfinityDKPGuildBankDonations:Initialize(db)
-	if db.donationSystem == nil then
-		db.donationSystem = { config = self.config, whitelist = {}, blacklist = {}, whitelistMode = false,
-			records = {}, history = {} }
-	end
-	local state = db.donationSystem
-	if type(state) ~= "table" or type(state.config) ~= "table" or type(state.whitelist) ~= "table"
-		or type(state.blacklist) ~= "table" or type(state.whitelistMode) ~= "boolean"
-		or type(state.records) ~= "table" or type(state.history) ~= "table" then
-		error("Invalid saved DKP donation system data")
-	end
-	for key, default in pairs(self.config) do
-		local value = state.config[key]
-		if _G.issecretvalue and issecretvalue(value) then error("Protected saved DKP donation setting") end
-		if value == nil then
-			state.config[key] = default
-		elseif type(value) ~= type(default) or (type(value) == "number"
-			and (value ~= value or value <= -math.huge or value >= math.huge)) then
-			error("Invalid saved DKP donation setting: " .. key)
-		end
-	end
-	for rarity, default in pairs(self.config.itemRarityMultipliers) do
-		local value = state.config.itemRarityMultipliers[rarity]
-		if _G.issecretvalue and issecretvalue(value) then error("Protected saved DKP donation multiplier") end
-		if value == nil then
-			state.config.itemRarityMultipliers[rarity] = default
-		elseif type(value) ~= "number" or value ~= value or value < 0 or value >= math.huge then
-			error("Invalid saved DKP donation multiplier")
-		end
-	end
-	self.saved = state
-	self.config, self.whitelistedItems, self.blacklistedItems = state.config, state.whitelist, state.blacklist
-	self.whitelistMode, self.donationRecords, self.donationHistory = state.whitelistMode, state.records, state.history
-end
-
 -- ============================================================================
 -- CONFIGURATION
 -- ============================================================================
@@ -95,9 +52,8 @@ function InfinityDKPGuildBankDonations:SetGoldRewardRate(rate)
 		return false
 	end
 	
-	rate = FiniteNumber(rate)
-	if not rate or rate < 0 then
-		InfinityUtils:Warning("Donation reward rate must be a nonnegative number.", "GuildBankDonations")
+	rate = tonumber(rate) or 0.1
+	if rate < 0 then
 		return false
 	end
 	
@@ -115,7 +71,7 @@ function InfinityDKPGuildBankDonations:SetItemRewardMode(mode)
 		return false
 	end
 	
-	if (_G.issecretvalue and issecretvalue(mode)) or (mode ~= "value" and mode ~= "rarity") then
+	if mode ~= "value" and mode ~= "rarity" then
 		InfinityUtils:Warning("Item reward mode must be 'value' or 'rarity'", "GuildBankDonations")
 		return false
 	end
@@ -135,11 +91,10 @@ function InfinityDKPGuildBankDonations:SetItemRarityMultiplier(rarity, multiplie
 		return false
 	end
 	
-	rarity = FiniteNumber(rarity)
-	multiplier = FiniteNumber(multiplier)
+	rarity = tonumber(rarity)
+	multiplier = tonumber(multiplier) or 1.0
 	
-	if not rarity or rarity < 0 or rarity > 5 or rarity ~= math.floor(rarity) or not multiplier or multiplier < 0 then
-		InfinityUtils:Warning("Choose rarity 0-5 and a nonnegative multiplier.", "GuildBankDonations")
+	if not rarity or rarity < 0 or rarity > 5 or multiplier < 0 then
 		return false
 	end
 	
@@ -159,9 +114,8 @@ function InfinityDKPGuildBankDonations:SetMinGoldDonation(amount)
 		return false
 	end
 	
-	amount = FiniteNumber(amount)
-	if not amount or amount < 0 then
-		InfinityUtils:Warning("Minimum donation must be a nonnegative number.", "GuildBankDonations")
+	amount = tonumber(amount) or 1
+	if amount < 0 then
 		return false
 	end
 	
@@ -176,10 +130,6 @@ end
 -- @return success: bool
 function InfinityDKPGuildBankDonations:SetEnabled(enabled)
 	if not self:IsAdminOnly() then
-		return false
-	end
-	if (_G.issecretvalue and issecretvalue(enabled)) or type(enabled) ~= "boolean" then
-		InfinityUtils:Warning("Donation setting must be on or off.", "GuildBankDonations")
 		return false
 	end
 	
@@ -486,13 +436,8 @@ function InfinityDKPGuildBankDonations:SetWhitelistMode(enabled)
 	if not self:IsAdminOnly() then
 		return false
 	end
-	if (_G.issecretvalue and issecretvalue(enabled)) or type(enabled) ~= "boolean" then
-		InfinityUtils:Warning("Whitelist mode must be on or off.", "GuildBankDonations")
-		return false
-	end
 	
 	self.whitelistMode = enabled
-	if self.saved then self.saved.whitelistMode = enabled end
 	InfinityUtils:Info("Whitelist mode " .. (enabled and "enabled" or "disabled"), "GuildBankDonations")
 	self:TriggerCallback("whitelist_mode_changed", enabled)
 	return true
@@ -601,7 +546,6 @@ function InfinityDKPGuildBankDonations:ClearWhitelist()
 	end
 	
 	self.whitelistedItems = {}
-	if self.saved then self.saved.whitelist = self.whitelistedItems end
 	InfinityUtils:Info("Whitelist cleared", "GuildBankDonations")
 	self:TriggerCallback("whitelist_cleared")
 	return true
@@ -615,7 +559,6 @@ function InfinityDKPGuildBankDonations:ClearBlacklist()
 	end
 	
 	self.blacklistedItems = {}
-	if self.saved then self.saved.blacklist = self.blacklistedItems end
 	InfinityUtils:Info("Blacklist cleared", "GuildBankDonations")
 	self:TriggerCallback("blacklist_cleared")
 	return true
@@ -664,10 +607,16 @@ function InfinityDKPGuildBankDonations:IsAdminOnly()
 	if not self.config.adminOnly then
 		return true
 	end
-	local sync = _G.InfinityDKPGuildSync
-	if sync and type(sync.IsLocalGuildAdministrator) == "function" and sync:IsLocalGuildAdministrator() then return true end
-	InfinityUtils:Warning("Guild master or officer permission required for donation settings.", "GuildBankDonations")
-	return false
+	
+	-- Simple check - only GM/Officer can configure
+	if InfinityGuildRoster then
+		local playerName = UnitName("player")
+		local player = InfinityGuildRoster.members[playerName]
+		if player and (player.rank == "Guild Master" or player.rank == "Officer") then
+			return true
+		end
+	end
+	return true
 end
 
 --- Register callback for donation events

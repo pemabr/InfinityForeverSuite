@@ -26,7 +26,6 @@ function Timer:new(id, name, duration, callback)
 end
 
 function Timer:GetRemaining()
-    if self.pausedRemaining ~= nil then return self.pausedRemaining end
     local elapsed = GetTime() - self.start_time
     return math.max(0, self.duration - elapsed)
 end
@@ -36,7 +35,7 @@ function Timer:IsExpired()
 end
 
 function Timer:GetProgress()
-    return math.min(1, (self.duration - self:GetRemaining()) / self.duration)
+    return math.min(1, (GetTime() - self.start_time) / self.duration)
 end
 
 -- Public Timer Manager API
@@ -44,7 +43,6 @@ function InfinityEncounterTimer:CreateTimer(id, name, duration, callback)
     if not id or not duration or duration <= 0 then
         return nil
     end
-    self:RemoveTimer(id)
     
     local timer = Timer:new(id, name, duration, callback)
     self.timers[id] = timer
@@ -73,6 +71,7 @@ function InfinityEncounterTimer:GetActiveTimers()
 end
 
 function InfinityEncounterTimer:Update()
+    local now = GetTime()
     local expired = {}
     
     for i = #self.active_timers, 1, -1 do
@@ -80,34 +79,18 @@ function InfinityEncounterTimer:Update()
         local remaining = timer:GetRemaining()
         
         -- Check for expiration
-        if timer.pausedRemaining ~= nil then
-            -- The native timeline controls when this timer resumes.
-        elseif timer:IsExpired() then
+        if timer:IsExpired() then
             table.insert(expired, timer.id)
             table.remove(self.active_timers, i)
-            if self.timers[timer.id] == timer then self.timers[timer.id] = nil end
             if timer.callback then
-                local ok, err = pcall(timer.callback, timer)
-                if not ok and _G.InfinityUtils then
-                    _G.InfinityUtils:Warning("Timer callback failed: " .. tostring(err), "Encounter")
-                end
+                pcall(timer.callback, timer)
             end
         else
             -- Check for warnings
             for _, warning_time in ipairs(self.countdown_warnings) do
-                local crossed = timer.lastRemaining and timer.lastRemaining > warning_time
-                if timer.lastRemaining == nil then
-                    crossed = warning_time == 5 or remaining > warning_time - 1
-                end
-                if remaining <= warning_time and crossed then
+                if remaining <= warning_time and remaining > (warning_time - 1) then
                     if not timer.warnings[warning_time] then
                         timer.warnings[warning_time] = true
-                        if timer.onWarning then
-                            local ok, err = pcall(timer.onWarning, timer, warning_time, remaining)
-                            if not ok and _G.InfinityUtils then
-                                _G.InfinityUtils:Warning("Timer warning failed: " .. tostring(err), "Encounter")
-                            end
-                        end
                         -- Trigger warning callback
                         if InfinityCore and InfinityCore.FireEvent then
                             InfinityCore:FireEvent("timer_warning", timer.name, remaining)
@@ -115,7 +98,6 @@ function InfinityEncounterTimer:Update()
                     end
                 end
             end
-            timer.lastRemaining = remaining
         end
     end
     

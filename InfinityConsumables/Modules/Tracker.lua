@@ -17,11 +17,11 @@ function InfinityConsumables:ScanInventory()
 	self.inventory = {}
 	
 	for bag = 0, 4 do
-		for slot = 1, InfinityUtils:GetBagSlots(bag) do
-			local itemID = InfinityUtils:GetBagItemID(bag, slot)
+		for slot = 1, GetContainerNumSlots(bag) do
+			local itemID = GetContainerItemID(bag, slot)
 			if itemID then
-				local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType, itemSubType = InfinityUtils:GetItemInfo(itemID)
-				local _, itemCount = InfinityUtils:GetBagItemInfo(bag, slot)
+				local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType, itemSubType = GetItemInfo(itemID)
+				local itemCount = select(2, GetContainerItemInfo(bag, slot))
 				
 				if itemType == "Consumable" or itemType == "Food & Drink" then
 					if not self.inventory[itemID] then
@@ -87,52 +87,12 @@ function InfinityConsumables:RecordBuffExpired(spellID)
 	return false
 end
 
-function InfinityConsumables:ScanPlayerBuffs()
-	local active = {}
-	local now = InfinityUtils:GetTimeStamp()
-	local isSec = _G.issecretvalue
-	local idx = 1
-	while true do
-		local name, spellId, duration, expirationTime
-		if _G.C_UnitAuras and _G.C_UnitAuras.GetBuffDataByIndex then
-			local aura = _G.C_UnitAuras.GetBuffDataByIndex("player", idx)
-			if not aura then break end
-			name = aura.name
-			spellId = aura.spellId
-			duration = aura.duration
-			expirationTime = aura.expirationTime
-		elseif _G.UnitBuff then
-			local n, _, _, _, dur, exp, _, _, _, sid = _G.UnitBuff("player", idx)
-			if not n then break end
-			name, duration, expirationTime, spellId = n, dur, exp, sid
-		else
-			break
-		end
-		if name and spellId and not (isSec and (isSec(name) or isSec(spellId))) then
-			local rem = (expirationTime and not (isSec and isSec(expirationTime)) and expirationTime > 0) and math.max(0, expirationTime - GetTime()) or 0
-			active[spellId] = {
-				name = name,
-				spellID = spellId,
-				appliedTime = now,
-				duration = (duration and not (isSec and isSec(duration))) and duration or 0,
-				expiresAt = now + rem,
-			}
-		end
-		idx = idx + 1
-	end
-	for k, v in pairs(active) do
-		self.buffs[k] = v
-	end
-	return active
-end
-
-function InfinityConsumables:GetActiveBuffs()
-	self:ScanPlayerBuffs()
+function InfinityConsumables:GetActiveBufcfs()
 	local result = {}
 	local now = InfinityUtils:GetTimeStamp()
 	
 	for spellID, buff in pairs(self.buffs) do
-		if buff.expiresAt >= now or buff.duration == 0 then
+		if buff.expiresAt > now then
 			table.insert(result, buff)
 		else
 			self.buffs[spellID] = nil
@@ -140,10 +100,6 @@ function InfinityConsumables:GetActiveBuffs()
 	end
 	
 	return result
-end
-
-function InfinityConsumables:GetActiveBufcfs()
-	return self:GetActiveBuffs()
 end
 
 function InfinityConsumables:GetBuffDuration(spellID)
@@ -162,7 +118,7 @@ function InfinityConsumables:GetBuffStatus()
 		consumables = {},
 	}
 	
-	status.activeBuffs = #self:GetActiveBuffs()
+	status.activeBuffs = #self:GetActiveBufcfs()
 	
 	for _, consumable in ipairs(self:GetAllConsumables()) do
 		status.consumablesInInventory = status.consumablesInInventory + consumable.count

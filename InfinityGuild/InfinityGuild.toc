@@ -12,9 +12,6 @@ Localization\Localization.lua
 Modules\RosterManager.lua
 Modules\DKPTracker.lua
 Modules\MemberManagement.lua
-Modules\Roster.lua
-Modules\DKP.lua
-Modules\Events.lua
 
 UI\MainUI.lua
 

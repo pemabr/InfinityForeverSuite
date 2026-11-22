@@ -111,14 +111,21 @@ function RangeCheckerEngine:CalculateLineOfSight(unit1, unit2)
     if not unit1 or not unit2 then
         return false
     end
-    local target = (unit1 == "player") and unit2 or unit1
-    if _G.UnitExists and _G.UnitExists(target) then
-        if _G.UnitIsVisible and not _G.UnitIsVisible(target) then
-            return false
+
+    if UnitExists and not UnitExists(unit2) then
+        return false
+    end
+    if UnitIsVisible and not UnitIsVisible(unit2) then
+        return false
+    end
+    if UnitInRange then
+        local inRange, checked = UnitInRange(unit2)
+        if checked then
+            return inRange == true
         end
-        if _G.UnitInPhase and not _G.UnitInPhase(target) then
-            return false
-        end
+    end
+    if CheckInteractDistance then
+        return CheckInteractDistance(unit2, 4) == true
     end
     return true
 end
