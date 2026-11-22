@@ -14,7 +14,6 @@ function InfinityAddonManager:RegisterAddon(name, version, config)
 	self.addons[name] = {
 		name = name,
 		version = version,
-		enabled = config.enabled ~= false,
 		description = config.description or "No description",
 		author = config.author or "Unknown",
 		category = config.category or "Other",
@@ -29,6 +28,7 @@ end
 function InfinityAddonManager:GetAllAddons()
 	local addonList = {}
 	for name, info in pairs(self.addons) do
+		info.enabled = self:IsAddonEnabled(name)
 		table.insert(addonList, info)
 	end
 	table.sort(addonList, function(a, b) return a.name < b.name end)
@@ -36,20 +36,44 @@ function InfinityAddonManager:GetAllAddons()
 end
 
 function InfinityAddonManager:IsAddonEnabled(name)
-	if self.addons[name] then
-		return self.addons[name].enabled
+	local api = _G.C_AddOns
+	if not api or not api.GetAddOnEnableState then
+		return nil
 	end
-	return false
+	if api.DoesAddOnExist and not api.DoesAddOnExist(name) then
+		return nil
+	end
+	local character = _G.UnitGUID and _G.UnitGUID("player")
+	local state = api.GetAddOnEnableState(name, character)
+	if type(state) == "number" then
+		return state > 0
+	end
+	return nil
 end
 
 function InfinityAddonManager:SetAddonEnabled(name, enabled)
+	local api = _G.C_AddOns
+	local character = _G.UnitGUID and _G.UnitGUID("player")
+	local current = self:IsAddonEnabled(name)
+	if not api or not api.EnableAddOn or not api.DisableAddOn or not character or current == nil then
+		InfinityUtils:Error("Cannot change addon state: " .. tostring(name), "AddonManager")
+		return false
+	end
+	enabled = not not enabled
+	if enabled then
+		api.EnableAddOn(name, character)
+	else
+		api.DisableAddOn(name, character)
+	end
+	if self:IsAddonEnabled(name) ~= enabled then
+		InfinityUtils:Error("Addon state did not change: " .. name, "AddonManager")
+		return false
+	end
 	if self.addons[name] then
 		self.addons[name].enabled = enabled
-		InfinityStorageManager:SetAddonSetting(name, "enabled", enabled)
-		InfinityMessaging:Publish("INFINITY_ADDON_STATE_CHANGED", name, enabled)
-		return true
 	end
-	return false
+	print("|cff00ccffInfinity Suite:|r " .. name .. " " .. (enabled and "enabled" or "disabled") .. " for this character. Reload the UI to apply.")
+	return true
 end
 
 function InfinityAddonManager:CreateManagerWindow()
@@ -145,7 +169,8 @@ function InfinityAddonManager:RefreshAddonList(mainFrame)
 			text:SetPoint("LEFT", 5, 0)
 			text:SetText(addonInfo.name)
 			
-			local status = addonInfo.enabled and "|cff00ff00✓|r" or "|cffff0000✗|r"
+			local status = addonInfo.enabled == nil and "|cffff9900?|r" or
+				(addonInfo.enabled and "|cff00ff00✓|r" or "|cffff0000✗|r")
 			local statusText = btn:CreateFontString(nil, "OVERLAY", "GameFontSmall")
 			statusText:SetPoint("RIGHT", -5, 0)
 			statusText:SetText(status)
@@ -214,13 +239,15 @@ function InfinityAddonManager:ShowAddonDetails(mainFrame, addonInfo)
 	toggleBtn:SetScript("OnClick", function()
 		self:SetAddonEnabled(addonInfo.name, not addonInfo.enabled)
 		self:RefreshAddonList(mainFrame)
+		self:ShowAddonDetails(mainFrame, addonInfo)
 	end)
+	if addonInfo.enabled == nil then toggleBtn:Disable() end
 	
 	-- Status
 	local statusLabel = mainFrame.detailsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	statusLabel:SetPoint("TOPLEFT", 120, y + 2)
 	local statusColor = addonInfo.enabled and "|cff00ff00" or "|cffff0000"
-	local statusStr = addonInfo.enabled and "ENABLED" or "DISABLED"
+	local statusStr = addonInfo.enabled == nil and "UNAVAILABLE" or (addonInfo.enabled and "ENABLED" or "DISABLED")
 	statusLabel:SetText("Status: " .. statusColor .. statusStr .. "|r")
 end
 

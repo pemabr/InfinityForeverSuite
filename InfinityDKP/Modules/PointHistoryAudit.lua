@@ -383,6 +383,16 @@ end
 if not IsTestingLua then
     SLASH_POINTHISTORY1 = "/pointhistory"
     SlashCmdList["POINTHISTORY"] = function(msg)
+        if not PointHistoryAudit.enabled or not PointHistoryAudit.db then
+            local ui = _G.InfinityDKPUI
+            if ui and type(ui.Initialize) == "function" and (msg == "" or msg:match("^player%s+%S+%s*$")) then
+                local player = msg:match("^player%s+(%S+)%s*$")
+                ui:Initialize()
+                if type(ui.ShowPointHistory) == "function" then ui:ShowPointHistory(player); return end
+            end
+            InfinityUtils:Warning("Legacy point audit is unavailable. Use local point transactions in DKP Actions.", "DKP")
+            return
+        end
         local cmd, args = msg:match("^(%S*)%s*(.*)$")
         cmd = cmd or ""
         

@@ -10,7 +10,11 @@ local function InitializeInfinityCore()
 		_G.InfinityCoreDB = {}
 	end
 	if InfinityStorageManager and InfinityStorageManager.Initialize then
-		pcall(function() InfinityStorageManager:Initialize(_G.InfinityCoreDB) end)
+		local ok, err = pcall(InfinityStorageManager.Initialize, InfinityStorageManager, _G.InfinityCoreDB)
+		if not ok then
+			InfinityUtils:Error("Storage initialization failed: " .. tostring(err), "Core")
+			return
+		end
 		_G.InfinityStorageManager = InfinityStorageManager
 	end
 	
@@ -62,7 +66,8 @@ local function InitializeInfinityCore()
 			if _G.InfinityStorageManager and _G.InfinityStorageManager.GetFeatureSettings then
 				return _G.InfinityStorageManager:GetFeatureSettings(addonName)
 			end
-			return {}
+			InfinityUtils:Error("Storage unavailable for " .. tostring(addonName), "Core")
+			return nil
 		end,
 		RegisterAddon = function(_, name, versionOrConfig, maybeConfig)
 			if not _G.InfinityAddonManager or not _G.InfinityAddonManager.RegisterAddon then
@@ -84,11 +89,17 @@ local function InitializeInfinityCore()
 			if not _G.InfinityCommandRegistry or not _G.InfinityCommandRegistry.RegisterCommand then
 				return false
 			end
+			if type(callback) ~= "function" then
+				InfinityUtils:Warning("Invalid slash command callback: " .. tostring(command), "Core")
+				return false
+			end
 			local aliasList = aliases
 			if type(aliases) == "string" then
 				aliasList = { aliases }
 			end
-			return _G.InfinityCommandRegistry:RegisterCommand(command, callback, aliasList)
+			return _G.InfinityCommandRegistry:RegisterCommand(command, function(_, message)
+				return callback(message)
+			end, aliasList)
 		end,
 		RegisterCommand = function(_, command, descOrCallback, maybeCallbackOrAliases)
 			if not _G.InfinityCommandRegistry or not _G.InfinityCommandRegistry.RegisterCommand then
@@ -179,8 +190,9 @@ local function InitializeInfinityCore()
 	end
 	
 	-- Initialize data collection (safely)
-	if InfinityDataCollector and InfinityDataCollector.Initialize then
-		pcall(function() InfinityDataCollector:Initialize() end)
+	if InfinityCoreDataCollector and InfinityCoreDataCollector.Initialize then
+		local ok, err = pcall(function() InfinityCoreDataCollector:Initialize() end)
+		if not ok then InfinityUtils:Error("Data collector initialization failed: " .. tostring(err), "Core") end
 	end
 	
 	-- Register /infinity command and default keybind for opening UI

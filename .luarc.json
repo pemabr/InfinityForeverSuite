@@ -1,6 +1,9 @@
 {
   "$schema": "https://raw.githubusercontent.com/LuaLS/vscode-lua/master/setting/schema.json",
   "runtime.version": "Lua 5.1",
+  "workspace.ignoreDir": [
+    "examples"
+  ],
   "diagnostics.globals": [
     "BackdropTemplateMixin",
     "CreateFrame",
@@ -65,6 +68,7 @@
     "GetNumSubgroupMembers",
     "GetRaidRosterInfo",
     "GetRaidTargetIndex",
+    "GetCVarBool",
     "GetGuildInfo",
     "GetNumGuildMembers",
     "GetGuildRosterInfo",
@@ -175,6 +179,9 @@
     "SetOverrideBindingClick",
     "Settings",
     "TooltipDataProcessor",
+    "C_UnitAuras",
+    "UnitInPhase",
+    "UnitIsVisible",
     "C_AddOns",
     "C_Container",
     "C_DamageMeter",

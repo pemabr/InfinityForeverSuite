@@ -126,9 +126,9 @@ function BagValueCalculator:GetItemValue(itemLink)
 		value = _G.AucAdvanced.API.GetMarketPrice(itemId) or 0
 	end
 	
-	-- Fallback to vendor price
+	-- Fallback to vendor sell price (11th return of GetItemInfo)
 	if value == 0 then
-		local _, _, _, vendorPrice = InfinityUtils:GetItemInfo(itemLink)
+		local vendorPrice = select(11, InfinityUtils:GetItemInfo(itemLink))
 		value = vendorPrice or 0
 	end
 	

@@ -87,12 +87,52 @@ function InfinityConsumables:RecordBuffExpired(spellID)
 	return false
 end
 
-function InfinityConsumables:GetActiveBufcfs()
+function InfinityConsumables:ScanPlayerBuffs()
+	local active = {}
+	local now = InfinityUtils:GetTimeStamp()
+	local isSec = _G.issecretvalue
+	local idx = 1
+	while true do
+		local name, spellId, duration, expirationTime
+		if _G.C_UnitAuras and _G.C_UnitAuras.GetBuffDataByIndex then
+			local aura = _G.C_UnitAuras.GetBuffDataByIndex("player", idx)
+			if not aura then break end
+			name = aura.name
+			spellId = aura.spellId
+			duration = aura.duration
+			expirationTime = aura.expirationTime
+		elseif _G.UnitBuff then
+			local n, _, _, _, dur, exp, _, _, _, sid = _G.UnitBuff("player", idx)
+			if not n then break end
+			name, duration, expirationTime, spellId = n, dur, exp, sid
+		else
+			break
+		end
+		if name and spellId and not (isSec and (isSec(name) or isSec(spellId))) then
+			local rem = (expirationTime and not (isSec and isSec(expirationTime)) and expirationTime > 0) and math.max(0, expirationTime - GetTime()) or 0
+			active[spellId] = {
+				name = name,
+				spellID = spellId,
+				appliedTime = now,
+				duration = (duration and not (isSec and isSec(duration))) and duration or 0,
+				expiresAt = now + rem,
+			}
+		end
+		idx = idx + 1
+	end
+	for k, v in pairs(active) do
+		self.buffs[k] = v
+	end
+	return active
+end
+
+function InfinityConsumables:GetActiveBuffs()
+	self:ScanPlayerBuffs()
 	local result = {}
 	local now = InfinityUtils:GetTimeStamp()
 	
 	for spellID, buff in pairs(self.buffs) do
-		if buff.expiresAt > now then
+		if buff.expiresAt >= now or buff.duration == 0 then
 			table.insert(result, buff)
 		else
 			self.buffs[spellID] = nil
@@ -100,6 +140,10 @@ function InfinityConsumables:GetActiveBufcfs()
 	end
 	
 	return result
+end
+
+function InfinityConsumables:GetActiveBufcfs()
+	return self:GetActiveBuffs()
 end
 
 function InfinityConsumables:GetBuffDuration(spellID)
@@ -118,7 +162,7 @@ function InfinityConsumables:GetBuffStatus()
 		consumables = {},
 	}
 	
-	status.activeBuffs = #self:GetActiveBufcfs()
+	status.activeBuffs = #self:GetActiveBuffs()
 	
 	for _, consumable in ipairs(self:GetAllConsumables()) do
 		status.consumablesInInventory = status.consumablesInInventory + consumable.count

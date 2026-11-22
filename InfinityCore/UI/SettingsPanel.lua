@@ -10,6 +10,20 @@ InfinitySettingsPanel = {
 function InfinitySettingsPanel:Initialize()
 	-- Load default settings structure
 	self:InitializeDefaultSettings()
+	for category, settings in pairs(self.settings) do
+		for key, setting in pairs(settings) do
+			local saved = InfinityStorageManager and InfinityStorageManager:GetSetting(category, key, nil)
+			if saved ~= nil then setting.value = saved end
+		end
+		if InfinityStorageManager and InfinityStorageManager.GetProfile then
+			local saved = InfinityStorageManager:GetSetting("General", "Show Minimap Button", nil)
+			if saved == nil then
+				self.settings.General["Show Minimap Button"].value = InfinityStorageManager:GetProfile("minimap.enabled", true)
+			elseif InfinityStorageManager.SetProfile then
+				InfinityStorageManager:SetProfile("minimap.enabled", saved == true)
+			end
+		end
+	end
 	InfinityUtils:Info("Settings Panel initialized", "SettingsPanel")
 end
 
@@ -17,6 +31,7 @@ function InfinitySettingsPanel:InitializeDefaultSettings()
 	self.settings = {
 		["General"] = {
 			["Enable Tooltips"] = { type = "checkbox", value = true, description = "Show enhanced tooltips" },
+			["Show Minimap Button"] = { type = "checkbox", value = true, description = "Show the Infinity launcher" },
 			["Tooltip Delay"] = { type = "slider", value = 0.5, min = 0, max = 2, step = 0.1, description = "Delay before tooltip shows (seconds)" },
 			["UI Scale"] = { type = "slider", value = 1.0, min = 0.5, max = 2.0, step = 0.1, description = "Overall UI scale" },
 			["Show FPS"] = { type = "checkbox", value = false, description = "Display FPS counter" },
@@ -52,6 +67,12 @@ function InfinitySettingsPanel:SetSetting(category, key, value)
 	if self.settings[category] and self.settings[category][key] then
 		self.settings[category][key].value = value
 		InfinityStorageManager:SetSetting(category, key, value)
+		if category == "General" and key == "Show Minimap Button" and InfinityStorageManager.SetProfile then
+			InfinityStorageManager:SetProfile("minimap.enabled", value == true)
+			if _G.InfinityUIIntegration and InfinityUIIntegration.UpdateMinimapVisibility then
+				InfinityUIIntegration:UpdateMinimapVisibility()
+			end
+		end
 		InfinityMessaging:Publish("INFINITY_SETTING_CHANGED", category, key, value)
 		return true
 	end
@@ -206,6 +227,9 @@ function InfinitySettingsPanel:ApplySettings()
 		for key, setting in pairs(settings) do
 			InfinityStorageManager:SetSetting(category, key, setting.value)
 		end
+		if self.settings.General and self.settings.General["Show Minimap Button"] then
+			self:SetSetting("General", "Show Minimap Button", self.settings.General["Show Minimap Button"].value == true)
+		end
 	end
 	InfinityMessaging:Publish("INFINITY_SETTINGS_APPLIED")
 	InfinityUtils:Info("Settings saved", "SettingsPanel")
@@ -254,6 +278,7 @@ function InfinitySettingsPanel:RegisterBlizzardSettings()
 					cb:SetSize(24, 24)
 					cb:SetPoint("TOPLEFT", 24, y + 4)
 					cb:SetChecked(setting.value == true)
+					if catName == "General" and key == "Show Minimap Button" then self.minimapCheckbox = cb end
 					cb:SetScript("OnClick", function(selfBtn)
 						InfinitySettingsPanel:SetSetting(catName, key, selfBtn:GetChecked() == true)
 					end)
@@ -331,6 +356,9 @@ function InfinitySettingsPanel:RegisterBlizzardSettings()
 	end)
 	
 	self.blizzardPanel = panel
+	panel:SetScript("OnShow", function()
+		if self.minimapCheckbox then self.minimapCheckbox:SetChecked(self:GetSetting("General", "Show Minimap Button") == true) end
+	end)
 	
 	if _G.Settings and _G.Settings.RegisterCanvasLayoutCategory and _G.Settings.RegisterAddOnCategory then
 		local category = _G.Settings.RegisterCanvasLayoutCategory(panel, "Infinity Suite")

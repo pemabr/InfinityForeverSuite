@@ -1,74 +1,61 @@
--- InfinityNavigation Initialization
+local initialized = false
 
 local function InitializeNavigation()
-	InfinityUtils:Info("InfinityNavigation initializing...", "Navigation")
-	
-	if not InfinityCore or not InfinityDataManager then
-		InfinityUtils:Warning("InfinityCore not ready", "Navigation")
-		return
+	if initialized then return end
+	if not InfinityCore or not InfinityCommandRegistry or not InfinityUIFramework
+		or not InfinityNavigator or not InfinityWayPointUI or not InfinityNavigationUI
+		or not InfinityQuestIntegration or not InfinityPathFinding then
+		error("Navigation modules unavailable")
 	end
-	
-	-- Initialize modules
-	if InfinityNavigator then pcall(function() InfinityNavigator:Initialize() end) end
-	if InfinityQuestIntegration then pcall(function() InfinityQuestIntegration:Initialize() end) end
-	if InfinityPathFinding then pcall(function() InfinityPathFinding:Initialize() end) end
-	if InfinityWayPointUI then pcall(function() InfinityWayPointUI:Initialize() end) end
-	if InfinityNavigationUI then pcall(function() InfinityNavigationUI:Initialize() end) end
-	
-	-- Register globals
-	_G.InfinityNavigator = InfinityNavigator
-	_G.InfinityQuestIntegration = InfinityQuestIntegration
-	_G.InfinityPathFinding = InfinityPathFinding
-	_G.InfinityWayPointUI = InfinityWayPointUI
-	_G.InfinityNavigationUI = InfinityNavigationUI
-	
-	-- Slash commands
+	InfinityNavigator:Initialize()
+	InfinityQuestIntegration:Initialize()
+	InfinityPathFinding:Initialize()
 	InfinityCommandRegistry:RegisterCommand("nav", function(args)
-		if not args or #args == 0 then
+		local command = args and args[1]
+		if not command then
 			InfinityNavigationUI:Toggle()
-		elseif args[1] == "waypoint" and args[2] then
-			local questId = tonumber(args[2])
-			if questId then
-				InfinityNavigator:SetObjective(questId)
+		elseif command == "waypoint" or command == "quest" then
+			if not args[2] then print("Usage: /nav quest <quest ID>")
+			else InfinityNavigator:SetObjective(tonumber(args[2])) end
+		elseif command == "add" then
+			local mapID, x, y = tonumber(args[2]), tonumber(args[3]), tonumber(args[4])
+			local name = args[5] and table.concat(args, " ", 5)
+			local ok, result
+			if x and y then ok, result = InfinityNavigator:AddWaypoint(x / 100, y / 100, mapID, name) end
+			if not ok then
+				print("Usage: /nav add <map ID> <x percent> <y percent> <name>. " .. (result or "Invalid coordinates."))
+			else
+				print("Waypoint saved. Click it in /nav to track it.")
+				InfinityWayPointUI:Refresh()
 			end
+		elseif command == "here" then
+			local name = args[2] and table.concat(args, " ", 2) or "Saved position"
+			local ok, result = InfinityNavigator:SavePlayerPosition(name)
+			if not ok then InfinityUtils:Warning(result, "Navigation")
+			else print("Position saved."); InfinityWayPointUI:Refresh() end
+		elseif command == "remove" then
+			if InfinityNavigator:RemoveWaypoint(tonumber(args[2])) then
+				print("Waypoint removed.")
+				InfinityWayPointUI:Refresh()
+			else print("Usage: /nav remove <waypoint number>") end
+		elseif command == "clear" then
+			InfinityNavigator:ClearWaypoints()
+			InfinityWayPointUI:Refresh()
+			print("Saved waypoints cleared; the active map marker is unchanged.")
+		else
+			print("Usage: /nav [quest <quest ID>|add <map ID> <x%> <y%> <name>|here [name]|remove <number>|clear]")
 		end
-	end, {"navigate", "navigation"})
-	
-	if _G.InfinityAddonManager then
-		_G.InfinityAddonManager:RegisterAddon("InfinityNavigation", "1.2.0", {
-			description = "Navigation tools",
-			author = "Infinity Suite Team",
-			category = "Navigation",
-			enabled = true,
-			settings = {}
-		})
-	end
-	
-	InfinityUtils:Info("InfinityNavigation initialized successfully", "Navigation")
-	InfinityMessaging:Publish(INFINITY_EVENTS.FEATURE_ENABLED, "navigation", true)
+	end, { "navigate", "navigation" })
+	InfinityCore:RegisterAddon("InfinityNavigation", {
+		version = "1.2.0", description = "Saved waypoints and native quest navigation",
+		author = "Infinity Suite Team", category = "Navigation", enabled = true, settings = {},
+	})
+	initialized = true
+	InfinityUtils:Info("InfinityNavigation initialized", "Navigation")
 end
 
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
-frame:SetScript("OnEvent", function(self, event, addonName)
-	if addonName == "InfinityNavigation" then
-		if InfinityCore and InfinityDataManager then
-			InitializeNavigation()
-		else
-			local retry = 0
-			local retryFrame = CreateFrame("Frame")
-			retryFrame:SetScript("OnUpdate", function(f, elapsed)
-				retry = retry + elapsed
-				if retry > 0.5 then
-					if InfinityCore and InfinityDataManager then
-						InitializeNavigation()
-						f:Hide()
-					end
-				end
-			end)
-		end
-		self:UnregisterEvent("ADDON_LOADED")
-	end
+frame:SetScript("OnEvent", function(_, _, addonName)
+	if addonName == "InfinityNavigation" then InitializeNavigation() end
 end)
-
-

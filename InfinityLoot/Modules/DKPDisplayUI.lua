@@ -1,8 +1,8 @@
 -- DKP UI Display Module
 -- Handles visual components for DKP auctions: bid bars, popups, queues, leaderboards
 
-local InfinityDKPUI = _G.InfinityDKPUI or {}
-_G.InfinityDKPUI = InfinityDKPUI
+local InfinityDKPUI = {}
+_G.InfinityLootDKPUI = InfinityDKPUI
 
 local function TableFind(tbl, value)
 	for i, v in ipairs(tbl) do
@@ -11,6 +11,12 @@ local function TableFind(tbl, value)
 		end
 	end
 	return nil
+end
+
+local function SetTitle(frame, text)
+	local title = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+	title:SetPoint("TOP", 0, -6)
+	title:SetText(text)
 end
 
 -- Configuration
@@ -36,11 +42,8 @@ InfinityDKPUI.mainWindow = nil
 -- ============================================================================
 
 --- Initialize DKP UI system
-local prevInitialize = InfinityDKPUI.Initialize
 function InfinityDKPUI:Initialize()
-	if prevInitialize then
-		prevInitialize(self)
-	end
+	if self.initialized then return end
 	InfinityUtils:Info("DKP UI System initialized", "DKP UI")
 	
 	-- Create main window frame (initially hidden)
@@ -52,6 +55,7 @@ function InfinityDKPUI:Initialize()
 			InfinityDKPUI:OnAuctionDataChanged(action, data)
 		end
 	end)
+	self.initialized = true
 end
 
 -- ============================================================================
@@ -73,7 +77,21 @@ function InfinityDKPUI:CreateMainWindow()
 	frame:SetScript("OnDragStart", frame.StartMoving)
 	frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
 	
-	frame:SetTitle("Infinity DKP System")
+	SetTitle(frame, "Infinity DKP System")
+
+	-- Content area inside main window
+	local contentFrame = CreateFrame("Frame", nil, frame, BackdropTemplateMixin and "BackdropTemplate" or nil)
+	contentFrame:SetSize(770, 505)
+	contentFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 15, -75)
+	contentFrame:SetBackdrop({
+		bgFile = "Interface/Tooltips/UI-Tooltip-Background",
+		edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
+		tile = true, tileSize = 16, edgeSize = 16,
+		insets = {left = 4, right = 4, top = 4, bottom = 4}
+	})
+	contentFrame:SetBackdropColor(0.05, 0.05, 0.08, 0.75)
+	contentFrame:SetBackdropBorderColor(0.3, 0.3, 0.4, 0.8)
+	frame.contentFrame = contentFrame
 	
 	-- Create tabs
 	self:CreateMainWindowTabs(frame)
@@ -87,21 +105,17 @@ function InfinityDKPUI:CreateMainWindowTabs(parentFrame)
 	-- Tab container
 	local tabFrame = CreateFrame("Frame", nil, parentFrame, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	tabFrame:SetSize(780, 30)
-	tabFrame:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 10, -35)
+	tabFrame:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 15, -38)
 	
 	-- Tabs: Standing, Auction, History, Settings
 	local tabs = {"Standing", "Auction", "History", "Settings"}
 	local tabButtons = {}
 	
 	for i, tabName in ipairs(tabs) do
-		local button = CreateFrame("Button", nil, tabFrame)
-		button:SetSize(100, 25)
-		button:SetPoint("TOPLEFT", tabFrame, "TOPLEFT", (i-1) * 110, 0)
-		
-		-- Simple button text (would use proper button template in production)
-		local text = button:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-		text:SetPoint("CENTER", button, "CENTER")
-		text:SetText(tabName)
+		local button = CreateFrame("Button", nil, tabFrame, "UIPanelButtonTemplate")
+		button:SetSize(110, 24)
+		button:SetPoint("TOPLEFT", tabFrame, "TOPLEFT", (i-1) * 116, 0)
+		button:SetText(tabName)
 		
 		button:SetScript("OnClick", function()
 			InfinityDKPUI:SelectTab(tabName)
@@ -115,8 +129,12 @@ end
 
 --- Select main window tab
 function InfinityDKPUI:SelectTab(tabName)
+	if not self.mainWindow then
+		self:CreateMainWindow()
+	end
+	self.currentTab = tabName
 	if tabName == "Standing" then
-		self:ShowLeaderboard()
+		self:ShowStandingTab()
 	elseif tabName == "Auction" then
 		self:ShowAuctionCenter()
 	elseif tabName == "History" then
@@ -126,14 +144,203 @@ function InfinityDKPUI:SelectTab(tabName)
 	end
 end
 
+function InfinityDKPUI:ShowStandingTab()
+	local content = self.mainWindow and self.mainWindow.contentFrame
+	if not content then return end
+	InfinityUtils:ClearContainer(content)
+
+	local y = -12
+	local header = content:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+	header:SetPoint("TOPLEFT", 12, y)
+	header:SetText("|cff00ccffDKP / EPGP Standings|r")
+
+	local refreshBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+	refreshBtn:SetSize(90, 22)
+	refreshBtn:SetPoint("TOPRIGHT", -12, y)
+	refreshBtn:SetText("Refresh")
+	refreshBtn:SetScript("OnClick", function()
+		InfinityDKPUI:ShowStandingTab()
+	end)
+	y = y - 28
+
+	local rows = {}
+	if _G.InfinityDKPEngine and _G.InfinityDKPEngine.GetRankedPlayers then
+		rows = _G.InfinityDKPEngine:GetRankedPlayers() or {}
+	end
+	if #rows == 0 and _G.InfinityLootEPGP and _G.InfinityLootEPGP.GetStandings then
+		for _, r in ipairs(_G.InfinityLootEPGP:GetStandings() or {}) do
+			table.insert(rows, { name = r.player or r.name, ep = r.ep or 0, gp = r.gp or 0, priority = r.pr or 0 })
+		end
+	end
+
+	if #rows == 0 then
+		local empty = content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+		empty:SetPoint("TOPLEFT", 14, y)
+		empty:SetText("No DKP/EPGP standings recorded yet. Join a raid or award points to populate.")
+		return
+	end
+
+	for i, p in ipairs(rows) do
+		if i > 18 then break end
+		local line = content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+		line:SetPoint("TOPLEFT", 14, y)
+		line:SetText(string.format("%2d. %-22s  EP: %-6d  GP: %-6d  PR: %.2f",
+			i, tostring(p.name or "Unknown"), math.floor(p.ep or 0), math.floor(p.gp or 0), tonumber(p.priority or 0) or 0))
+		y = y - 22
+	end
+end
+
+function InfinityDKPUI:ShowAuctionCenter()
+	local content = self.mainWindow and self.mainWindow.contentFrame
+	if not content then return end
+	InfinityUtils:ClearContainer(content)
+
+	local y = -12
+	local header = content:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+	header:SetPoint("TOPLEFT", 12, y)
+	header:SetText("|cff00ccffActive Loot Auctions|r")
+
+	local openWinBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+	openWinBtn:SetSize(130, 22)
+	openWinBtn:SetPoint("TOPRIGHT", -12, y)
+	openWinBtn:SetText("Auction Window")
+	openWinBtn:SetScript("OnClick", function()
+		if _G.InfinityLootAuctionUI and _G.InfinityLootAuctionUI.ShowAuctionFrame then
+			_G.InfinityLootAuctionUI:ShowAuctionFrame()
+		end
+	end)
+	y = y - 30
+
+	local auctions = _G.InfinityLootAuctions and InfinityLootAuctions:GetActiveAuctions() or {}
+
+	if #auctions == 0 then
+		local empty = content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+		empty:SetPoint("TOPLEFT", 14, y)
+		empty:SetText("No local loot auctions. Pick up an item and use /loot auction create.")
+		return
+	end
+
+	local now = GetTime()
+	for i, a in ipairs(auctions) do
+		if i > 14 then break end
+		local rem = math.max(0, math.floor((a.endTime or now) - now))
+		local open = a.biddingMode == "open" or a.biddingMode == "antisnipe"
+		local topBid = open and (a.bids[1] and tostring(a.bids[1].amount) or "none") or "hidden"
+		local line = content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+		line:SetPoint("TOPLEFT", 14, y)
+		line:SetText(string.format("[%s] %s  |  Bid: %s  |  %ds left",
+			tostring(a.id), tostring(a.itemName or a.itemLink or "Item"), topBid, rem))
+
+		if open then
+			local auctionID = a.id
+			local bidBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+			bidBtn:SetSize(75, 20)
+			bidBtn:SetPoint("TOPRIGHT", -16, y + 3)
+			bidBtn:SetText("Bid +" .. tostring(a.bidIncrement))
+			bidBtn:SetScript("OnClick", function()
+				local current = InfinityLootAuctions:GetAuction(auctionID)
+				if current then
+					local amount = current.bids[1] and current.bids[1].amount + current.bidIncrement or current.minimumBid
+					InfinityLootAuctions:PlaceBid(auctionID, UnitName("player"), amount)
+				end
+				InfinityDKPUI:ShowAuctionCenter()
+			end)
+		end
+		y = y - 26
+	end
+end
+
+function InfinityDKPUI:ShowLootHistory()
+	local content = self.mainWindow and self.mainWindow.contentFrame
+	if not content then return end
+	InfinityUtils:ClearContainer(content)
+
+	local y = -12
+	local header = content:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+	header:SetPoint("TOPLEFT", 12, y)
+	header:SetText("|cff00ccffRecent Loot History|r")
+	y = y - 28
+
+	local log = (_G.InfinityLootHistory and _G.InfinityLootHistory.lootLog) or {}
+	if #log == 0 then
+		local empty = content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+		empty:SetPoint("TOPLEFT", 14, y)
+		empty:SetText("No loot awards recorded yet.")
+		return
+	end
+
+	local shown = 0
+	for i = #log, 1, -1 do
+		shown = shown + 1
+		if shown > 18 then break end
+		local entry = log[i]
+		local line = content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+		line:SetPoint("TOPLEFT", 14, y)
+		line:SetText(string.format("%s -> %s (%s GP) [%s]",
+			tostring(entry.itemLink or entry.itemName or "Item"),
+			tostring(entry.playerName or "Unknown"),
+			tostring(entry.value or 0),
+			tostring(entry.reason or "Award")))
+		y = y - 22
+	end
+end
+
+function InfinityDKPUI:ShowSettings()
+	local content = self.mainWindow and self.mainWindow.contentFrame
+	if not content then return end
+	InfinityUtils:ClearContainer(content)
+
+	local y = -12
+	local header = content:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+	header:SetPoint("TOPLEFT", 12, y)
+	header:SetText("|cff00ccffDKP & Loot Display Settings|r")
+	y = y - 32
+
+	local options = {
+		{ key = "enableBidBars", label = "Show Live Bid Bars" },
+		{ key = "enablePopups", label = "Show Outbid Popups" },
+		{ key = "enableLootQueue", label = "Show Loot Queue" },
+		{ key = "enableLeaderboard", label = "Show Leaderboard" },
+		{ key = "enableAntiSnipeCountdown", label = "Show Anti-Snipe Countdown" },
+	}
+	for _, opt in ipairs(options) do
+		local cb = CreateFrame("CheckButton", nil, content, "UICheckButtonTemplate")
+		cb:SetSize(24, 24)
+		cb:SetPoint("TOPLEFT", 14, y + 4)
+		cb:SetChecked(self.config[opt.key] == true)
+		cb:SetScript("OnClick", function(selfBtn)
+			self.config[opt.key] = (selfBtn:GetChecked() == true)
+		end)
+		local lbl = content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+		lbl:SetPoint("LEFT", cb, "RIGHT", 6, 0)
+		lbl:SetText(opt.label)
+		y = y - 28
+	end
+
+	if _G.InfinityTooltipPrices then
+		local ttCb = CreateFrame("CheckButton", nil, content, "UICheckButtonTemplate")
+		ttCb:SetSize(24, 24)
+		ttCb:SetPoint("TOPLEFT", 14, y + 4)
+		ttCb:SetChecked(_G.InfinityTooltipPrices.config.enableTooltipPrices == true)
+		ttCb:SetScript("OnClick", function(selfBtn)
+			_G.InfinityTooltipPrices:SetConfig("enableTooltipPrices", selfBtn:GetChecked() == true)
+		end)
+		local lbl = content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+		lbl:SetPoint("LEFT", ttCb, "RIGHT", 6, 0)
+		lbl:SetText("Show Item Prices in Tooltips")
+	end
+end
+
 --- Toggle main window visibility
 function InfinityDKPUI:ToggleWindow()
-	if self.mainWindow then
-		if self.mainWindow:IsShown() then
-			self.mainWindow:Hide()
-		else
-			self.mainWindow:Show()
-		end
+	if not self.mainWindow then
+		self:CreateMainWindow()
+	end
+	if self.mainWindow:IsShown() then
+		self.mainWindow:Hide()
+	else
+		self.mainWindow:Show()
+		self:SelectTab(self.currentTab or "Standing")
 	end
 end
 
@@ -335,7 +542,7 @@ function InfinityDKPUI:CreateLootQueueFrame()
 	local frame = CreateFrame("Frame", "InfinityLootQueue", UIParent, "BasicFrameTemplateWithInset")
 	frame:SetSize(400, 300)
 	frame:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -20, -150)
-	frame:SetTitle("Loot Queue")
+	SetTitle(frame, "Loot Queue")
 	frame:SetMovable(true)
 	frame:EnableMouse(true)
 	frame:RegisterForDrag("LeftButton")
@@ -442,7 +649,7 @@ function InfinityDKPUI:CreateLeaderboardFrame()
 	local frame = CreateFrame("Frame", "InfinityLeaderboard", UIParent, "BasicFrameTemplateWithInset")
 	frame:SetSize(500, 400)
 	frame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 50, -150)
-	frame:SetTitle("DKP Leaderboard")
+	SetTitle(frame, "DKP Leaderboard")
 	frame:SetMovable(true)
 	frame:EnableMouse(true)
 	frame:RegisterForDrag("LeftButton")

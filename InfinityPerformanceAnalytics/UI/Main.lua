@@ -64,11 +64,54 @@ function InfinityPerformanceAnalyticsUI:CreateMainWindow()
 			InfinityPerformanceAnalyticsUI:ShowTab(tabName:lower())
 		end)
 	end
+	local start = InfinityUIFramework:CreateButton(frame, "Start", 80, 22, function()
+		local meter = InfinityPerformanceAnalyticsMeter
+		if meter.currentSession then
+			InfinityUtils:Warning("An analytics session is already active.", "Analytics")
+		else
+			meter:StartSession("Combat " .. date("%H:%M:%S"))
+		end
+		self:ShowTab(self.selectedTab or "dps")
+	end)
+	start:SetPoint("TOPLEFT", 10, -65)
+	local finish = InfinityUIFramework:CreateButton(frame, "End", 80, 22, function()
+		if not InfinityPerformanceAnalyticsMeter:EndSession() then
+			InfinityUtils:Warning("No analytics session is active.", "Analytics")
+		end
+		self:ShowTab(self.selectedTab or "dps")
+	end)
+	finish:SetPoint("LEFT", start, "RIGHT", 6, 0)
+	local clear = InfinityUIFramework:CreateButton(frame, "Clear", 80, 22, function()
+		local log = InfinityPerformanceAnalyticsMeter.combatLog
+		local pending = self.confirmClear
+		local matches = pending and pending.log == log and #pending.entries == #log
+		if matches then
+			for index, entry in ipairs(log) do
+				if pending.entries[index] ~= entry then matches = false; break end
+			end
+		end
+		if not matches then
+			self.confirmClear = { log = log, entries = {} }
+			for index, entry in ipairs(log) do self.confirmClear.entries[index] = entry end
+			frame.status:SetText("Clear session history? Click Clear again.")
+		else
+			self.confirmClear = nil
+			InfinityPerformanceAnalyticsMeter.combatLog = {}
+			self:ShowTab(self.selectedTab or "history")
+		end
+	end)
+	clear:SetPoint("LEFT", finish, "RIGHT", 6, 0)
+	local refresh = InfinityUIFramework:CreateButton(frame, "Refresh", 80, 22, function()
+		self:ShowTab(self.selectedTab or "dps")
+	end)
+	refresh:SetPoint("LEFT", clear, "RIGHT", 6, 0)
+	frame.status = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	frame.status:SetPoint("BOTTOMLEFT", 10, 8)
 	
 	-- Content area with scroll
 	local scrollFrame = CreateFrame("ScrollFrame", nil, frame)
-	scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -70)
-	scrollFrame:SetSize(380, 215)
+	scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -95)
+	scrollFrame:SetSize(380, 175)
 	
 	local content = CreateFrame("Frame", nil, scrollFrame, BackdropTemplateMixin and "BackdropTemplate" or nil)
 	content:SetSize(380, 1)
@@ -94,6 +137,10 @@ function InfinityPerformanceAnalyticsUI:ShowTab(tabName)
 	if not frame then
 		return
 	end
+	self.selectedTab = tabName
+	self.confirmClear = nil
+	frame.status:SetText((InfinityPerformanceAnalyticsMeter.currentSession and "Session active" or "Session stopped")
+		.. " | " .. (InfinityPerformanceAnalyticsMeter.sampleStatus or "No native sample") .. " | Session only")
 	
 	-- Clear content
 	for i, child in ipairs({frame.content:GetChildren()}) do
@@ -117,6 +164,7 @@ function InfinityPerformanceAnalyticsUI:ShowDPSTab()
 	local topDealers = InfinityPerformanceAnalyticsMeter:GetTopDamageDealer(10)
 	
 	for i, player in ipairs(topDealers) do
+		player = InfinityPerformanceAnalyticsMeter:GetPlayerStats(player.name) or player
 		local row = CreateFrame("Frame", nil, content, BackdropTemplateMixin and "BackdropTemplate" or nil)
 		row:SetSize(360, 20)
 		row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -(i-1) * 25)
@@ -143,6 +191,7 @@ function InfinityPerformanceAnalyticsUI:ShowHPSTab()
 	local topHealers = InfinityPerformanceAnalyticsMeter:GetTopHealer(10)
 	
 	for i, player in ipairs(topHealers) do
+		player = InfinityPerformanceAnalyticsMeter:GetPlayerStats(player.name) or player
 		local row = CreateFrame("Frame", nil, content, BackdropTemplateMixin and "BackdropTemplate" or nil)
 		row:SetSize(360, 20)
 		row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -(i-1) * 25)
@@ -192,6 +241,7 @@ end
 function InfinityPerformanceAnalyticsUI:Toggle()
 	local frame = self:CreateMainWindow()
 	if frame:IsShown() then
+		self.confirmClear = nil
 		frame:Hide()
 	else
 		frame:Show()

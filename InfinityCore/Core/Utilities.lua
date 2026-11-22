@@ -185,19 +185,26 @@ end
 
 -- Cross-client boss unit check (Forever 1.60.1 lacks UnitIsRaidBoss)
 function InfinityUtils:IsRaidBoss(unit)
+	if _G.issecretvalue and issecretvalue(unit) then return nil end
 	if type(unit) ~= "string" then
 		return false
 	end
 	if _G.UnitIsRaidBoss then
-		return _G.UnitIsRaidBoss(unit)
+		local boss = _G.UnitIsRaidBoss(unit)
+		if _G.issecretvalue and issecretvalue(boss) then return nil end
+		return boss
 	end
-	if not UnitExists(unit) then
+	local exists = UnitExists(unit)
+	if _G.issecretvalue and issecretvalue(exists) then return nil end
+	if not exists then
 		return false
 	end
 	if unit:match("^boss%d+$") then
 		return true
 	end
-	return UnitClassification(unit) == "worldboss"
+	local classification = UnitClassification(unit)
+	if _G.issecretvalue and issecretvalue(classification) then return nil end
+	return classification == "worldboss"
 end
 
 -- Cross-client container helpers (Forever 1.60.1 uses C_Container)
@@ -311,6 +318,71 @@ function InfinityUtils:GetSpellNameByID(spellID)
 		return (_G.GetSpellInfo(spellID))
 	end
 	return nil
+end
+
+function InfinityUtils:IsValidWaypoint(mapID, x, y)
+	if _G.issecretvalue and (issecretvalue(mapID) or issecretvalue(x) or issecretvalue(y)) then return false end
+	return type(mapID) == "number" and mapID == mapID and mapID > 0 and mapID < math.huge
+		and mapID == math.floor(mapID) and type(x) == "number" and x == x and x >= 0 and x <= 1
+		and type(y) == "number" and y == y and y >= 0 and y <= 1
+end
+
+function InfinityUtils:SetUserWaypoint(mapID, x, y, source)
+	if not self:IsValidWaypoint(mapID, x, y) then
+		self:Warning("Invalid or protected waypoint coordinates.", source)
+		return false
+	end
+	if _G.InCombatLockdown and InCombatLockdown() then
+		self:Warning("Cannot set a waypoint during combat.", source)
+		return false
+	end
+	local map = _G.C_Map
+	if not map or not map.CanSetUserWaypointOnMap or not map.SetUserWaypoint
+		or not _G.UiMapPoint or not UiMapPoint.CreateFromCoordinates then
+		self:Warning("Waypoints are unavailable on this client.", source)
+		return false
+	end
+	local allowed = map.CanSetUserWaypointOnMap(mapID)
+	if (_G.issecretvalue and issecretvalue(allowed)) or not allowed then
+		self:Warning("Waypoints are unavailable on this map.", source)
+		return false
+	end
+	local point = UiMapPoint.CreateFromCoordinates(mapID, x, y)
+	if (_G.issecretvalue and issecretvalue(point)) or not point then
+		self:Warning("Could not create the waypoint.", source)
+		return false
+	end
+	local result = map.SetUserWaypoint(point)
+	if (_G.issecretvalue and issecretvalue(result)) or result == false then
+		self:Warning("Could not set the waypoint.", source)
+		return false
+	end
+	if _G.C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then
+		C_SuperTrack.SetSuperTrackedUserWaypoint(true)
+	end
+	return true
+end
+
+function InfinityUtils:GetPlayerCoords()
+	if C_Map and C_Map.GetBestMapForUnit and C_Map.GetPlayerMapPosition then
+		local mapID = C_Map.GetBestMapForUnit("player")
+		if mapID then
+			local pos = C_Map.GetPlayerMapPosition(mapID, "player")
+			if pos and pos.GetXY then
+				local x, y = pos:GetXY()
+				if x and y then
+					return x * 100, y * 100, mapID
+				end
+			end
+		end
+	end
+	if _G.GetPlayerMapPosition then
+		local x, y = _G.GetPlayerMapPosition("player")
+		if x and y then
+			return x * 100, y * 100, 0
+		end
+	end
+	return 0, 0, 0
 end
 
 return InfinityUtils

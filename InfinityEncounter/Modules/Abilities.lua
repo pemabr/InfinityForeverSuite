@@ -8,6 +8,77 @@ InfinityEncounterAbilities.tracked_abilities = {}
 InfinityEncounterAbilities.ability_history = {}
 InfinityEncounterAbilities.callbacks = {}
 
+local function Public(value)
+    if _G.issecretvalue and _G.issecretvalue(value) then return nil end
+    return value
+end
+
+local function ValidSpellID(value)
+    value = Public(value)
+    return type(value) == "number" and value > 0 and value <= 1000000000 and value == math.floor(value)
+end
+
+function InfinityEncounterAbilities:InitializeWatches(db)
+    if type(db) ~= "table" then
+        InfinityUtils:Warning("Encounter watch settings are unavailable.", "Encounter")
+        return false
+    end
+    if db.watchedSpells == nil then db.watchedSpells = {} end
+    if type(db.watchedSpells) ~= "table" then
+        InfinityUtils:Warning("Invalid saved encounter watch settings.", "Encounter")
+        return false
+    end
+    self.watchedSpells, self.activeWatchedCasts = db.watchedSpells, {}
+    return true
+end
+
+function InfinityEncounterAbilities:SetWatch(spellID, label)
+    spellID, label = Public(spellID), Public(label)
+    if not self.watchedSpells then
+        InfinityUtils:Warning("Encounter watch settings are unavailable.", "Encounter")
+        return false
+    end
+    if not ValidSpellID(spellID) or type(label) ~= "string" or label == ""
+        or #label > 80 or label:find("[%z\1-\31]") then
+        InfinityUtils:Warning("Invalid spell ID or alert label.", "Encounter")
+        return false
+    end
+    self.watchedSpells[spellID] = label
+    return true
+end
+
+function InfinityEncounterAbilities:RemoveWatch(spellID)
+    spellID = Public(spellID)
+    if not self.watchedSpells or not ValidSpellID(spellID) or not self.watchedSpells[spellID] then
+        InfinityUtils:Warning("Watched spell not found.", "Encounter")
+        return false
+    end
+    self.watchedSpells[spellID] = nil
+    return true
+end
+
+function InfinityEncounterAbilities:OnWatchedCast(event, unit, spellID)
+    unit, spellID = Public(unit), Public(spellID)
+    if not self.watchedSpells or type(unit) ~= "string" then return end
+    if event == "UNIT_SPELLCAST_INTERRUPTED" or event == "UNIT_SPELLCAST_FAILED" then
+        self.activeWatchedCasts[unit] = nil
+        return
+    end
+    if not ValidSpellID(spellID) then return end
+    local label = Public(self.watchedSpells[spellID])
+    if type(label) ~= "string" or label == "" then return end
+    local previous = self.activeWatchedCasts[unit]
+    if event == "UNIT_SPELLCAST_START" then
+        self.activeWatchedCasts[unit] = { spellID = spellID, time = GetTime() }
+        InfinityEncounterAlerts:SendAlert("Casting: " .. label, InfinityEncounterAlerts.LEVEL_WARNING)
+    elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
+        self.activeWatchedCasts[unit] = nil
+        if not previous or previous.spellID ~= spellID or GetTime() - previous.time > 30 then
+            InfinityEncounterAlerts:SendAlert("Cast: " .. label, InfinityEncounterAlerts.LEVEL_WARNING)
+        end
+    end
+end
+
 -- Track ability usage
 function InfinityEncounterAbilities:RegisterAbility(spellID, spellName, timer, options)
     options = options or {}
@@ -15,8 +86,8 @@ function InfinityEncounterAbilities:RegisterAbility(spellID, spellName, timer, o
     self.tracked_abilities[spellID] = {
         id = spellID,
         name = spellName,
-        timer = timer or 30,
-        cooldown = options.cooldown or 60,
+        timer = timer,
+        cooldown = options.cooldown,
         alertTime = options.alertTime or 10,
         priority = options.priority or "normal",
         last_cast = nil,
@@ -32,8 +103,8 @@ function InfinityEncounterAbilities:OnAbilityCast(spellID, spellName, castTime, 
         ability = {
             id = spellID,
             name = spellName,
-            timer = duration or 30,
-            cooldown = 60,
+            timer = duration,
+            cooldown = nil,
             alertTime = 10,
             priority = "normal",
             last_cast = nil,
@@ -44,7 +115,8 @@ function InfinityEncounterAbilities:OnAbilityCast(spellID, spellName, castTime, 
     end
     
     ability.last_cast = GetTime()
-    ability.next_cast = GetTime() + (ability.cooldown or 60)
+    ability.next_cast = type(ability.cooldown) == "number" and ability.cooldown > 0
+        and (ability.last_cast + ability.cooldown) or nil
     ability.cast_count = (ability.cast_count or 0) + 1
     
     table.insert(self.ability_history, {
@@ -68,13 +140,14 @@ function InfinityEncounterAbilities:GetAbilityStatus(spellID)
     end
     
     local elapsed = GetTime() - ability.last_cast
-    if elapsed < (ability.timer or 30) then
+    if type(ability.timer) == "number" and elapsed < ability.timer then
         return "active"
-    elseif elapsed < (ability.cooldown or 60) then
+    elseif type(ability.cooldown) == "number" and elapsed < ability.cooldown then
         return "cooldown"
-    else
+    elseif type(ability.cooldown) == "number" then
         return "ready"
     end
+    return "unknown"
 end
 
 function InfinityEncounterAbilities:GetUpcomingAbilities(lookAhead)
@@ -140,6 +213,7 @@ end
 function InfinityEncounterAbilities:Reset()
     self.tracked_abilities = {}
     self.ability_history = {}
+    self.activeWatchedCasts = {}
 end
 
 return InfinityEncounterAbilities

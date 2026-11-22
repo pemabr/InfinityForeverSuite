@@ -12,11 +12,25 @@ InfinityEncounterMgr.callbacks = {}
 function InfinityEncounterMgr:GetCurrentBoss()
     -- Scan for boss units
     for _, unitID in ipairs({"boss1", "boss2", "boss3", "boss4", "target", "focus"}) do
-        if UnitExists(unitID) and InfinityUtils:IsRaidBoss(unitID) then
+        local exists = UnitExists(unitID)
+        if _G.issecretvalue and _G.issecretvalue(exists) then exists = nil end
+        local isBoss = exists and InfinityUtils:IsRaidBoss(unitID)
+        if _G.issecretvalue and _G.issecretvalue(isBoss) then isBoss = nil end
+        if exists and isBoss then
             local name = UnitName(unitID)
             local health = UnitHealth(unitID)
             local maxHealth = UnitHealthMax(unitID)
-            local healthPercent = (health / maxHealth) * 100
+            local isSec = _G.issecretvalue
+            if isSec and isSec(name) then name = "Boss" end
+            local healthPercent
+            if isSec and (isSec(health) or isSec(maxHealth)) then
+                health = nil
+                maxHealth = nil
+            elseif type(health) == "number" and type(maxHealth) == "number" and maxHealth > 0 then
+                healthPercent = (health / maxHealth) * 100
+            end
+            local isAlive
+            if type(health) == "number" then isAlive = health > 0 end
             
             return {
                 unitID = unitID,
@@ -24,7 +38,7 @@ function InfinityEncounterMgr:GetCurrentBoss()
                 health = health,
                 maxHealth = maxHealth,
                 healthPercent = healthPercent,
-                isAlive = health > 0,
+                isAlive = isAlive,
             }
         end
     end
@@ -58,12 +72,14 @@ function InfinityEncounterMgr:EndEncounter(victory)
     local encounter = self.active_encounters[#self.active_encounters]
     encounter.duration = GetTime() - encounter.startTime
     
-    if victory then
+    if victory == true then
         encounter.victories = (encounter.victories or 0) + 1
         self:TriggerCallback("encounter_victory", encounter.name, encounter.duration)
-    else
+    elseif victory == false then
         encounter.wipes = (encounter.wipes or 0) + 1
         self:TriggerCallback("encounter_wipe", encounter.name, encounter.duration)
+    else
+        self:TriggerCallback("encounter_ended", encounter.name, encounter.duration)
     end
     
     table.insert(self.encounter_history, encounter)

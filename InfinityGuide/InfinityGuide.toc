@@ -12,6 +12,9 @@ Localization\Localization.lua
 Modules\QuestTracker.lua
 Modules\LootDatabase.lua
 Modules\ZoneGuide.lua
+Modules\Guides.lua
+Modules\Sources.lua
+Modules\GuildPresets.lua
 
 UI\MainUI.lua
 

@@ -1,9 +1,10 @@
 ## Interface: 16001
 ## Title: Infinity World Boss
-## Notes: World boss respawn tracking with notifications and guild sharing
+## Notes: Local, manually configured world boss respawn estimates
 ## Author: Infinity Forever
-## Version: 1.0.0
-## Dependencies: InfinityCore, InfinityDataCollector
+## Version: 1.1.0
+## Dependencies: InfinityCore
+## OptionalDeps: InfinityDataCollector
 
 Core\WorldBossCore.lua
 Modules\Timers.lua

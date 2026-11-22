@@ -175,8 +175,8 @@ function DiagnosticsConsole:DisplayFullReport()
 	
 	-- Performance
 	print("\n|cffccccccPerformance:|r")
-	if _G.InfinityPerformanceOptimizer then
-		local perfReport = _G.InfinityPerformanceOptimizer:GetReport()
+	if _G.InfinityLootPerformanceOptimizer then
+		local perfReport = _G.InfinityLootPerformanceOptimizer:GetReport()
 		print("  Profiled functions: " .. #perfReport.slowFunctions)
 		if #perfReport.slowFunctions > 0 then
 			print("  Slowest: " .. perfReport.slowFunctions[1].name .. " (" .. perfReport.slowFunctions[1].avg .. "ms avg)")

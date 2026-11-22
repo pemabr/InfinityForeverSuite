@@ -14,6 +14,23 @@ InfinityDataCollectorCore = {
 	lastUpdate = {},
 }
 
+function InfinityDataCollectorCore:Initialize()
+	local db = InfinityCore:GetDatabase("InfinityDataCollector")
+	if type(db) ~= "table" then error("Data collector database unavailable") end
+	if db.gatheredData == nil then db.gatheredData = { quests = {}, mobs = {}, drops = {}, nodes = {}, npcs = {} } end
+	if db.lastUpdate == nil then db.lastUpdate = {} end
+	if db.gatheringEnabled == nil then db.gatheringEnabled = true end
+	if type(db.gatheredData) ~= "table" or type(db.lastUpdate) ~= "table"
+		or type(db.gatheringEnabled) ~= "boolean" then error("Invalid saved data collector settings") end
+	for _, key in ipairs({ "quests", "mobs", "drops", "nodes", "npcs" }) do
+		if type(db.gatheredData[key]) ~= "table" then error("Invalid saved collector data: " .. key) end
+	end
+	self.db = db
+	self.gatheredData = db.gatheredData
+	self.lastUpdate = db.lastUpdate
+	self.gatheringEnabled = db.gatheringEnabled
+end
+
 -- Quest data gathering
 function InfinityDataCollectorCore:RecordQuestData(questID, questName, questLevel, questGiver, giver_x, giver_y, zone, objective, rewards)
 	if type(questID) ~= "number" or questID <= 0 then
@@ -26,8 +43,9 @@ function InfinityDataCollectorCore:RecordQuestData(questID, questName, questLeve
 			name = questName or "Unknown",
 			level = questLevel or 0,
 			giver = questGiver or "Unknown",
-			giver_location = { x = giver_x or 0, y = giver_y or 0 },
-			zone = zone or GetRealZoneText() or "Unknown",
+			giver_location = type(giver_x) == "number" and type(giver_y) == "number"
+				and (giver_x ~= 0 or giver_y ~= 0) and { x = giver_x, y = giver_y } or nil,
+			zone = zone or "Unknown",
 			objective = objective or "Unknown",
 			rewards = rewards or {},
 			firstSeen = time(),
@@ -35,7 +53,13 @@ function InfinityDataCollectorCore:RecordQuestData(questID, questName, questLeve
 			instances = 0,
 		}
 	end
-	
+	local quest = self.gatheredData.quests[questID]
+	if questName and questName ~= "Unknown" then quest.name = questName end
+	if questLevel and questLevel > 0 then quest.level = questLevel end
+	if questGiver and questGiver ~= "Unknown" then quest.giver = questGiver end
+	if zone and zone ~= "Unknown" then quest.zone = zone end
+	if objective and objective ~= "" and objective ~= "Unknown" then quest.objective = objective end
+
 	self.lastUpdate.quest = time()
 	self.gatheredData.quests[questID].instances = (self.gatheredData.quests[questID].instances or 0) + 1
 	self.gatheredData.quests[questID].lastUpdated = time()
@@ -137,8 +161,8 @@ function InfinityDataCollectorCore:RecordDropData(mobID, mobName, itemID, itemNa
 			mobName = mobName or "Unknown",
 			itemID = itemID,
 			itemName = itemName or "Unknown",
-			dropRate = dropRate or 0,
-			rarity = rarity or "common",
+			dropRate = dropRate,
+			rarity = rarity,
 			sightings = 0,
 			firstSeen = time(),
 			lastUpdated = time(),
@@ -263,6 +287,7 @@ end
 -- Enable/disable gathering
 function InfinityDataCollectorCore:SetGatheringEnabled(enabled)
 	self.gatheringEnabled = not not enabled
+	if self.db then self.db.gatheringEnabled = self.gatheringEnabled end
 	return self.gatheringEnabled
 end
 

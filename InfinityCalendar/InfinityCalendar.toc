@@ -2,7 +2,7 @@
 ## Title: Infinity Calendar
 ## Author: Infinity Suite
 ## Version: 1.0
-## Notes: Guild event scheduling, raid calendar integration, and automatic reminders
+## Notes: Local event scheduling and reminders
 ## RequiredDeps: InfinityCore
 ## SavedVariables: InfinityCalendarDB
 

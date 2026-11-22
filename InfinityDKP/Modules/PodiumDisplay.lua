@@ -428,6 +428,19 @@ end
 if not IsTestingLua then
     SLASH_PODIUM1 = "/podium"
     SlashCmdList["PODIUM"] = function(msg)
+        if not PodiumDisplay.enabled then
+            local ui = _G.InfinityDKPUI
+            if ui and type(ui.Show) == "function" and (msg == "" or msg == "show" or msg == "toggle") then
+                ui.selectedTab = "Players"
+                if (msg == "" or msg == "toggle") and type(ui.Toggle) == "function" then ui:Toggle()
+                else ui:Show() end
+            elseif ui and msg == "hide" and type(ui.Hide) == "function" then
+                ui:Hide()
+            else
+                InfinityUtils:Warning("Legacy podium is unavailable. Use the DKP Players tab for standings.", "DKP")
+            end
+            return
+        end
         local cmd, args = msg:match("^(%S*)%s*(.*)$")
         cmd = cmd or ""
         

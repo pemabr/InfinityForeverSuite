@@ -40,12 +40,13 @@ function LootAdvisor:OnLootOpened(itemLink, quantity)
 		return
 	end
 	
-	local itemId, itemName, itemRarity, itemLevel = InfinityUtils:GetItemInfo(itemLink)
+	local itemName, _, itemRarity, itemLevel = InfinityUtils:GetItemInfo(itemLink)
+	local itemId = InfinityUtils:GetItemIDFromLink(itemLink)
 	
 	if itemId then
 		table.insert(self.pendingLoot, {
 			itemId = itemId,
-			name = itemName,
+			name = itemName or "Unknown",
 			link = itemLink,
 			quantity = quantity or 1,
 			rarity = itemRarity,
@@ -130,41 +131,75 @@ function LootAdvisor:CalculateScore(playerName, class, loot)
 	return fairnessComponent + performanceComponent + needComponent
 end
 
--- Get fairness score (priority based on loot history)
+-- Get fairness score (priority based on EPGP/DKP balance and recent loot history)
 function LootAdvisor:GetFairnessScore(playerName)
-	-- Get player's EPGP or DKP balance
-	-- Higher score = more deserving based on participation
-	
-	-- Placeholder: return 50
+	local score = 50
+	if _G.InfinityLootEPGP and _G.InfinityLootEPGP.GetPlayerPR then
+		local pr = _G.InfinityLootEPGP:GetPlayerPR(playerName)
+		if pr and pr > 0 then
+			score = math.min(100, pr * 25)
+		end
+	elseif _G.InfinityDKPEngine and _G.InfinityDKPEngine.GetPlayerPriority then
+		local prio = _G.InfinityDKPEngine:GetPlayerPriority(playerName)
+		if prio and prio > 0 then
+			score = math.min(100, prio * 25)
+		end
+	end
+	if _G.InfinityLootHistory and _G.InfinityLootHistory.lootLog then
+		local recentAwards = 0
+		local cutoff = time() - (7 * 86400)
+		for i = #_G.InfinityLootHistory.lootLog, 1, -1 do
+			local e = _G.InfinityLootHistory.lootLog[i]
+			if e.timestamp and e.timestamp < cutoff then break end
+			if e.playerName == playerName then
+				recentAwards = recentAwards + 1
+			end
+		end
+		score = math.max(5, score - (recentAwards * 10))
+	end
+	return score
+end
+
+-- Get performance score (from InfinityPerformanceAnalytics or InfinityDetails)
+function LootAdvisor:GetPerformanceScore(playerName)
+	if _G.InfinityPerformanceAnalyticsMeter and _G.InfinityPerformanceAnalyticsMeter.players then
+		local p = _G.InfinityPerformanceAnalyticsMeter.players[playerName]
+		if p and (p.totalDamage or 0) > 0 then
+			return math.min(100, 40 + math.log10(p.totalDamage) * 10)
+		end
+	end
+	if _G.InfinityDetailsActor and _G.InfinityDetailsActor.GetActorByName then
+		local actor = _G.InfinityDetailsActor:GetActorByName(playerName)
+		if actor and ((actor.damage_total or 0) > 0 or (actor.healing_total or 0) > 0) then
+			return math.min(100, 40 + math.log10((actor.damage_total or 0) + (actor.healing_total or 0)) * 10)
+		end
+	end
 	return 50
 end
 
--- Get performance score
-function LootAdvisor:GetPerformanceScore(playerName)
-	-- Get player's healing done, DPS, survival rate, etc.
-	-- Placeholder: return 30
-	return 30
-end
-
--- Get need score
+-- Get need score based on class armor/role compatibility with the item
 function LootAdvisor:GetNeedScore(class, loot)
-	-- Determine if class can use item effectively
-	-- Score based on item slot, stats relevance
-	
-	-- Placeholder scoring
-	local needScores = {
-		["WARRIOR"] = 50,
-		["PALADIN"] = 40,
-		["HUNTER"] = 30,
-		["ROGUE"] = 20,
-		["PRIEST"] = 60,
-		["DRUID"] = 55,
-		["SHAMAN"] = 45,
-		["MAGE"] = 35,
-		["WARLOCK"] = 25,
+	local armorByClass = {
+		WARRIOR = "Plate", PALADIN = "Plate", DEATHKNIGHT = "Plate",
+		HUNTER = "Mail", SHAMAN = "Mail", EVOKER = "Mail",
+		ROGUE = "Leather", DRUID = "Leather", MONK = "Leather", DEMONHUNTER = "Leather",
+		PRIEST = "Cloth", MAGE = "Cloth", WARLOCK = "Cloth",
 	}
-	
-	return needScores[class] or 25
+	if loot and (loot.link or loot.itemId) then
+		local _, _, _, _, _, itemType, itemSubType = InfinityUtils:GetItemInfo(loot.link or loot.itemId)
+		if itemType == "Armor" and itemSubType and armorByClass[class] then
+			if itemSubType == armorByClass[class] then
+				return 90
+			elseif itemSubType == "Miscellaneous" or itemSubType == "Rings" or itemSubType == "Neck" or itemSubType == "Trinkets" then
+				return 75
+			elseif itemSubType == "Cloaks" or itemSubType == "Back" then
+				return 70
+			else
+				return 15
+			end
+		end
+	end
+	return 50
 end
 
 -- Get alternative candidates

@@ -15,6 +15,7 @@ local function InitializeQoL()
 	
 	if Tweaks then pcall(function() Tweaks:Initialize() end) end
 	if Macros then pcall(function() Macros:Initialize() end) end
+	if UI and UI.Initialize then UI:Initialize() end
 	
 	_G.InfinityQoLTweaks = Tweaks
 	_G.InfinityQoLMacros = Macros
@@ -24,7 +25,7 @@ local function InitializeQoL()
 	
 	InfinityCommandRegistry:RegisterCommand({
 		name = "qol",
-		aliases = { "tweaks", "settings" },
+		aliases = { "tweaks" },
 		description = "Open QoL settings",
 		func = function() InfinityQoLUI:Toggle() end,
 	})
@@ -59,6 +60,7 @@ frame:SetScript("OnEvent", function(self, event, addonName)
 	elseif addonName == "InfinityQoL" then
 		if _G.InfinityDataManager then
 			InitializeQoL()
+			self:UnregisterEvent("ADDON_LOADED")
 		end
 	end
 end)

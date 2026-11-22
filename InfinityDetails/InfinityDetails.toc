@@ -1,6 +1,6 @@
 ## Interface: 16001
 ## Title: Infinity Details (Combat Metrics)
-## Notes: Real-time DPS/HPS/threat analysis and performance breakdown
+## Notes: Native combat meters and spell breakdown; legacy damage and healing meters when available
 ## Author: Infinity Forever Suite
 ## Version: 1.0.0
 ## RequiredDeps: InfinityCore

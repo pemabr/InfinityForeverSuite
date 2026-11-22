@@ -15,6 +15,8 @@ local function InitializeGather()
 	
 	if Nodes then pcall(function() Nodes:Initialize() end) end
 	if Routes then pcall(function() Routes:Initialize() end) end
+	if UI and UI.Initialize then UI:Initialize() end
+	if _G.InfinityGatherMateSource then InfinityGatherMateSource:Initialize() end
 	
 	_G.InfinityGatherNodes = Nodes
 	_G.InfinityGatherRoutes = Routes
@@ -26,7 +28,18 @@ local function InitializeGather()
 		name = "gather",
 		aliases = { "farm" },
 		description = "Open gather manager",
-		func = function() InfinityGatherUI:Toggle() end,
+		func = function(args)
+			if not args or not args[1] or args[1] == "" then
+				InfinityGatherUI:Toggle()
+			elseif args[1] == "source" and (args[2] == "on" or args[2] == "off") and not args[3] then
+				InfinityGatherMateSource:SetEnabled(args[2] == "on")
+			elseif args[1] == "source" and args[2] == "status" and not args[3] then
+				print("GatherMate2 live source: " .. InfinityGatherMateSource.choice
+					.. (InfinityGatherMateSource:Available() and " (available)" or " (unavailable)"))
+			else
+				InfinityUtils:Warning("Usage: /gather [source on|off|status]", "Gather")
+			end
+		end,
 	})
 	
 	InfinityCommandRegistry:RegisterKeybind({
@@ -59,6 +72,7 @@ frame:SetScript("OnEvent", function(self, event, addonName)
 	elseif addonName == "InfinityGather" then
 		if _G.InfinityDataManager then
 			InitializeGather()
+			self:UnregisterEvent("ADDON_LOADED")
 		end
 	end
 end)

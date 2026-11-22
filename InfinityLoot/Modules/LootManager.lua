@@ -211,7 +211,7 @@ function InfinityLootManager:GetStatistics()
 	
 	for _, raid in pairs(self.db.raids) do
 		stats.totalRaids = stats.totalRaids + 1
-		stats.totalMembers = stats.totalMembers + (raid.members and #raid.members or 0)
+		for _ in pairs(raid.members or {}) do stats.totalMembers = stats.totalMembers + 1 end
 		stats.totalLootAwarded = stats.totalLootAwarded + (raid.lootAwarded and #raid.lootAwarded or 0)
 		
 		for _, loot in pairs(raid.lootAwarded or {}) do

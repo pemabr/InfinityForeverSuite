@@ -15,6 +15,7 @@ local function InitializeGear()
 	
 	if Equipment then pcall(function() Equipment:Initialize() end) end
 	if Consumables then pcall(function() Consumables:Initialize() end) end
+	if UI and UI.Initialize then UI:Initialize() end
 	
 	_G.InfinityGearEquipment = Equipment
 	_G.InfinityGearConsumables = Consumables
@@ -23,8 +24,8 @@ local function InitializeGear()
 	InfinityDataManager:RegisterSource("InfinityGear", { equipment = {}, consumables = {} })
 	
 	InfinityCommandRegistry:RegisterCommand({
-		name = "gear",
-		aliases = { "equipment", "e" },
+		name = "infgear",
+		aliases = {},
 		description = "Open gear manager",
 		func = function() InfinityGearUI:Toggle() end,
 	})
@@ -59,6 +60,7 @@ frame:SetScript("OnEvent", function(self, event, addonName)
 	elseif addonName == "InfinityGear" then
 		if _G.InfinityDataManager then
 			InitializeGear()
+			self:UnregisterEvent("ADDON_LOADED")
 		end
 	end
 end)

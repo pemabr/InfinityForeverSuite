@@ -1,259 +1,95 @@
--- InfinityWorldBoss Core - World Boss Tracking
--- Tracks world boss respawn timers and notifies guild members
+local Core = {}
+_G.InfinityWorldBossCore = Core
+_G.InfinityWorldBoss = Core
 
-InfinityWorldBossCore = {
-	bosses = {},
-	respawnTimers = {},
-	version = 1,
-	notificationEnabled = true,
-	guildSharingEnabled = true,
-}
-
--- Register a world boss
-function InfinityWorldBossCore:RegisterBoss(bossID, bossName, zone, respawnTime, difficulty)
-	if type(bossID) ~= "number" or bossID <= 0 then
-		return false
-	end
-	
-	if not self.bosses[bossID] then
-		self.bosses[bossID] = {
-			id = bossID,
-			name = bossName or "Unknown Boss",
-			zone = zone or "Unknown",
-			respawnTime = respawnTime or 14400,  -- 4 hours default
-			difficulty = difficulty or "normal",
-			lastKilled = 0,
-			nextRespawn = 0,
-			status = "unknown",
-			killedBy = "Unknown",
-			observers = {},
-			firstSeen = time(),
-			lastUpdated = time(),
-		}
-		
-		InfinityUtils:Info("World boss registered: " .. bossName, "WorldBoss")
-		return true
-	end
-	
-	return false
+local function Public(value)
+	if _G.issecretvalue and _G.issecretvalue(value) then return nil end
+	return value
 end
 
--- Record boss kill
-function InfinityWorldBossCore:RecordBossKill(bossID, killerName, killerGuild)
-	if not self.bosses[bossID] then
-		return false
+local function PositiveInteger(value, maximum)
+	value = Public(value)
+	return type(value) == "number" and value == value and value > 0
+		and value <= (maximum or 1000000000) and value == math.floor(value)
+end
+
+local function ValidName(name)
+	name = Public(name)
+	return type(name) == "string" and name:match("%S") and #name <= 100 and not name:find("[%c]")
+end
+
+function Core:Initialize()
+	local db = InfinityCore:GetDatabase("InfinityWorldBoss")
+	if type(db) ~= "table" then error("World boss database unavailable") end
+	if db.bosses == nil then db.bosses = {} end
+	if type(db.bosses) ~= "table" then error("Invalid world boss database") end
+	for id, boss in pairs(db.bosses) do
+		if not PositiveInteger(id) or type(boss) ~= "table" or not ValidName(boss.name)
+			or not PositiveInteger(boss.interval)
+			or (boss.lastKilled ~= nil and not PositiveInteger(boss.lastKilled, 1000000000000))
+			or (boss.notified ~= nil and type(boss.notified) ~= "boolean") then
+			error("Invalid saved world boss data")
+		end
 	end
-	
-	local now = time()
-	self.bosses[bossID].lastKilled = now
-	self.bosses[bossID].nextRespawn = now + self.bosses[bossID].respawnTime
-	self.bosses[bossID].status = "killed"
-	self.bosses[bossID].killedBy = killerName or "Unknown"
-	self.bosses[bossID].lastUpdated = now
-	
-	-- Create respawn timer
-	self.respawnTimers[bossID] = {
-		bossID = bossID,
-		bossName = self.bosses[bossID].name,
-		killedTime = now,
-		respawnTime = self.bosses[bossID].respawnTime,
-		nextRespawn = now + self.bosses[bossID].respawnTime,
-		killedBy = killerName,
-		killedByGuild = killerGuild,
-		notified = false,
-	}
-	
-	-- Publish event
-	if InfinityMessaging then
-		InfinityMessaging:Publish("WorldBoss:KillRecorded", bossID, killerName, killerGuild)
+	self.bosses = db.bosses
+end
+
+function Core:RegisterBoss(id, name, interval)
+	id, name, interval = Public(id), Public(name), Public(interval)
+	if not PositiveInteger(id) or not ValidName(name) or not PositiveInteger(interval) then
+		return false, "Invalid encounter ID, name or interval."
 	end
-	
-	InfinityUtils:Info("Boss kill recorded: " .. self.bosses[bossID].name, "WorldBoss")
+	if self.bosses[id] then return false, "Encounter ID is already registered." end
+	self.bosses[id] = { name = name, interval = interval }
 	return true
 end
 
--- Update boss status
-function InfinityWorldBossCore:UpdateBossStatus(bossID, status, details)
-	if not self.bosses[bossID] then
-		return false
-	end
-	
-	self.bosses[bossID].status = status or "unknown"
-	self.bosses[bossID].lastUpdated = time()
-	
-	-- If alive, calculate potential respawn
-	if status == "alive" and self.respawnTimers[bossID] then
-		self.respawnTimers[bossID].notified = false
-	end
-	
+function Core:RecordBossKill(id, timestamp)
+	id, timestamp = Public(id), Public(timestamp)
+	local boss = PositiveInteger(id) and self.bosses[id]
+	if not boss then return false, "Encounter ID is not registered." end
+	if not PositiveInteger(timestamp, 1000000000000) then return false, "Kill time unavailable." end
+	boss.lastKilled, boss.notified = timestamp, false
 	return true
 end
 
--- Get boss information
-function InfinityWorldBossCore:GetBossInfo(bossID)
-	return self.bosses[bossID]
-end
-
--- Get respawn timer
-function InfinityWorldBossCore:GetRespawnTimer(bossID)
-	return self.respawnTimers[bossID]
-end
-
--- Get time until respawn (in seconds)
-function InfinityWorldBossCore:GetTimeToRespawn(bossID)
-	local timer = self.respawnTimers[bossID]
-	if not timer then
-		return nil
-	end
-	
-	local now = time()
-	local timeLeft = timer.nextRespawn - now
-	
-	if timeLeft <= 0 then
-		return 0
-	end
-	
-	return timeLeft
-end
-
--- Format time remaining
-function InfinityWorldBossCore:FormatTimeRemaining(seconds)
-	if seconds <= 0 then
-		return "NOW"
-	end
-	
-	if seconds < 60 then
-		return string.format("%d sec", seconds)
-	elseif seconds < 3600 then
-		return string.format("%d min", math.floor(seconds / 60))
-	elseif seconds < 86400 then
-		return string.format("%d h %d min", math.floor(seconds / 3600), math.floor((seconds % 3600) / 60))
-	else
-		return string.format("%d days", math.floor(seconds / 86400))
-	end
-end
-
--- Get all tracked bosses
-function InfinityWorldBossCore:GetAllBosses()
-	local bossList = {}
-	for bossID, bossData in pairs(self.bosses) do
-		table.insert(bossList, bossData)
-	end
-	return bossList
-end
-
--- Get bosses by zone
-function InfinityWorldBossCore:GetBossesByZone(zone)
-	local bossList = {}
-	for bossID, bossData in pairs(self.bosses) do
-		if bossData.zone == zone then
-			table.insert(bossList, bossData)
-		end
-	end
-	return bossList
-end
-
--- Get respawning bosses
-function InfinityWorldBossCore:GetRespawningBosses()
-	local respawning = {}
-	for bossID, timer in pairs(self.respawnTimers) do
-		if timer.nextRespawn > time() then
-			table.insert(respawning, timer)
-		end
-	end
-	return respawning
-end
-
--- Get bosses due to respawn soon (within 1 hour)
-function InfinityWorldBossCore:GetSoonRespawning()
-	local soon = {}
-	local now = time()
-	for bossID, timer in pairs(self.respawnTimers) do
-		local timeLeft = timer.nextRespawn - now
-		if timeLeft > 0 and timeLeft <= 3600 then  -- Within 1 hour
-			table.insert(soon, {boss = timer, timeLeft = timeLeft})
-		end
-	end
-	return soon
-end
-
--- Enable/disable notifications
-function InfinityWorldBossCore:SetNotificationEnabled(enabled)
-	self.notificationEnabled = not not enabled
-	return self.notificationEnabled
-end
-
--- Enable/disable guild sharing
-function InfinityWorldBossCore:SetGuildSharingEnabled(enabled)
-	self.guildSharingEnabled = not not enabled
-	return self.guildSharingEnabled
-end
-
--- Export boss data for sharing
-function InfinityWorldBossCore:ExportBossData()
-	return {
-		bosses = self.bosses,
-		respawnTimers = self.respawnTimers,
-		exportTime = time(),
-		version = self.version,
-	}
-end
-
--- Import boss data from peers
-function InfinityWorldBossCore:ImportBossData(importedData)
-	if not importedData or not importedData.respawnTimers then
-		return false
-	end
-	
-	pcall(function()
-		for bossID, timer in pairs(importedData.respawnTimers) do
-			if type(bossID) == "number" and type(timer) == "table" then
-				-- Only update if newer
-				local existing = self.respawnTimers[bossID]
-				if not existing or timer.killedTime > (existing.killedTime or 0) then
-					self.respawnTimers[bossID] = timer
-					
-					-- Update boss status
-					if self.bosses[bossID] then
-						self.bosses[bossID].lastKilled = timer.killedTime
-						self.bosses[bossID].nextRespawn = timer.nextRespawn
-						self.bosses[bossID].killedBy = timer.killedBy
-					end
-				end
-			end
-		end
-	end)
-	
+function Core:SetInterval(id, interval)
+	id, interval = Public(id), Public(interval)
+	if not PositiveInteger(id) or not self.bosses[id] then return false, "Encounter ID is not registered." end
+	if not PositiveInteger(interval) then return false, "Interval must be a positive number of seconds." end
+	self.bosses[id].interval, self.bosses[id].notified = interval, false
 	return true
 end
 
--- Get statistics
-function InfinityWorldBossCore:GetStatistics()
-	local stats = {
-		totalBosses = 0,
-		trackedBosses = 0,
-		aliveCount = 0,
-		killedCount = 0,
-		respawningCount = 0,
-	}
-	
-	for bossID, bossData in pairs(self.bosses) do
-		stats.totalBosses = stats.totalBosses + 1
-		if bossData.status == "alive" then
-			stats.aliveCount = stats.aliveCount + 1
-		elseif bossData.status == "killed" then
-			stats.killedCount = stats.killedCount + 1
-		end
-	end
-	
-	stats.trackedBosses = stats.killedCount + stats.aliveCount
-	stats.respawningCount = self:CountTable(self.respawnTimers)
-	
-	return stats
+function Core:ClearKill(id)
+	id = Public(id)
+	if not PositiveInteger(id) or not self.bosses[id] then return false end
+	self.bosses[id].lastKilled, self.bosses[id].notified = nil, nil
+	return true
 end
 
-function InfinityWorldBossCore:CountTable(t)
-	local count = 0
-	for _ in pairs(t) do count = count + 1 end
-	return count
+function Core:RemoveBoss(id)
+	id = Public(id)
+	if not PositiveInteger(id) or not self.bosses[id] then return false end
+	self.bosses[id] = nil
+	return true
 end
+
+function Core:GetAllBosses()
+	local result = {}
+	for id, boss in pairs(self.bosses) do
+		result[#result + 1] = { id = id, boss = boss }
+	end
+	table.sort(result, function(a, b) return a.boss.name:lower() < b.boss.name:lower() end)
+	return result
+end
+
+function Core:Describe(boss, now)
+	if not boss.lastKilled then return "No kill recorded; status unknown." end
+	local remaining = boss.lastKilled + boss.interval - now
+	if remaining <= 0 then return "Estimate elapsed; actual status unknown." end
+	local hours, minutes = math.floor(remaining / 3600), math.floor((remaining % 3600) / 60)
+	return string.format("Estimated: %dh %02dm remaining; actual status unknown.", hours, minutes)
+end
+
+return Core

@@ -120,10 +120,8 @@ function GearOptimizer:CalculateOptimizationScore()
 	
 	local avgIlvl = gearCount > 0 and (totalIlvl / gearCount) or 0
 	
-	-- Score formula: 0-100
-	-- Base: (avgIlvl / maxIlvl) * 50 + enchant/gem coverage * 50
-	-- Placeholder calculation
-	self.gearData.optimization = math.min(100, (avgIlvl / 500) * 100)
+	-- Score formula: 0-100 scaled against Forever current tier baseline
+	self.gearData.optimization = math.min(100, math.floor((avgIlvl / 500) * 100 + 0.5))
 end
 
 -- Called when equipment changes
@@ -132,24 +130,52 @@ function GearOptimizer:OnEquipmentChanged(slot)
 	InfinityMessaging:Publish("gear_optimization_changed", self.gearData.optimization)
 end
 
--- Find upgrade recommendations
+-- Find upgrade recommendations by scanning player bags for higher iLvl items matching slot equipLoc
 function GearOptimizer:GetUpgradeRecommendations()
 	local recommendations = {}
-	
-	for slot, currentItem in pairs(self.gearData.currentGear) do
-		if currentItem then
-			-- Check for upgrades from:
-			-- - Dungeon drops
-			-- - Quest rewards
-			-- - Reputation vendors
-			-- - Crafted items
-			-- - Auction house
-			
-			-- This would require extensive game data integration
-			-- For now, placeholder
+	local slotByEquipLoc = {
+		INVTYPE_HEAD = "HeadSlot",
+		INVTYPE_NECK = "NeckSlot",
+		INVTYPE_SHOULDER = "ShoulderSlot",
+		INVTYPE_CHEST = "ChestSlot",
+		INVTYPE_ROBE = "ChestSlot",
+		INVTYPE_WAIST = "WaistSlot",
+		INVTYPE_LEGS = "LegsSlot",
+		INVTYPE_FEET = "FeetSlot",
+		INVTYPE_WRIST = "WristSlot",
+		INVTYPE_HAND = "HandsSlot",
+		INVTYPE_FINGER = "Finger0Slot",
+		INVTYPE_TRINKET = "Trinket0Slot",
+		INVTYPE_CLOAK = "BackSlot",
+		INVTYPE_WEAPON = "MainHandSlot",
+		INVTYPE_2HWEAPON = "MainHandSlot",
+		INVTYPE_WEAPONMAINHAND = "MainHandSlot",
+		INVTYPE_WEAPONOFFHAND = "SecondaryHandSlot",
+		INVTYPE_SHIELD = "SecondaryHandSlot",
+		INVTYPE_HOLDABLE = "SecondaryHandSlot",
+	}
+	for bag = 0, NUM_BAG_SLOTS or 4 do
+		for slot = 1, InfinityUtils:GetBagSlots(bag) do
+			local link = InfinityUtils:GetBagItemLink(bag, slot)
+			if link then
+				local name, _, rarity, ilvl, _, _, _, _, equipLoc = InfinityUtils:GetItemInfo(link)
+				local targetSlot = equipLoc and slotByEquipLoc[equipLoc]
+				local equipped = targetSlot and self.gearData.currentGear[targetSlot]
+				if targetSlot and ilvl and (not equipped or ilvl > (equipped.ilvl or 0)) then
+					table.insert(recommendations, {
+						slot = targetSlot,
+						itemName = name,
+						itemLink = link,
+						ilvl = ilvl,
+						rarity = rarity,
+						ilvlGain = ilvl - (equipped and equipped.ilvl or 0),
+						source = "bag",
+					})
+				end
+			end
 		end
 	end
-	
+	table.sort(recommendations, function(a, b) return (a.ilvlGain or 0) > (b.ilvlGain or 0) end)
 	return recommendations
 end
 

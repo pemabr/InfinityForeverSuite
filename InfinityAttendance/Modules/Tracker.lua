@@ -8,10 +8,23 @@ InfinityAttendanceTracker.raids = {}
 InfinityAttendanceTracker.callbacks = {}
 InfinityAttendanceTracker.auto_tracking = true
 
+local function Public(value)
+    if _G.issecretvalue and _G.issecretvalue(value) then return nil end
+    return value
+end
+
 function InfinityAttendanceTracker:StartTracking(raidName)
+    raidName = Public(raidName)
+    local zone = _G.GetRealZoneText and Public(GetRealZoneText())
+    local started = _G.GetTime and Public(GetTime())
+    if type(started) ~= "number" or started ~= started or started < 0 or started >= math.huge then
+        InfinityUtils:Warning("Attendance tracking cannot start: time unavailable.", "Attendance")
+        return nil
+    end
     local raid = {
-        name = raidName or GetRealZoneText(),
-        start_time = GetTime(),
+        name = type(raidName) == "string" and raidName ~= "" and raidName
+            or type(zone) == "string" and zone ~= "" and zone or "Unknown",
+        start_time = started,
         members = {},
         boss_kills = 0,
     }
@@ -27,19 +40,31 @@ function InfinityAttendanceTracker:ScanRaid(raid)
     raid = raid or self.raids[#self.raids]
     if not raid then return end
     
-    local maxMembers = GetNumGroupMembers()
-    for i = 1, maxMembers do
-        local name = select(1, GetRaidRosterInfo(i))
-        if name then
-            raid.members[name] = {
-                name = name,
-                class = select(3, GetRaidRosterInfo(i)),
-                level = select(4, GetRaidRosterInfo(i)),
-                join_time = GetTime(),
-                is_online = select(5, GetRaidRosterInfo(i)),
-            }
-        end
+    local maxMembers = _G.GetNumGroupMembers and Public(GetNumGroupMembers())
+    local now = _G.GetTime and Public(GetTime())
+    if type(maxMembers) ~= "number" or maxMembers ~= maxMembers or maxMembers < 0 or maxMembers > 40
+        or maxMembers ~= math.floor(maxMembers) or type(now) ~= "number" or now ~= now or now < 0 or now >= math.huge
+        or (maxMembers > 0 and not _G.GetRaidRosterInfo) then
+        InfinityUtils:Warning("Attendance roster unavailable.", "Attendance")
+        return false
     end
+    local scanned = {}
+    for i = 1, maxMembers do
+        local name, _, _, level, class, _, _, online = GetRaidRosterInfo(i)
+        name, level, class, online = Public(name), Public(level), Public(class), Public(online)
+        if type(name) ~= "string" or name == "" then
+            InfinityUtils:Warning("Attendance roster is incomplete or protected.", "Attendance")
+            return false
+        end
+        scanned[name] = {
+            name = name,
+            class = type(class) == "string" and class or nil,
+            level = type(level) == "number" and level or nil,
+            join_time = now,
+            is_online = online == true or online == 1,
+        }
+    end
+    for name, member in pairs(scanned) do raid.members[name] = member end
     
     return raid
 end
@@ -48,7 +73,12 @@ function InfinityAttendanceTracker:EndTracking()
     if #self.raids == 0 then return end
     
     local raid = self.raids[#self.raids]
-    raid.end_time = GetTime()
+    local now = _G.GetTime and Public(GetTime())
+    if type(now) ~= "number" or now ~= now or now < raid.start_time or now >= math.huge then
+        InfinityUtils:Warning("Attendance tracking cannot end: time unavailable.", "Attendance")
+        return nil
+    end
+    raid.end_time = now
     raid.duration = raid.end_time - raid.start_time
     
     self:TriggerCallback("raid_ended", raid.name, raid.duration)

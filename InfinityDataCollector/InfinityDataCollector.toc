@@ -1,6 +1,6 @@
 ## Interface: 16001
 ## Title: Infinity Data Collector
-## Notes: Autonomous data gathering, database integration, and secure P2P sharing
+## Notes: Local gathering and optional guild knowledge sharing
 ## Author: Infinity Forever
 ## Version: 1.0.0
 ## Dependencies: InfinityCore, InfinityData
@@ -9,6 +9,12 @@ Core\DataCollectorCore.lua
 Modules\AutomaticHooks.lua
 Modules\Privacy.lua
 Modules\Network.lua
+Modules\GuildKnowledge.lua
+Modules\GuildGatherKnowledge.lua
+Modules\GuildRecipes.lua
+Modules\GuildQuestPositions.lua
+Modules\GuildBossReports.lua
+Modules\GuildBagReports.lua
 Modules\DBIntegration.lua
 Modules\DataCollector.lua
 Modules\DataSharing.lua

@@ -1,178 +1,109 @@
--- InfinityWorldBoss UI - World Boss Tracker Window
+local UI = {}
+_G.InfinityWorldBossUI = UI
 
-InfinityWorldBossUI = {
-	mainFrame = nil,
-	timerListFrame = nil,
-	timers = {},
-}
-
--- Initialize UI
-function InfinityWorldBossUI:Initialize()
-	if self.mainFrame then
-		return
+function UI:Initialize()
+	if self.frame then return end
+	self.frame = InfinityUIFramework:CreateListWindow("InfinityWorldBossFrame", "World Boss estimates", 700, 450)
+	local function Input(labelText, x, offset, width, max)
+		local label = InfinityUIFramework:CreateLabel(self.frame, labelText)
+		label:SetPoint("TOPLEFT", x, -43)
+		local box = CreateFrame("EditBox", nil, self.frame, "InputBoxTemplate")
+		box:SetSize(width, 20)
+		box:SetPoint("TOPLEFT", x + offset, -38)
+		box:SetAutoFocus(false)
+		box:SetMaxLetters(max)
+		return box
 	end
-	
-	-- Main frame
-	local frame = CreateFrame("Frame", "InfinityWorldBossFrame", UIParent, "BasicFrameTemplate")
-	frame:SetSize(500, 400)
-	frame:SetPoint("CENTER", UIParent, "CENTER")
-	if frame.SetTitle then
-		frame:SetTitle("Infinity World Boss Tracker")
-	elseif frame.TitleText then
-		frame.TitleText:SetText("Infinity World Boss Tracker")
+	self.idInput = Input("ID", 15, 25, 65, 10)
+	self.intervalInput = Input("Seconds", 112, 63, 65, 10)
+	self.nameInput = Input("Name", 250, 43, 130, 100)
+	local function Number(box)
+		local value = box:GetText()
+		if _G.issecretvalue and _G.issecretvalue(value) then return nil end
+		if type(value) ~= "string" or not value:match("^%s*%d+%s*$") then return nil end
+		return tonumber(value)
 	end
-	
-	-- Status summary
-	local statusText = frame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-	statusText:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -30)
-	statusText:SetJustifyH("LEFT")
-	
-	-- Timer list scroll frame
-	local scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
-	scrollFrame:SetSize(470, 320)
-	scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -60)
-	
-	local timerListFrame = CreateFrame("Frame", nil, scrollFrame)
-	timerListFrame:SetSize(450, 320)
-	scrollFrame:SetScrollChild(timerListFrame)
-	
-	-- Refresh button
-	local refreshBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-	refreshBtn:SetSize(100, 20)
-	refreshBtn:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 10, 10)
-	refreshBtn:SetText("Refresh")
-	refreshBtn:SetScript("OnClick", function()
-		InfinityWorldBossUI:RefreshTimerList()
+	local function Button(text, x, width, action)
+		local button = InfinityUIFramework:CreateButton(self.frame, text, width, 22, action)
+		button:SetPoint("TOPLEFT", x, -38)
+		return button
+	end
+	self.addButton = Button("Add", 430, 50, function()
+		self.confirmAction = nil
+		local name = self.nameInput:GetText()
+		if _G.issecretvalue and _G.issecretvalue(name) then name = nil end
+		local ok, problem = InfinityWorldBossCore:RegisterBoss(Number(self.idInput), name, Number(self.intervalInput))
+		if not ok then InfinityUtils:Warning(problem, "WorldBoss") else self:Refresh() end
 	end)
-	
-	-- Close button is in BasicFrameTemplate
-	
-	self.mainFrame = frame
-	self.timerListFrame = timerListFrame
-	self.statusText = statusText
-	self.scrollFrame = scrollFrame
-	
-	-- Initial refresh and keep hidden until toggled via /worldboss
-	self:RefreshTimerList()
-	frame:Hide()
-	
-	return frame
-end
-
--- Refresh timer list display
-function InfinityWorldBossUI:RefreshTimerList()
-	if not self.mainFrame then
-		self:Initialize()
-	end
-	
-	-- Clear old entries
-	for _, frame in ipairs(self.timers) do
-		frame:Hide()
-		frame:SetParent(nil)
-	end
-	self.timers = {}
-	
-	-- Get active timers
-	local activeTimers = InfinityWorldBossTimers:GetActiveTimers()
-	
-	-- Update status text
-	local stats = InfinityWorldBossCore:GetStatistics()
-	local statusText = string.format(
-		"Tracked: %d | Alive: %d | Respawning: %d | Watched: %d",
-		stats.trackedBosses,
-		stats.aliveCount,
-		stats.respawningCount,
-		#activeTimers
-	)
-	self.statusText:SetText(statusText)
-	
-	-- Add timer entries
-	local yOffset = 0
-	for i, timer in ipairs(activeTimers) do
-		local entryFrame = CreateFrame("Frame", nil, self.timerListFrame)
-		entryFrame:SetSize(430, 40)
-		entryFrame:SetPoint("TOPLEFT", self.timerListFrame, "TOPLEFT", 0, -yOffset)
-		
-		-- Background
-		local bg = entryFrame:CreateTexture(nil, "BACKGROUND")
-		bg:SetAllPoints(entryFrame)
-		if i % 2 == 0 then
-			bg:SetColorTexture(0.1, 0.1, 0.1, 0.3)
+	self.intervalButton = Button("Interval", 484, 60, function()
+		self.confirmAction = nil
+		local ok, problem = InfinityWorldBossCore:SetInterval(Number(self.idInput), Number(self.intervalInput))
+		if not ok then InfinityUtils:Warning(problem, "WorldBoss") else self:Refresh() end
+	end)
+	local function Confirm(action)
+		local id = Number(self.idInput)
+		if not id or not InfinityWorldBossCore.bosses[id] then
+			self.confirmAction = nil
+			InfinityUtils:Warning("Encounter ID is not registered.", "WorldBoss")
+			return
+		end
+		local key = action .. ":" .. id
+		if self.confirmAction ~= key then
+			self.confirmAction = key
+			self.frame.status:SetText(action .. " boss " .. id .. "? Click again to confirm.")
 		else
-			bg:SetColorTexture(0.05, 0.05, 0.05, 0.3)
+			self.confirmAction = nil
+			if action == "Clear kill" then InfinityWorldBossCore:ClearKill(id) else InfinityWorldBossCore:RemoveBoss(id) end
+			self:Refresh()
 		end
-		
-		-- Boss name
-		local nameText = entryFrame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-		nameText:SetPoint("TOPLEFT", entryFrame, "TOPLEFT", 5, -5)
-		nameText:SetText(timer.bossName)
-		nameText:SetTextColor(1, 1, 0, 1)  -- Gold
-		nameText:SetWidth(200)
-		nameText:SetJustifyH("LEFT")
-		
-		-- Time remaining
-		local timeText = entryFrame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-		timeText:SetPoint("TOPRIGHT", entryFrame, "TOPRIGHT", -5, -5)
-		timeText:SetText(timer.timeFormatted)
-		timeText:SetTextColor(0, 1, 0, 1)  -- Green
-		timeText:SetWidth(150)
-		timeText:SetJustifyH("RIGHT")
-		
-		-- Killed by
-		local killedText = entryFrame:CreateFontString(nil, "ARTWORK", "GameFontSmall")
-		killedText:SetPoint("BOTTOMLEFT", entryFrame, "BOTTOMLEFT", 5, 2)
-		killedText:SetText("Killed by: " .. (timer.killedBy or "Unknown"))
-		killedText:SetTextColor(0.7, 0.7, 0.7, 1)
-		killedText:SetWidth(420)
-		killedText:SetJustifyH("LEFT")
-		
-		table.insert(self.timers, entryFrame)
-		yOffset = yOffset + 45
 	end
-	
-	-- Update scroll frame size
-	local height = math.max(#activeTimers * 45, 320)
-	self.timerListFrame:SetHeight(height)
+	self.clearButton = Button("Clear", 548, 55, function() Confirm("Clear kill") end)
+	self.removeButton = Button("Delete", 607, 65, function() Confirm("Delete") end)
 end
 
--- Toggle UI visibility
-function InfinityWorldBossUI:Toggle()
-	if not self.mainFrame then
-		self:Initialize()
-	end
-	
-	self.mainFrame:SetShown(not self.mainFrame:IsShown())
-end
-
--- Show UI
-function InfinityWorldBossUI:Show()
-	if not self.mainFrame then
-		self:Initialize()
-	end
-	
-	self.mainFrame:Show()
-	self:RefreshTimerList()
-end
-
--- Hide UI
-function InfinityWorldBossUI:Hide()
-	if self.mainFrame then
-		self.mainFrame:Hide()
-	end
-end
-
--- Auto-update timer display every 5 seconds while visible
-function InfinityWorldBossUI:StartAutoUpdate()
-	local updateFrame = CreateFrame("Frame")
-	local lastUpdate = 0
-	
-	updateFrame:SetScript("OnUpdate", function(self, elapsed)
-		lastUpdate = lastUpdate + elapsed
-		if lastUpdate >= 5 then
-			if InfinityWorldBossUI.mainFrame and InfinityWorldBossUI.mainFrame:IsShown() then
-				InfinityWorldBossUI:RefreshTimerList()
-			end
-			lastUpdate = 0
+function UI:Refresh()
+	if not self.frame then return end
+	self.confirmAction = nil
+	local items = {}
+	local now = time()
+	for _, entry in ipairs(InfinityWorldBossCore:GetAllBosses()) do
+		local id, boss = entry.id, entry.boss
+		local report = _G.InfinityGuildBossReports and InfinityGuildBossReports:GetReport(id)
+		local shared = ""
+		if report then
+			local ok, when = false, nil
+			if _G.date then ok, when = pcall(date, "%Y-%m-%d %H:%M", report.killed) end
+			if not ok or type(when) ~= "string" then when = "timestamp " .. report.killed end
+			shared = " | Guild report: " .. when
 		end
-	end)
+		items[#items + 1] = {
+			text = string.format("%s [%d] - %s%s", boss.name, id, InfinityWorldBossCore:Describe(boss, now), shared),
+			onClick = function()
+				local ok, problem = InfinityWorldBossCore:RecordBossKill(id, time())
+				if not ok then InfinityUtils:Warning(problem, "WorldBoss") end
+				self:Refresh()
+			end,
+		}
+	end
+	if #items == 0 then items[1] = { text = "No bosses registered. Enter an ID, interval and name, then click Add." } end
+	self.frame:SetItems(items)
+	self.frame.status:SetText("Click to record a local kill. Guild reports may be from another layer.")
 end
+
+function UI:Show()
+	self:Initialize()
+	self:Refresh()
+	self.frame:Show()
+end
+
+function UI:Hide()
+	self.confirmAction = nil
+	if self.frame then self.frame:Hide() end
+end
+
+function UI:Toggle()
+	self:Initialize()
+	if self.frame:IsShown() then self:Hide() else self:Show() end
+end
+
+return UI

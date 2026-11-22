@@ -1,533 +1,294 @@
--- PlayerTrading Module
--- Allows guild members to trade DKP with each other
-
-local InfinityDKPPlayerTrading = {}
-_G.InfinityDKPPlayerTrading = InfinityDKPPlayerTrading
-
--- Configuration
-InfinityDKPPlayerTrading.config = {
-	enabled = true,
-	maxTransferPerTrade = 1000, -- Max DKP in single trade
-	minTransferAmount = 1, -- Minimum DKP per trade
-	dailyTransferLimit = 5000, -- Max DKP transferred per player per day
-	cooldownSeconds = 60, -- Cooldown between trades
-	requireBothOnline = true, -- Both players must be online
-	requireGuild = true, -- Both must be in same guild
-	enableTradeLog = true, -- Log all trades for audit
+local Trading = {
+	prefix = "InfinityDKPT1",
+	offers = {},
+	noticeSeen = {},
+	noticeOrder = {},
+	sequence = 0,
+	lifetime = 300,
+	maxOffers = 100,
 }
+_G.InfinityDKPPlayerTrading = Trading
 
--- Active trade offers (pending acceptance)
-InfinityDKPPlayerTrading.tradeOffers = {} -- {offerId = {offerer, recipient, amount, timestamp, expires}}
+local function Public(value)
+	if _G.issecretvalue and _G.issecretvalue(value) then return nil end
+	return value
+end
 
--- Completed trades (audit trail)
-InfinityDKPPlayerTrading.tradeHistory = {}
+local function Sync() return _G.InfinityDKPGuildSync end
+local function FullName(name) return Sync():GetFullName(name) end
+local function Guild() return Sync():GetGuildKey() end
+local function Me()
+	return _G.UnitName and FullName(Public(_G.UnitName("player")))
+end
+local function SafeName(name)
+	return type(name) == "string" and name ~= "" and #name <= 80 and not name:find("[%z\1-\32~|]")
+end
+local function ValidToken(token)
+	return type(token) == "string" and #token <= 32 and token:match("^%d+%-%d+$") ~= nil
+end
+local function ValidAmount(amount)
+	if _G.issecretvalue and _G.issecretvalue(amount) then return false end
+	return type(amount) == "number" and amount == amount and amount > 0
+		and amount <= 1000000000 and amount == math.floor(amount)
+end
+local function OfferKey(guild, from, token) return guild .. "|" .. from .. "|" .. token end
 
--- Player statistics
-InfinityDKPPlayerTrading.playerStats = {} -- {playerName = {dailyTransferred, lastTradeTime, totalTraded}}
+function Trading:Initialize(db)
+	if self.initialized then return end
+	if type(db) ~= "table" then error("DKP trade database unavailable") end
+	if db.dkpTrades == nil then db.dkpTrades = {} end
+	if type(db.dkpTrades) ~= "table" then error("Invalid saved DKP trade history") end
+	self.db, self.initialized = db, true
+	local chat = _G.C_ChatInfo
+	if not (chat and chat.RegisterAddonMessagePrefix and chat.SendAddonMessage) then
+		InfinityUtils:Warning("DKP trade messages unavailable.", "DKP Trade")
+		return
+	end
+	local ok, result = pcall(chat.RegisterAddonMessagePrefix, self.prefix)
+	local protected = _G.issecretvalue and _G.issecretvalue(result)
+	result = Public(result)
+	local duplicate = _G.Enum and _G.Enum.RegisterAddonMessagePrefixResult
+		and _G.Enum.RegisterAddonMessagePrefixResult.DuplicatePrefix or 1
+	if not ok or protected or (result ~= nil and result ~= true and result ~= 0 and result ~= duplicate) then
+		InfinityUtils:Warning("Could not register DKP trade messages: " .. (protected and "protected result" or tostring(result)), "DKP Trade")
+		return
+	end
+	self.available = true
+	local frame = CreateFrame("Frame")
+	frame:RegisterEvent("CHAT_MSG_ADDON")
+	frame:SetScript("OnEvent", function(_, _, ...) self:OnMessage(...) end)
+	self.frame = frame
+end
 
--- Trade locks (prevent spamming)
-InfinityDKPPlayerTrading.tradeLocks = {} -- {playerName = {lastTradeTime, totalToday}}
-
--- Callbacks
-InfinityDKPPlayerTrading.callbacks = {}
-
--- Next trade offer ID
-InfinityDKPPlayerTrading.nextOfferId = 1
-
--- ============================================================================
--- CONFIGURATION
--- ============================================================================
-
---- Set maximum transfer per single trade
--- @param amount: number (DKP)
--- @return success: bool
-function InfinityDKPPlayerTrading:SetMaxTransferPerTrade(amount)
-	amount = tonumber(amount) or 1000
-	if amount < 1 then
+function Trading:Send(message)
+	if not self.available or not Guild() then
+		InfinityUtils:Warning("DKP trade messaging or guild unavailable.", "DKP Trade")
 		return false
 	end
-	
-	self.config.maxTransferPerTrade = amount
-	InfinityUtils:Info("Max transfer per trade set to " .. amount .. " DKP", "PlayerTrading")
-	self:TriggerCallback("max_transfer_changed", amount)
-	return true
-end
-
---- Set daily transfer limit per player
--- @param amount: number (DKP)
--- @return success: bool
-function InfinityDKPPlayerTrading:SetDailyTransferLimit(amount)
-	amount = tonumber(amount) or 5000
-	if amount < 1 then
+	local ok, result = pcall(_G.C_ChatInfo.SendAddonMessage, self.prefix, message, "GUILD")
+	local protected = _G.issecretvalue and _G.issecretvalue(result)
+	result = Public(result)
+	if not ok or protected or (result ~= nil and result ~= true and result ~= 0) then
+		InfinityUtils:Warning("DKP trade message failed: " .. (protected and "protected result" or tostring(result)), "DKP Trade")
 		return false
 	end
-	
-	self.config.dailyTransferLimit = amount
-	InfinityUtils:Info("Daily transfer limit set to " .. amount .. " DKP", "PlayerTrading")
-	self:TriggerCallback("daily_limit_changed", amount)
 	return true
 end
 
---- Set cooldown between trades
--- @param seconds: number
--- @return success: bool
-function InfinityDKPPlayerTrading:SetTradeCooldown(seconds)
-	seconds = tonumber(seconds) or 60
-	if seconds < 0 then
+function Trading:Prune()
+	local now = GetTime()
+	for key, offer in pairs(self.offers) do
+		if offer.guild ~= Guild() or now >= offer.expiresAt then self.offers[key] = nil end
+	end
+end
+
+function Trading:ObserveFinalization(key)
+	if self.noticeSeen[key] then return end
+	self.noticeSeen[key] = true
+	self.noticeOrder[#self.noticeOrder + 1] = key
+	if #self.noticeOrder > 500 then self.noticeSeen[table.remove(self.noticeOrder, 1)] = nil end
+	Sync():MarkSnapshotsStale()
+end
+
+function Trading:Find(from, token)
+	self:Prune()
+	local guild, name = Guild(), FullName(from)
+	if not guild or not name or not ValidToken(token) then return nil end
+	return self.offers[OfferKey(guild, name, token)]
+end
+
+function Trading:Offer(recipient, amount)
+	local guild, me = Guild(), Me()
+	recipient = FullName(recipient)
+	if not guild or not SafeName(me) then
+		InfinityUtils:Warning("Player or guild identity unavailable.", "DKP Trade")
 		return false
 	end
-	
-	self.config.cooldownSeconds = seconds
-	InfinityUtils:Info("Trade cooldown set to " .. seconds .. " seconds", "PlayerTrading")
-	self:TriggerCallback("cooldown_changed", seconds)
-	return true
-end
-
---- Enable/disable player trading
--- @param enabled: bool
--- @return success: bool
-function InfinityDKPPlayerTrading:SetEnabled(enabled)
-	self.config.enabled = enabled
-	InfinityUtils:Info("Player trading " .. (enabled and "enabled" or "disabled"), "PlayerTrading")
-	self:TriggerCallback("trading_enabled_changed", enabled)
-	return true
-end
-
---- Require both players online
--- @param required: bool
--- @return success: bool
-function InfinityDKPPlayerTrading:SetRequireBothOnline(required)
-	self.config.requireBothOnline = required
-	InfinityUtils:Info("Require both online: " .. (required and "enabled" or "disabled"), "PlayerTrading")
-	return true
-end
-
---- Require same guild
--- @param required: bool
--- @return success: bool
-function InfinityDKPPlayerTrading:SetRequireGuild(required)
-	self.config.requireGuild = required
-	InfinityUtils:Info("Require same guild: " .. (required and "enabled" or "disabled"), "PlayerTrading")
-	return true
-end
-
--- ============================================================================
--- TRADE OFFERS
--- ============================================================================
-
---- Create a trade offer (pending acceptance)
--- @param offererName: string (player initiating)
--- @param recipientName: string (player receiving)
--- @param dkpAmount: number
--- @param reason: string (optional)
--- @param expiresIn: number (seconds, default 300)
--- @return offerId: number or nil
-function InfinityDKPPlayerTrading:CreateTradeOffer(offererName, recipientName, dkpAmount, reason, expiresIn)
-	if not self.config.enabled or not offererName or not recipientName or not dkpAmount then
-		return nil
+	if not SafeName(recipient) or not ValidAmount(amount) then
+		print("Usage: /dkp trade offer <guild player> <positive integer DKP>")
+		return false
 	end
-	
-	-- Validate amount
-	dkpAmount = tonumber(dkpAmount) or 0
-	if dkpAmount < self.config.minTransferAmount or dkpAmount > self.config.maxTransferPerTrade then
-		InfinityUtils:Warning("Invalid trade amount: " .. dkpAmount, "PlayerTrading")
-		return nil
+	if me == recipient or not Sync():IsGuildMember(me) or not Sync():IsGuildMember(recipient) then
+		InfinityUtils:Warning("Both distinct players must be in the current guild roster.", "DKP Trade")
+		return false
 	end
-	
-	-- Can't trade with yourself
-	if offererName == recipientName then
-		InfinityUtils:Warning("Cannot trade with yourself", "PlayerTrading")
-		return nil
+	self:Prune()
+	local count = 0
+	for _ in pairs(self.offers) do count = count + 1 end
+	if count >= self.maxOffers then
+		InfinityUtils:Warning("Too many pending trades; wait for expiration.", "DKP Trade")
+		return false
 	end
-	
-	-- Check if both players are in same guild
-	if self.config.requireGuild then
-		local offererGuild = GetGuildInfo("player") -- Placeholder
-		local recipientGuild = GetGuildInfo("player") -- Placeholder
-		if offererGuild ~= recipientGuild then
-			InfinityUtils:Warning("Players must be in same guild", "PlayerTrading")
-			return nil
+	local token
+	repeat
+		self.sequence = self.sequence + 1
+		token = tostring(time()) .. "-" .. self.sequence
+	until not self.db.dkpTrades[OfferKey(guild, me, token)] and not self.offers[OfferKey(guild, me, token)]
+	local message = string.format("O~%s~%s~%d", token, recipient, amount)
+	if not self:Send(message) then return false end
+	self:OnMessage(self.prefix, message, "GUILD", me)
+	print("Offer sent; recipient and guild master must be online. ID: " .. token)
+	return true, token
+end
+
+function Trading:Accept(from, token)
+	local offer = self:Find(from, token)
+	if not offer or offer.recipient ~= Me() or (offer.status ~= "pending" and offer.status ~= "accepted") then
+		InfinityUtils:Warning("No matching active offer for this recipient.", "DKP Trade")
+		return false
+	end
+	local message = string.format("A~%s~%s~%d", token, offer.from, offer.amount)
+	if not self:Send(message) then return false end
+	self:OnMessage(self.prefix, message, "GUILD", Me())
+	print("Acceptance sent; the guild master must finalize the trade.")
+	return true
+end
+
+function Trading:Cancel(from, token)
+	local offer = self:Find(from, token)
+	local me = Me()
+	if not offer or (me ~= offer.from and me ~= offer.recipient)
+		or (offer.status ~= "pending" and offer.status ~= "accepted") then
+		InfinityUtils:Warning("No active trade available to cancel.", "DKP Trade")
+		return false
+	end
+	local message = string.format("C~%s~%s~%d", token, offer.from, offer.amount)
+	if not self:Send(message) then return false end
+	self:OnMessage(self.prefix, message, "GUILD", me)
+	return true
+end
+
+function Trading:Resend(token)
+	local offer = self:Find(Me(), token)
+	if not offer or (offer.status ~= "pending" and offer.status ~= "accepted") then
+		InfinityUtils:Warning("No active offer available to resend.", "DKP Trade")
+		return false
+	end
+	if not self:Send(string.format("O~%s~%s~%d", token, offer.recipient, offer.amount)) then return false end
+	print("Offer resent. The recipient can resend acceptance with /dkp trade accept.")
+	return true
+end
+
+local function PlayerKey(fullName)
+	local found
+	for name in pairs(InfinityDKPEngine.players) do
+		if FullName(name) == fullName then
+			if found then return nil end
+			found = name
 		end
 	end
-	
-	-- Check daily transfer limit for offerer
-	local remaining = self:GetRemainingDailyTransferBudget(offererName)
-	if dkpAmount > remaining then
-		InfinityUtils:Warning("Daily transfer limit exceeded for " .. offererName, "PlayerTrading")
-		return nil
+	return found
+end
+
+function Trading:Finalize(from, token)
+	local offer = self:Find(from, token)
+	if not Sync():IsLocalGuildMaster() then
+		InfinityUtils:Warning("Only the guild master can finalize trades.", "DKP Trade")
+		return false
 	end
-	
-	-- Check cooldown
-	if not self:CanTrade(offererName) then
-		InfinityUtils:Warning("Trade cooldown active for " .. offererName, "PlayerTrading")
-		return nil
+	if Sync().outgoing then
+		InfinityUtils:Warning("Wait for the current DKP snapshot to finish before finalizing.", "DKP Trade")
+		return false
 	end
-	
-	-- Create offer
-	local offerId = self.nextOfferId
-	self.nextOfferId = self.nextOfferId + 1
-	
-	local offer = {
-		id = offerId,
-		offerer = offererName,
-		recipient = recipientName,
-		amount = dkpAmount,
-		reason = reason or "DKP trade",
-		timestamp = GetTime(),
-		expiresAt = GetTime() + (expiresIn or 300),
-		status = "pending",
+	if not offer or offer.status ~= "accepted" or offer.guild ~= Guild()
+		or not Sync():IsGuildMember(offer.from) or not Sync():IsGuildMember(offer.recipient) then
+		InfinityUtils:Warning("Trade missing, expired, unaccepted, or no longer in this guild.", "DKP Trade")
+		return false
+	end
+	local engine, key = InfinityDKPEngine, OfferKey(offer.guild, offer.from, offer.token)
+	if engine.system_type ~= engine.SYSTEM_DKP or self.db.dkpTrades[key] then
+		InfinityUtils:Warning("Trade requires DKP mode and must not already be finalized.", "DKP Trade")
+		return false
+	end
+	local fromKey, toKey = PlayerKey(offer.from), PlayerKey(offer.recipient)
+	if not fromKey or not toKey or not engine:TransferDKP(fromKey, toKey, offer.amount) then
+		InfinityUtils:Warning("Transfer failed: players, balance, or DKP limit invalid.", "DKP Trade")
+		return false
+	end
+	self.db.dkpTrades[key] = {
+		from = offer.from, recipient = offer.recipient, amount = offer.amount,
+		token = offer.token, guild = offer.guild, time = time(), approvedBy = Me(),
 	}
-	
-	self.tradeOffers[offerId] = offer
-	
-	-- Trigger callback
-	self:TriggerCallback("trade_offer_created", offerId, offererName, recipientName, dkpAmount)
-	
-	InfinityUtils:Info("Trade offer created: " .. offererName .. " → " .. recipientName .. " (" .. dkpAmount .. " DKP)", "PlayerTrading")
-	
-	return offerId
-end
-
---- Accept a trade offer
--- @param offerId: number
--- @param recipientName: string (must match recipient in offer)
--- @return success: bool
-function InfinityDKPPlayerTrading:AcceptTradeOffer(offerId, recipientName)
-	if not offerId or not recipientName then
-		return false
-	end
-	
-	local offer = self.tradeOffers[offerId]
-	if not offer then
-		InfinityUtils:Warning("Trade offer not found: " .. offerId, "PlayerTrading")
-		return false
-	end
-	
-	-- Verify recipient
-	if offer.recipient ~= recipientName then
-		InfinityUtils:Warning("Recipient mismatch for trade offer", "PlayerTrading")
-		return false
-	end
-	
-	-- Check if expired
-	if GetTime() > offer.expiresAt then
-		self.tradeOffers[offerId] = nil
-		InfinityUtils:Warning("Trade offer expired", "PlayerTrading")
-		return false
-	end
-	
-	-- Execute trade
-	return self:ExecuteTrade(offerId)
-end
-
---- Reject/cancel a trade offer
--- @param offerId: number
--- @param cancellerName: string (offerer or recipient)
--- @return success: bool
-function InfinityDKPPlayerTrading:CancelTradeOffer(offerId, cancellerName)
-	if not offerId or not cancellerName then
-		return false
-	end
-	
-	local offer = self.tradeOffers[offerId]
-	if not offer then
-		return false
-	end
-	
-	-- Only offerer or recipient can cancel
-	if cancellerName ~= offer.offerer and cancellerName ~= offer.recipient then
-		InfinityUtils:Warning("Not authorized to cancel this trade", "PlayerTrading")
-		return false
-	end
-	
-	-- Mark as cancelled
-	offer.status = "cancelled"
-	offer.cancelledBy = cancellerName
-	offer.cancelledAt = GetTime()
-	
-	self:TriggerCallback("trade_offer_cancelled", offerId, cancellerName)
-	
-	InfinityUtils:Info("Trade offer cancelled: " .. offerId, "PlayerTrading")
-	
-	return true
-end
-
--- ============================================================================
--- TRADE EXECUTION
--- ============================================================================
-
---- Execute a trade (transfer DKP)
--- @param offerId: number
--- @return success: bool
-function InfinityDKPPlayerTrading:ExecuteTrade(offerId)
-	local offer = self.tradeOffers[offerId]
-	if not offer or offer.status ~= "pending" then
-		return false
-	end
-	
-	local offerer = offer.offerer
-	local recipient = offer.recipient
-	local amount = offer.amount
-	
-	-- Verify both have enough points
-	if InfinityGuildRoster then
-		local offererMember = InfinityGuildRoster.members[offerer]
-		local recipientMember = InfinityGuildRoster.members[recipient]
-		
-		if offererMember and recipientMember then
-			if (offererMember.dkpBalance or 0) < amount then
-				InfinityUtils:Warning(offerer .. " has insufficient DKP (" .. (offererMember.dkpBalance or 0) .. "/" .. amount .. ")", "PlayerTrading")
-				return false
-			end
-		end
-	end
-	
-	-- Initialize player stats if needed
-	if not self.playerStats[offerer] then
-		self.playerStats[offerer] = {
-			dailyTransferred = 0,
-			lastTradeTime = 0,
-			totalTraded = 0,
-		}
-	end
-	if not self.playerStats[recipient] then
-		self.playerStats[recipient] = {
-			dailyTransferred = 0,
-			lastTradeTime = 0,
-			totalTraded = 0,
-		}
-	end
-	
-	-- Record the trade
-	local trade = {
-		id = offerId,
-		offerer = offerer,
-		recipient = recipient,
-		amount = amount,
-		reason = offer.reason,
-		timestamp = date("%Y-%m-%d %H:%M:%S"),
-		time = GetTime(),
-	}
-	
-	-- Update player stats
-	self.playerStats[offerer].dailyTransferred = self.playerStats[offerer].dailyTransferred + amount
-	self.playerStats[offerer].lastTradeTime = GetTime()
-	self.playerStats[offerer].totalTraded = self.playerStats[offerer].totalTraded + amount
-	
-	self.playerStats[recipient].lastTradeTime = GetTime()
-	
-	-- Log the trade
-	table.insert(self.tradeHistory, trade)
-	
-	-- Record in Points module (deduct from offerer, add to recipient)
-	if _G.InfinityDKPPoints then
-		_G.InfinityDKPPoints:LogTransaction(offerer, "trade_sent", -amount, 
-			"Traded " .. amount .. " DKP to " .. recipient .. ": " .. offer.reason)
-		_G.InfinityDKPPoints:LogTransaction(recipient, "trade_received", amount, 
-			"Received " .. amount .. " DKP from " .. offerer .. ": " .. offer.reason)
-	end
-	
-	-- Mark offer as completed
 	offer.status = "completed"
-	offer.completedAt = GetTime()
-	
-	-- Trigger callback
-	self:TriggerCallback("trade_completed", offerId, offerer, recipient, amount)
-	
-	InfinityUtils:Info("Trade completed: " .. offerer .. " → " .. recipient .. " (" .. amount .. " DKP)", "PlayerTrading")
-	
+	self:ObserveFinalization(key)
+	InfinityDKPPoints:LogTransaction(fromKey, "dkp", -offer.amount, "Trade to " .. toKey .. " (" .. token .. ")")
+	InfinityDKPPoints:LogTransaction(toKey, "dkp", offer.amount, "Trade from " .. fromKey .. " (" .. token .. ")")
+	engine:TriggerCallback("dkp_transferred", fromKey, toKey, offer.amount)
+	if _G.InfinityDKPUI then _G.InfinityDKPUI:Update() end
+	print("Trade finalized locally. Send /dkp sync send; members must apply the snapshot.")
+	if not self:Send(string.format("F~%s~%s~%d", token, offer.from, offer.amount)) then
+		InfinityUtils:Warning("Transfer succeeded locally but the trade notification failed.", "DKP Trade")
+	end
 	return true
 end
 
--- ============================================================================
--- TRADE QUERIES
--- ============================================================================
-
---- Get active trade offers for a player
--- @param playerName: string (as offerer or recipient)
--- @return offers: table
-function InfinityDKPPlayerTrading:GetActiveOffers(playerName)
-	local activeOffers = {}
-	
-	for offerId, offer in pairs(self.tradeOffers) do
-		-- Skip expired offers
-		if GetTime() > offer.expiresAt then
-			self.tradeOffers[offerId] = nil
-		elseif offer.status == "pending" and (offer.offerer == playerName or offer.recipient == playerName) then
-			table.insert(activeOffers, offer)
+function Trading:OnMessage(prefix, message, channel, sender)
+	prefix, message, channel, sender = Public(prefix), Public(message), Public(channel), Public(sender)
+	if prefix ~= self.prefix or channel ~= "GUILD" or type(message) ~= "string" or #message > 240 then return end
+	local guild, me, senderName = Guild(), Me(), FullName(sender)
+	if not guild or not me or not SafeName(senderName) or not Sync():IsGuildMember(senderName) then return end
+	self:Prune()
+	local token, recipient, rawAmount = message:match("^O~([^~]+)~([^~]+)~(%d+)$")
+	if token then
+		recipient = FullName(recipient)
+		local amount = tonumber(rawAmount)
+		if not ValidToken(token) or not SafeName(recipient) or senderName == recipient
+			or not ValidAmount(amount) or not Sync():IsGuildMember(recipient)
+			or (me ~= recipient and me ~= senderName and not Sync():IsLocalGuildMaster()) then return end
+		local key = OfferKey(guild, senderName, token)
+		if self.db.dkpTrades[key] then return end
+		local old = self.offers[key]
+		if old then return end
+		local count = 0
+		for _ in pairs(self.offers) do count = count + 1 end
+		if count >= self.maxOffers then
+			InfinityUtils:Warning("Too many pending DKP trades.", "DKP Trade")
+			return
 		end
-	end
-	
-	return activeOffers
-end
-
---- Get trade history for a player
--- @param playerName: string (as offerer or recipient)
--- @param limit: number (default 50)
--- @return trades: table
-function InfinityDKPPlayerTrading:GetPlayerTradeHistory(playerName, limit)
-	limit = limit or 50
-	local playerTrades = {}
-	
-	for i = #self.tradeHistory, math.max(1, #self.tradeHistory - limit + 1), -1 do
-		local trade = self.tradeHistory[i]
-		if trade.offerer == playerName or trade.recipient == playerName then
-			table.insert(playerTrades, trade)
+		self.offers[key] = { guild = guild, from = senderName, recipient = recipient, token = token,
+			amount = amount, status = "pending", expiresAt = GetTime() + self.lifetime }
+		if me == recipient then
+			print(string.format("DKP offer: %s -> you, %d DKP. /dkp trade accept %s %s", senderName, amount, senderName, token))
+		elseif me ~= senderName then
+			print(string.format("DKP offer: %s -> %s, %d DKP; awaiting recipient acceptance.", senderName, recipient, amount))
 		end
+		return
 	end
-	
-	return playerTrades
-end
-
---- Get player trading statistics
--- @param playerName: string
--- @return stats: table
-function InfinityDKPPlayerTrading:GetPlayerTradeStats(playerName)
-	local stats = self.playerStats[playerName]
-	
-	if not stats then
-		return {
-			totalTraded = 0,
-			dailyTransferred = 0,
-			lastTradeTime = "Never",
-			remainingDailyBudget = self.config.dailyTransferLimit,
-			tradeCount = 0,
-		}
+	local action, from, amount
+	action, token, from, amount = message:match("^([ACF])~([^~]+)~([^~]+)~(%d+)$")
+	if not action then return end
+	if action == "F" and ValidToken(token) and SafeName(FullName(from)) and ValidAmount(tonumber(amount))
+		and Sync():IsGuildMaster(senderName) then
+		self:ObserveFinalization(OfferKey(guild, FullName(from), token))
 	end
-	
-	local tradeCount = 0
-	for _, trade in ipairs(self.tradeHistory) do
-		if trade.offerer == playerName then
-			tradeCount = tradeCount + 1
+	local offer = self:Find(from, token)
+	if not offer or tonumber(amount) ~= offer.amount then return end
+	if action == "A" and senderName == offer.recipient and (offer.status == "pending" or offer.status == "accepted") then
+		offer.status = "accepted"
+		if Sync():IsLocalGuildMaster() then
+			print(string.format("DKP trade accepted. /dkp trade finalize %s %s", offer.from, offer.token))
+		elseif me == offer.from then
+			print("Recipient accepted your DKP offer; guild master must finalize.")
 		end
-	end
-	
-	return {
-		totalTraded = stats.totalTraded,
-		dailyTransferred = stats.dailyTransferred,
-		lastTradeTime = stats.lastTradeTime > 0 and 
-			date("%Y-%m-%d %H:%M:%S", stats.lastTradeTime) or "Never",
-		remainingDailyBudget = self:GetRemainingDailyTransferBudget(playerName),
-		tradeCount = tradeCount,
-		averagePerTrade = tradeCount > 0 and math.floor(stats.totalTraded / tradeCount) or 0,
-	}
-end
-
---- Get guild-wide trading statistics
--- @return stats: table
-function InfinityDKPPlayerTrading:GetGuildTradeStats()
-	local totalTraded = 0
-	local playerCount = 0
-	local tradeCount = #self.tradeHistory
-	
-	for playerName, stats in pairs(self.playerStats) do
-		totalTraded = totalTraded + stats.totalTraded
-		playerCount = playerCount + 1
-	end
-	
-	return {
-		totalTraded = totalTraded,
-		playerCount = playerCount,
-		tradeCount = tradeCount,
-		averagePerPlayer = playerCount > 0 and math.floor(totalTraded / playerCount) or 0,
-		averagePerTrade = tradeCount > 0 and math.floor(totalTraded / tradeCount) or 0,
-	}
-end
-
---- Export trade history for audit
--- @param limit: number (default 100)
--- @return historyString: string
-function InfinityDKPPlayerTrading:ExportTradeHistory(limit)
-	limit = limit or 100
-	local export = "GUILD DKP TRADE HISTORY\n"
-	export = export .. "=======================\n\n"
-	
-	for i = #self.tradeHistory, math.max(1, #self.tradeHistory - limit + 1), -1 do
-		local trade = self.tradeHistory[i]
-		export = export .. string.format("%s | %s → %s | %d DKP | %s\n",
-			trade.timestamp, trade.offerer, trade.recipient, trade.amount, trade.reason)
-	end
-	
-	return export
-end
-
--- ============================================================================
--- UTILITY FUNCTIONS
--- ============================================================================
-
---- Check if player can trade (cooldown not active)
--- @param playerName: string
--- @return canTrade: bool
-function InfinityDKPPlayerTrading:CanTrade(playerName)
-	local lock = self.tradeLocks[playerName]
-	if not lock then
-		return true
-	end
-	
-	-- Check if cooldown has expired
-	if GetTime() - lock.lastTradeTime >= self.config.cooldownSeconds then
-		return true
-	end
-	
-	return false
-end
-
---- Get remaining daily transfer budget for a player
--- @param playerName: string
--- @return remainingBudget: number
-function InfinityDKPPlayerTrading:GetRemainingDailyTransferBudget(playerName)
-	local stats = self.playerStats[playerName]
-	
-	if not stats then
-		return self.config.dailyTransferLimit
-	end
-	
-	-- Check if it's a new day
-	local today = date("%Y-%m-%d")
-	local lastTradeDate = date("%Y-%m-%d", stats.lastTradeTime)
-	
-	if lastTradeDate ~= today then
-		-- Reset daily counter
-		stats.dailyTransferred = 0
-		stats.lastTradeTime = GetTime()
-		return self.config.dailyTransferLimit
-	end
-	
-	return math.max(0, self.config.dailyTransferLimit - stats.dailyTransferred)
-end
-
---- Get time until next trade is available
--- @param playerName: string
--- @return seconds: number (0 if ready)
-function InfinityDKPPlayerTrading:GetTimeUntilNextTrade(playerName)
-	local lock = self.tradeLocks[playerName]
-	if not lock then
-		return 0
-	end
-	
-	local timeSinceLastTrade = GetTime() - lock.lastTradeTime
-	local timeRemaining = self.config.cooldownSeconds - timeSinceLastTrade
-	
-	return math.max(0, timeRemaining)
-end
-
---- Register callback for trading events
--- @param callback: function
-function InfinityDKPPlayerTrading:RegisterCallback(callback)
-	if type(callback) ~= "function" then
-		return false
-	end
-	table.insert(self.callbacks, callback)
-	return true
-end
-
---- Trigger callback event
--- @param event: string
--- @param ...: varargs
-function InfinityDKPPlayerTrading:TriggerCallback(event, ...)
-	for _, callback in ipairs(self.callbacks) do
-		pcall(callback, event, ...)
+	elseif action == "C" and (senderName == offer.from or senderName == offer.recipient)
+		and (offer.status == "pending" or offer.status == "accepted") then
+		offer.status = "cancelled"
+		print("DKP trade cancelled: " .. offer.from .. " " .. offer.token)
+	elseif action == "F" and Sync():IsGuildMaster(senderName) and offer.status == "accepted" then
+		offer.status = "completed"
+		print("Guild master finalized the DKP trade. Apply a new guild snapshot to update local points.")
 	end
 end
 
-return InfinityDKPPlayerTrading
+function Trading:List()
+	self:Prune()
+	print("Session trades (expire after 5 minutes):")
+	local count = 0
+	for _, offer in pairs(self.offers) do
+		count = count + 1
+		print(string.format("%s %s -> %s: %d DKP [%s]", offer.token, offer.from, offer.recipient, offer.amount, offer.status))
+	end
+	if count == 0 then print("No session trades.") end
+end
+
+return Trading

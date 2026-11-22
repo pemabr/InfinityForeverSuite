@@ -32,21 +32,52 @@ InfinityCalendarCore = {
 
 -- Initialize calendar
 function InfinityCalendarCore:Initialize()
-	self.events = {}
-	self.series = {}
-	self.reminders = {}
-	self.participants = {}
-	self.eventID = 0
+	if _G.InfinityCalendarDB == nil then _G.InfinityCalendarDB = {} end
+	if type(_G.InfinityCalendarDB) ~= "table" then error("Invalid calendar database") end
+	local db = _G.InfinityCalendarDB
+	for _, key in ipairs({ "events", "series", "reminders", "participants" }) do
+		if db[key] == nil then db[key] = {} end
+		if type(db[key]) ~= "table" then error("Invalid calendar data: " .. key) end
+	end
+	if db.eventID ~= nil and type(db.eventID) ~= "number" then error("Invalid calendar event ID") end
+	self.db = db
+	self.events, self.series = db.events, db.series
+	self.reminders, self.participants = db.reminders, db.participants
+	self.eventID = db.eventID or 0
+	for id in pairs(self.events) do
+		if type(id) == "number" and id > self.eventID then self.eventID = id end
+	end
+	db.eventID = self.eventID
 	InfinityUtils:Info("Calendar initialized", "Calendar")
+end
+
+function InfinityCalendarCore:ParseDateTime(dateText, timeText)
+	if type(dateText) ~= "string" or type(timeText) ~= "string" then return nil end
+	local y, m, d = dateText:match("^(%d%d%d%d)-(%d%d?)-(%d%d?)$")
+	local hr, mn = timeText:match("^(%d%d?):(%d%d)$")
+	y, m, d, hr, mn = tonumber(y), tonumber(m), tonumber(d), tonumber(hr), tonumber(mn)
+	if not y or not m or not d or not hr or not mn or m < 1 or m > 12
+		or d < 1 or d > 31 or hr > 23 or mn > 59 then return nil end
+	local ok, timestamp = pcall(time, { year = y, month = m, day = d, hour = hr, min = mn, sec = 0 })
+	if not ok or type(timestamp) ~= "number" or timestamp <= 0 then return nil end
+	local parsed = date("*t", timestamp)
+	if not parsed or parsed.year ~= y or parsed.month ~= m or parsed.day ~= d
+		or parsed.hour ~= hr or parsed.min ~= mn then return nil end
+	return timestamp
 end
 
 -- Create a new event
 function InfinityCalendarCore:CreateEvent(eventData)
-	if not eventData or not eventData.title or not eventData.startTime then
+	if type(eventData) ~= "table" or type(eventData.title) ~= "string" or eventData.title == ""
+		or type(eventData.startTime) ~= "number" or eventData.startTime ~= eventData.startTime
+		or eventData.startTime <= 0 or eventData.startTime >= math.huge
+		or (eventData.duration ~= nil and (type(eventData.duration) ~= "number"
+			or eventData.duration ~= eventData.duration or eventData.duration <= 0 or eventData.duration >= math.huge)) then
 		return false, "Missing required fields"
 	end
 	
 	self.eventID = self.eventID + 1
+	self.db.eventID = self.eventID
 	
 	local event = {
 		id = self.eventID,
@@ -79,6 +110,8 @@ function InfinityCalendarCore:CreateEvent(eventData)
 	end
 	
 	self.events[event.id] = event
+	self:SetReminder(event.id, 15)
+	self:SetReminder(event.id, 5)
 	
 	InfinityUtils:Info(string.format("Event created: %s", event.title), "Calendar")
 	return true, event.id
@@ -86,8 +119,15 @@ end
 
 -- Update event
 function InfinityCalendarCore:UpdateEvent(eventID, updates)
-	if not self.events[eventID] then
+	if not self.events[eventID] or type(updates) ~= "table" then
 		return false, "Event not found"
+	end
+	if (updates.title ~= nil and (type(updates.title) ~= "string" or updates.title == ""))
+		or (updates.startTime ~= nil and (type(updates.startTime) ~= "number" or updates.startTime ~= updates.startTime
+			or updates.startTime <= 0 or updates.startTime >= math.huge))
+		or (updates.duration ~= nil and (type(updates.duration) ~= "number" or updates.duration ~= updates.duration
+			or updates.duration <= 0 or updates.duration >= math.huge)) then
+		return false, "Invalid event time"
 	end
 	
 	local event = self.events[eventID]
@@ -100,7 +140,15 @@ function InfinityCalendarCore:UpdateEvent(eventID, updates)
 
 	event.updatedAt = time()
 	
-	InformGuildOfChanges(event)
+	for _, reminder in pairs(self.reminders) do
+		if reminder.eventID == eventID then
+			reminder.eventTitle = event.title
+			if updates.startTime then
+				reminder.triggerTime = event.startTime - reminder.minutesBefore * 60
+				reminder.triggered = false
+			end
+		end
+	end
 	return true
 end
 
@@ -117,6 +165,9 @@ function InfinityCalendarCore:DeleteEvent(eventID)
 	end
 	
 	self.events[eventID] = nil
+	for key, reminder in pairs(self.reminders) do
+		if reminder.eventID == eventID then self.reminders[key] = nil end
+	end
 	
 	InfinityUtils:Info(string.format("Event deleted: %s", event.title), "Calendar")
 	return true
@@ -266,13 +317,13 @@ end
 
 -- Set reminder
 function InfinityCalendarCore:SetReminder(eventID, minutesBefore)
-	if not self.events[eventID] then
+	if not self.events[eventID] or type(minutesBefore) ~= "number" or minutesBefore <= 0 then
 		return false
 	end
 	
 	local event = self.events[eventID]
 	
-	self.reminders[eventID] = {
+	self.reminders[tostring(eventID) .. ":" .. tostring(minutesBefore)] = {
 		eventID = eventID,
 		eventTitle = event.title,
 		triggerTime = event.startTime - (minutesBefore * 60),
@@ -288,8 +339,10 @@ function InfinityCalendarCore:GetActiveReminders()
 	local now = time()
 	local active = {}
 	
-	for eventID, reminder in pairs(self.reminders) do
-		if not reminder.triggered and reminder.triggerTime <= now then
+	for _, reminder in pairs(self.reminders) do
+		local event = self.events[reminder.eventID]
+		if event and event.status == "scheduled" and event.startTime > now
+			and not reminder.triggered and reminder.triggerTime <= now then
 			table.insert(active, reminder)
 		end
 	end
@@ -298,9 +351,10 @@ function InfinityCalendarCore:GetActiveReminders()
 end
 
 -- Mark reminder as triggered
-function InfinityCalendarCore:MarkReminderTriggered(eventID)
-	if self.reminders[eventID] then
-		self.reminders[eventID].triggered = true
+function InfinityCalendarCore:MarkReminderTriggered(eventID, minutesBefore)
+	local reminder = self.reminders[tostring(eventID) .. ":" .. tostring(minutesBefore)]
+	if reminder then
+		reminder.triggered = true
 	end
 end
 
@@ -394,11 +448,6 @@ function InfinityCalendarCore:CountTable(t)
 	local count = 0
 	for _ in pairs(t) do count = count + 1 end
 	return count
-end
-
--- Helper to inform guild of changes
-function InformGuildOfChanges(event)
-	-- This will be implemented by the messaging module
 end
 
 return InfinityCalendarCore

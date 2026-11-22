@@ -171,7 +171,7 @@ end
 
 -- Create a scroll frame with content
 function InfinityUIFramework:CreateScrollFrame(parent, name, width, height)
-	local scroll = CreateFrame("ScrollFrame", name or "InfinityScroll", parent, "UIPanelScrollFrameTemplate")
+	local scroll = CreateFrame("ScrollFrame", name, parent, "UIPanelScrollFrameTemplate")
 	scroll:SetSize(width, height)
 	
 	local content = CreateFrame("Frame", nil, scroll, BackdropTemplateMixin and "BackdropTemplate" or nil)
@@ -181,6 +181,192 @@ function InfinityUIFramework:CreateScrollFrame(parent, name, width, height)
 	scroll.content = content
 	
 	return scroll
+end
+
+function InfinityUIFramework:GetSelectedProfessionRecipeID()
+	local function Public(value)
+		if _G.issecretvalue and issecretvalue(value) then return nil end
+		return value
+	end
+	local professions = Public(_G.ProfessionsFrame)
+	if not professions or not professions.IsShown then return nil end
+	local visible = professions:IsShown()
+	if _G.issecretvalue and issecretvalue(visible) then return nil, "Profession window state is protected." end
+	if not visible then return nil end
+	local page = Public(professions.CraftingPage)
+	local form = (type(page) == "table" or type(page) == "userdata") and Public(page.SchematicForm)
+	if (type(form) ~= "table" and type(form) ~= "userdata") or type(form.GetRecipeInfo) ~= "function" then return nil end
+	local ok, info = pcall(form.GetRecipeInfo, form)
+	if not ok then return nil, "Selected recipe unavailable: " .. tostring(Public(info) or "protected error") end
+	if _G.issecretvalue and issecretvalue(info) then return nil, "Selected recipe is protected." end
+	if type(info) == "table" and _G.issecretvalue and issecretvalue(info.recipeID) then
+		return nil, "Selected recipe is protected."
+	end
+	local id = type(info) == "table" and Public(info.recipeID)
+	if type(id) == "number" and id == id and id > 0 and id <= 1000000000 and id == math.floor(id) then return id end
+	return nil
+end
+
+function InfinityUIFramework:CreateListWindow(name, title, width, height)
+	local frame = self:CreateFrame(name, UIParent, width, height)
+	frame:SetPoint("CENTER")
+	frame:SetMovable(true)
+	frame:EnableMouse(true)
+	frame:RegisterForDrag("LeftButton")
+	frame:SetScript("OnDragStart", function(window) window:StartMoving() end)
+	frame:SetScript("OnDragStop", function(window) window:StopMovingOrSizing() end)
+
+	local heading = self:CreateLabel(frame, title)
+	heading:SetPoint("TOPLEFT", 15, -12)
+	heading:SetFont("Fonts\\FRIZQT__.TTF", 14, "")
+	local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
+	close:SetPoint("TOPRIGHT", -5, -5)
+	close:SetScript("OnClick", function() frame:Hide() end)
+
+	local scroll = self:CreateScrollFrame(frame, nil, width - 55, height - 108)
+	scroll:SetPoint("TOPLEFT", 15, -65)
+	local content = scroll.content
+	content:SetWidth(width - 70)
+	frame.rows = {}
+	frame.status = self:CreateLabel(frame, "")
+	frame.status:SetPoint("BOTTOMLEFT", 15, 12)
+
+	function frame:SetItems(items)
+		for i, item in ipairs(items) do
+			local row = self.rows[i]
+			if not row then
+				row = CreateFrame("Button", nil, content)
+				row:SetSize(width - 75, 22)
+				row:SetPoint("TOPLEFT", 0, -(i - 1) * 22)
+				row.label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+				row.label:SetPoint("LEFT", 4, 0)
+				row.label:SetWidth(width - 85)
+				row.label:SetJustifyH("LEFT")
+				row:SetScript("OnClick", function(button)
+					if button.data.onClick then button.data.onClick() end
+				end)
+				row:SetScript("OnEnter", function(button)
+					local link = button.data and button.data.link
+					if _G.issecretvalue and issecretvalue(link) then link = nil end
+					if type(link) == "string" and link ~= "" and GameTooltip then
+						GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
+						GameTooltip:SetHyperlink(link)
+						GameTooltip:Show()
+					end
+				end)
+				row:SetScript("OnLeave", function()
+					if GameTooltip then GameTooltip:Hide() end
+				end)
+				self.rows[i] = row
+			end
+			row.data = item
+			row.label:SetText(item.text)
+			row:Show()
+		end
+		for i = #items + 1, #self.rows do self.rows[i]:Hide() end
+		content:SetHeight(math.max(1, #items * 22))
+		scroll:UpdateScrollChildRect()
+	end
+
+	frame:Hide()
+	return frame
+end
+
+local function PublicQuestValue(value)
+	if _G.issecretvalue and _G.issecretvalue(value) then return nil end
+	return value
+end
+
+function InfinityUIFramework:GetQuestLogSnapshot()
+	local api = _G.C_QuestLog
+	if not api or not api.GetNumQuestLogEntries or not api.GetInfo then return nil, false end
+	local count = PublicQuestValue(api.GetNumQuestLogEntries())
+	if type(count) ~= "number" then return nil, false end
+	local canWatch = api.GetQuestWatchType and api.AddQuestWatch and api.RemoveQuestWatch
+	local quests, collapsed = {}, false
+	for index = 1, count do
+		local info = PublicQuestValue(api.GetInfo(index))
+		if type(info) == "table" then
+			local header = PublicQuestValue(info.isHeader)
+			local id, title = PublicQuestValue(info.questID), PublicQuestValue(info.title)
+			local headerSecret = _G.issecretvalue and _G.issecretvalue(info.isHeader)
+			if not headerSecret and header and PublicQuestValue(info.isCollapsed) then collapsed = true end
+			if not headerSecret and not header and type(id) == "number" and id > 0 and type(title) == "string" then
+				local watchType = canWatch and api.GetQuestWatchType(id)
+				local watchSecret = _G.issecretvalue and _G.issecretvalue(watchType)
+				local quest = {
+					id = id,
+					title = title,
+					watched = canWatch and not watchSecret and watchType ~= nil,
+					watchKnown = canWatch and not watchSecret,
+					objectives = {},
+				}
+				local objectives = api.GetQuestObjectives and PublicQuestValue(api.GetQuestObjectives(id))
+				if type(objectives) == "table" then
+					for _, objective in ipairs(objectives) do
+						objective = PublicQuestValue(objective)
+						local text = type(objective) == "table" and PublicQuestValue(objective.text)
+						if type(text) == "string" and text ~= "" then
+							quest.objectives[#quest.objectives + 1] = text
+						end
+					end
+				end
+				quests[#quests + 1] = quest
+			end
+		end
+	end
+	return quests, not not canWatch, collapsed
+end
+
+function InfinityUIFramework:CreateQuestLogItems(onChanged, context, onWaypoint)
+	local quests, canWatch, collapsed = self:GetQuestLogSnapshot()
+	if not quests then return {}, "Quest log API unavailable.", nil end
+	local items = {}
+	for _, quest in ipairs(quests) do
+		local selected = quest
+		local entry = { text = (quest.watched and "[Tracked] " or "") .. quest.title }
+		if quest.watchKnown or onWaypoint then
+			entry.onClick = function()
+				if onWaypoint and _G.IsShiftKeyDown and _G.IsShiftKeyDown() then
+					onWaypoint(selected.id)
+					return
+				end
+				if not selected.watchKnown then
+					InfinityUtils:Warning("Quest tracking control unavailable.", context)
+					return
+				end
+				if _G.InCombatLockdown and _G.InCombatLockdown() then
+					InfinityUtils:Warning("Cannot change quest tracking during combat.", context)
+					return
+				end
+				local api = _G.C_QuestLog
+				local current = api.GetQuestWatchType(selected.id)
+				if _G.issecretvalue and _G.issecretvalue(current) then
+					InfinityUtils:Warning("Quest tracking state is unavailable.", context)
+					return
+				end
+				local result
+				if current ~= nil then
+					result = api.RemoveQuestWatch(selected.id)
+				else
+					result = api.AddQuestWatch(selected.id)
+				end
+				if result == false then
+					InfinityUtils:Warning("Could not change quest tracking: " .. selected.title, context)
+				end
+				if onChanged then onChanged() end
+			end
+		end
+		items[#items + 1] = entry
+		for _, objective in ipairs(quest.objectives) do
+			items[#items + 1] = { text = "    " .. objective }
+		end
+	end
+	if #items == 0 then items[1] = { text = "No visible quests in the quest log." } end
+	local status = canWatch and "Click a quest to toggle tracking." or "Quest tracking control unavailable."
+	if collapsed then status = "Collapsed quest sections are hidden in the quest log." end
+	if onWaypoint then status = status .. " Shift-click to set a waypoint." end
+	return items, status, quests
 end
 
 -- Create a slider

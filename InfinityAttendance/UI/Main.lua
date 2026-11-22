@@ -26,10 +26,39 @@ function InfinityAttendanceUI:Initialize()
     local closeBtn = CreateFrame("Button", nil, self.frame, "UIPanelCloseButton")
     closeBtn:SetPoint("TOPRIGHT", self.frame, "TOPRIGHT", -5, -5)
     closeBtn:SetScript("OnClick", function() self.frame:Hide() end)
+
+    local start = InfinityUIFramework:CreateButton(self.frame, "Start", 90, 22, function()
+        local tracker = InfinityAttendanceTracker
+        local current = tracker:GetCurrentRaid()
+        if current and not current.end_time then
+            InfinityUtils:Warning("Attendance tracking is already running.", "Attendance")
+        else
+            tracker:StartTracking()
+        end
+        self:Update()
+    end)
+    start:SetPoint("TOPLEFT", 12, -38)
+    local finish = InfinityUIFramework:CreateButton(self.frame, "End", 90, 22, function()
+        local tracker = InfinityAttendanceTracker
+        local current = tracker:GetCurrentRaid()
+        if not current or current.end_time then
+            InfinityUtils:Warning("No attendance tracking is running.", "Attendance")
+        else
+            tracker:EndTracking()
+        end
+        self:Update()
+    end)
+    finish:SetPoint("LEFT", start, "RIGHT", 8, 0)
+    self.autoButton = InfinityUIFramework:CreateButton(self.frame, "Auto", 140, 22, function()
+        local tracker = InfinityAttendanceTracker
+        tracker:SetAutoTracking(not tracker.auto_tracking)
+        self:Update()
+    end)
+    self.autoButton:SetPoint("LEFT", finish, "RIGHT", 8, 0)
     
     -- Content
     self.content = self.frame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    self.content:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -20)
+    self.content:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 12, -72)
     self.content:SetWidth(480)
     self.content:SetJustifyH("LEFT")
     self.content:SetText("No raids tracked yet")
@@ -63,7 +92,10 @@ function InfinityAttendanceUI:Update()
     
     if InfinityAttendanceStats then
         local report = InfinityAttendanceStats:GetAttendanceReport()
-        self.content:SetText(report)
+        local raid = InfinityAttendanceTracker:GetCurrentRaid()
+        self.content:SetText((raid and not raid.end_time and "Tracking active.\n" or "Tracking stopped.\n")
+            .. "Session data is not saved across reloads.\n" .. report)
+        self.autoButton:SetText(InfinityAttendanceTracker.auto_tracking and "Auto: on" or "Auto: off")
     end
 end
 

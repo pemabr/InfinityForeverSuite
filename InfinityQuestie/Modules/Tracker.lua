@@ -9,6 +9,19 @@ InfinityQuestTracker.completed_quests = {}
 InfinityQuestTracker.abandoned_quests = {}
 InfinityQuestTracker.callbacks = {}
 
+function InfinityQuestTracker:SyncQuestLog(quests)
+    if type(quests) ~= "table" then return false end
+    local active = {}
+    for _, entry in ipairs(quests) do
+        local quest = self.active_quests[entry.id] or { id = entry.id }
+        quest.name = entry.title
+        quest.objectives = entry.objectives
+        active[entry.id] = quest
+    end
+    self.active_quests = active
+    return true
+end
+
 function InfinityQuestTracker:AcceptQuest(questID, questName)
     if self.active_quests[questID] then return false end
     
@@ -31,7 +44,7 @@ function InfinityQuestTracker:CompleteQuest(questID, questName)
         id = questID,
         name = questName or quest.name,
         completed_time = GetTime(),
-        duration = GetTime() - quest.accepted_time,
+        duration = quest.accepted_time and (GetTime() - quest.accepted_time) or nil,
     }
     
     self.active_quests[questID] = nil

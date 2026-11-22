@@ -95,15 +95,15 @@ function InfinityCharacterManager:IdentifyCharacterType()
 	if char.level >= 60 then
 		-- Check if we already have a main
 		local hasMain = false
-		for _, existingChar in pairs(self.characters) do
-			if existingChar.isMain and existingChar.name ~= char.name then
+		for key, existingChar in pairs(self.characters) do
+			if existingChar.isMain and key ~= charKey then
 				hasMain = true
 				break
 			end
 		end
 		
-		-- If no main exists yet, or this is higher level, mark as main
-		if not hasMain or (char.level > 60) then
+		-- Keep the existing main until the user selects another one.
+		if not hasMain then
 			char.isMain = true
 			InfinityMessaging:Publish("character_marked_main", { character = char.name })
 		else

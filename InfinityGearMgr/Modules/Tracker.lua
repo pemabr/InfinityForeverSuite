@@ -20,7 +20,8 @@ function InfinityGearTracker:ScanEquipment()
 	-- Scan all equipment slots
 	local slots = {
 		"HeadSlot", "NeckSlot", "ShoulderSlot", "ChestSlot", "WaistSlot", "LegsSlot", 
-		"FeetSlot", "WristSlot", "HandsSlot", "FingerSlot", "TrinketSlot", "BackSlot", 
+		"FeetSlot", "WristSlot", "HandsSlot", "Finger0Slot", "Finger1Slot",
+		"Trinket0Slot", "Trinket1Slot", "BackSlot",
 		"MainHandSlot", "SecondaryHandSlot"
 	}
 	

@@ -15,6 +15,7 @@ local function InitializeRaid()
 	
 	if Encounters then pcall(function() Encounters:Initialize() end) end
 	if Assignments then pcall(function() Assignments:Initialize() end) end
+	if UI and UI.Initialize then UI:Initialize() end
 	
 	_G.InfinityRaidEncounters = Encounters
 	_G.InfinityRaidAssignments = Assignments
@@ -23,8 +24,8 @@ local function InitializeRaid()
 	InfinityDataManager:RegisterSource("InfinityRaid", { encounters = {}, assignments = {} })
 	
 	InfinityCommandRegistry:RegisterCommand({
-		name = "raid",
-		aliases = { "r" },
+		name = "infraid",
+		aliases = {},
 		description = "Open raid manager",
 		func = function()
 			InfinityRaidUI:Toggle()
@@ -63,6 +64,7 @@ frame:SetScript("OnEvent", function(self, event, addonName)
 	elseif addonName == "InfinityRaid" then
 		if _G.InfinityDataManager then
 			InitializeRaid()
+			self:UnregisterEvent("ADDON_LOADED")
 		end
 	end
 end)

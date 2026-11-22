@@ -258,7 +258,9 @@ function InfinityLootAuctionIntegration:Initialize()
 	
 	-- Subscribe to auction closed events
 	InfinityMessaging:Subscribe("auction_closed", function(data)
-		InfinityLootAuctionIntegration:OnAuctionClosed(data)
+		if data and data.raidId and data.itemLink and data.winnerPrice then
+			InfinityLootAuctionIntegration:OnAuctionClosed(data)
+		end
 	end)
 	
 	InfinityUtils:Info("Auction Integration system initialized", "AuctionIntegration")

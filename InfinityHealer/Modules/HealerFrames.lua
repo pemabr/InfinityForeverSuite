@@ -1,493 +1,198 @@
--- InfinityHealer - Main Module
--- Comprehensive raid healing UI with frames, click-casting, and predictions
+local Healer = { frames = {} }
+_G.InfinityHealer = Healer
 
-local InfinityHealer = {}
-_G.InfinityHealer = InfinityHealer
-
--- Configuration
-InfinityHealer.config = {
-	enableRaidFrames = true,
-	enableClickCast = true,
-	enableHealingPrediction = true,
-	enableHoTTracking = true,
-	maxFrames = 40,
-	frameUpdateInterval = 0.1, -- seconds
-	healthUpdateInterval = 1, -- Hz
-	healthFormat = "PERCENT", -- "PERCENT", "ACTUAL", or "BOTH"
-}
-
--- Core state
-InfinityHealer.frames = {} -- {unitToken = frame}
-InfinityHealer.activeHeals = {} -- {unitToken = {spell, amount, duration}}
-InfinityHealer.hotData = {} -- {unitToken = {buffName = {duration, caster}}}
-InfinityHealer.playerSpells = {} -- {spellName = {spellId, cooldown, range}}
-InfinityHealer.settings = {
-	layoutMode = "group", -- "group", "raid", or "party"
-	frameSize = {width = 100, height = 40},
-	frameSpacing = 2,
-	enableMouseover = true,
-	enableClickcast = true,
-	enablePrediction = true,
-}
-
--- ============================================================================
--- INITIALIZATION
--- ============================================================================
-
---- Initialize healing UI system
-function InfinityHealer:Initialize()
-	InfinityUtils:Info("InfinityHealer initializing...", "Healer")
-	
-	-- Load saved settings
-	self.settings = InfinityStorageManager:GetFeatureSettings("healer") or self.settings
-	
-	-- Register for group updates
-	self:RegisterEvents()
-	
-	-- Build initial frames if in a group
-	if GetNumGroupMembers() > 0 then
-		self:RefreshRaidFrames()
-	end
-	
-	InfinityUtils:Info("InfinityHealer initialized", "Healer")
+local function Public(value)
+	if _G.issecretvalue and _G.issecretvalue(value) then return nil end
+	return value
 end
 
---- Register for WoW events
-function InfinityHealer:RegisterEvents()
-	local frame = CreateFrame("Frame")
-	
-	frame:RegisterEvent("GROUP_ROSTER_UPDATE")
-	frame:RegisterEvent("UNIT_HEALTH")
-	frame:RegisterEvent("UNIT_HEALTH_FREQUENT")
-	frame:RegisterEvent("UNIT_AURA")
-	frame:RegisterEvent("SPELL_CAST_SUCCESS")
-	frame:RegisterEvent("SPELL_CAST_FAILED")
-	frame:RegisterEvent("UNIT_SPELLCAST_START")
-	frame:RegisterEvent("UNIT_SPELLCAST_STOP")
-	frame:RegisterEvent("UNIT_SPELLCAST_FAILED")
-	frame:RegisterEvent("PARTY_MEMBERS_CHANGED")
-	frame:RegisterEvent("RAID_ROSTER_UPDATE")
-	frame:RegisterEvent("ARENA_OPPONENT_UPDATE")
-	
-	frame:SetScript("OnEvent", function(f, event, ...)
-		InfinityHealer:OnEvent(event, ...)
+function Healer:Initialize()
+	if self.eventFrame then return true end
+	local guid = _G.UnitGUID and Public(UnitGUID("player"))
+	if type(guid) ~= "string" or guid == "" then return false end
+	local db = InfinityCore:GetDatabase("InfinityHealer")
+	if type(db) ~= "table" then error("Healer database unavailable") end
+	if db.characters == nil then db.characters = {} end
+	if type(db.characters) ~= "table" then error("Invalid healer character settings") end
+	if db.characters[guid] == nil then db.characters[guid] = {} end
+	if type(db.characters[guid]) ~= "table" then error("Invalid healer character configuration") end
+	self.settings = db.characters[guid]
+	if _G.issecretvalue and (_G.issecretvalue(self.settings.visible) or _G.issecretvalue(self.settings.scale)) then
+		error("Protected healer display settings")
+	end
+	if self.settings.visible == nil then self.settings.visible = true end
+	if self.settings.scale == nil then self.settings.scale = 1 end
+	if type(self.settings.visible) ~= "boolean" or type(self.settings.scale) ~= "number"
+		or self.settings.scale ~= self.settings.scale or self.settings.scale < 0.5 or self.settings.scale > 2 then
+		error("Invalid healer display settings")
+	end
+	InfinityClickCast:Initialize(self.settings)
+	local events = CreateFrame("Frame")
+	events:RegisterEvent("GROUP_ROSTER_UPDATE")
+	events:RegisterEvent("PLAYER_ENTERING_WORLD")
+	events:RegisterEvent("PLAYER_REGEN_ENABLED")
+	events:RegisterEvent("UNIT_HEALTH")
+	events:RegisterEvent("UNIT_MAXHEALTH")
+	events:RegisterEvent("UNIT_NAME_UPDATE")
+	events:RegisterEvent("CVAR_UPDATE")
+	events:SetScript("OnEvent", function(_, event, ...)
+		if event == "UNIT_HEALTH" or event == "UNIT_MAXHEALTH" or event == "UNIT_NAME_UPDATE" then
+			local unit = Public(...)
+			if type(unit) == "string" then self:UpdateUnit(unit) end
+		elseif event == "CVAR_UPDATE" then
+			local name = Public(...)
+			if type(name) == "string" and name:lower() == "actionbuttonusekeydown" then self:RefreshRaidFrames() end
+		elseif event ~= "PLAYER_REGEN_ENABLED" or self.pending then
+			self:RefreshRaidFrames(event == "GROUP_ROSTER_UPDATE" or event == "PLAYER_ENTERING_WORLD")
+		end
 	end)
+	self.eventFrame = events
+	self:RefreshRaidFrames()
+	return true
 end
 
---- Handle WoW events
-function InfinityHealer:OnEvent(event, ...)
-	if event == "GROUP_ROSTER_UPDATE" or event == "RAID_ROSTER_UPDATE" or event == "PARTY_MEMBERS_CHANGED" then
-		self:RefreshRaidFrames()
-	elseif event == "UNIT_HEALTH" or event == "UNIT_HEALTH_FREQUENT" then
-		local unit = ...
-		self:UpdateUnitHealth(unit)
-	elseif event == "UNIT_AURA" then
-		local unit = ...
-		self:UpdateUnitAuras(unit)
-	elseif event == "SPELL_CAST_SUCCESS" then
-		local castGUID, spellId = ...
-		self:OnSpellCast(spellId)
-	end
-end
-
--- ============================================================================
--- RAID FRAME MANAGEMENT
--- ============================================================================
-
---- Create or update raid frames for all group members
-function InfinityHealer:RefreshRaidFrames()
-	local groupSize = GetNumGroupMembers()
-	
-	if groupSize == 0 then
-		self:ClearRaidFrames()
-		return
-	end
-	
-	-- Determine frame configuration based on group size
-	if groupSize <= 5 then
-		self.settings.layoutMode = "party"
-	elseif groupSize <= 10 then
-		self.settings.layoutMode = "smallRaid"
-	else
-		self.settings.layoutMode = "raid"
-	end
-	
-	-- Create frames for each group member
-	for i = 1, groupSize do
-		local unitToken = self:GetUnitToken(i, groupSize)
-		if unitToken and not self.frames[unitToken] then
-			self:CreateUnitFrame(unitToken)
-		end
-	end
-	
-	-- Layout frames
-	self:LayoutFrames()
-	
-	InfinityUtils:Debug("Raid frames refreshed. Mode: " .. self.settings.layoutMode .. ", Members: " .. groupSize, "Healer")
-end
-
---- Get unit token for a group member (raid1, raid2, party1, etc.)
-function InfinityHealer:GetUnitToken(index, groupSize)
-	if groupSize <= 5 then
-		if index == 1 then
-			return "player"
-		else
-			return "party" .. (index - 1)
-		end
-	else
-		return "raid" .. index
-	end
-end
-
---- Create a unit frame for a player
-function InfinityHealer:CreateUnitFrame(unitToken)
-	if not UnitExists(unitToken) then
-		return nil
-	end
-	
-	local frameName = "InfinityHealer_" .. unitToken
-	local frame = CreateFrame("Button", frameName, UIParent, "SecureActionButtonTemplate")
-	
-	-- Frame styling
-	frame:SetSize(self.settings.frameSize.width, self.settings.frameSize.height)
+function Healer:CreateUnitFrame(unit)
+	local template = BackdropTemplateMixin and "SecureUnitButtonTemplate,BackdropTemplate" or "SecureUnitButtonTemplate"
+	local frame = CreateFrame("Button", "InfinityHealer_" .. unit, UIParent, template)
+	frame:SetSize(125, 38)
 	frame:SetBackdrop({
-		bgFile = "Interface/Tooltips/UI-Tooltip-Background",
-		edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
-		tile = true, tileSize = 16, edgeSize = 16,
-		insets = {left = 2, right = 2, top = 2, bottom = 2}
+		bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+		edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+		tile = true, tileSize = 16, edgeSize = 12,
+		insets = { left = 2, right = 2, top = 2, bottom = 2 },
 	})
-	frame:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
-	frame:SetBackdropBorderColor(0.5, 0.5, 0.5, 0.8)
-	
-	-- Name text
-	local nameText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-	nameText:SetPoint("TOPLEFT", frame, "TOPLEFT", 2, -2)
-	nameText:SetText(UnitName(unitToken) or "Unknown")
-	nameText:SetTextColor(1, 1, 1, 1)
-	nameText:SetWidth(self.settings.frameSize.width - 4)
-	nameText:SetFontObject("GameFontNormalSmall")
-	nameText:SetJustifyH("LEFT")
-	
-	-- Health bar
-	local healthBar = CreateFrame("StatusBar", nil, frame)
-	healthBar:SetSize(self.settings.frameSize.width - 4, 12)
-	healthBar:SetPoint("TOPLEFT", frame, "TOPLEFT", 2, -15)
-	healthBar:SetStatusBarTexture("Interface/TargetingFrame/UI-StatusBar")
-	healthBar:SetStatusBarColor(0.2, 0.8, 0.2, 1) -- Green
-	
-	-- Health text
-	local healthText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-	healthText:SetPoint("CENTER", healthBar, "CENTER")
-	healthText:SetText("100%")
-	healthText:SetFontObject("GameFontNormalSmall")
-	healthText:SetJustifyH("CENTER")
-	
-	-- Store references
-	frame.unitToken = unitToken
-	frame.nameText = nameText
-	frame.healthBar = healthBar
-	frame.healthText = healthText
-	frame.auras = {} -- Will store aura frames
-	
-	-- Enable mouseove highlighting
-	if self.settings.enableMouseover then
-		frame:SetScript("OnEnter", function(f)
-			InfinityHealer:HighlightFrame(f)
-		end)
-		frame:SetScript("OnLeave", function(f)
-			InfinityHealer:UnhighlightFrame(f)
-		end)
-	end
-	
-	-- Enable click-casting if enabled
-	if self.settings.enableClickcast then
-		self:SetupClickCasting(frame)
-	end
-	
-	-- Update initial data
-	self:UpdateUnitHealth(unitToken)
-	self:UpdateUnitAuras(unitToken)
-	
-	self.frames[unitToken] = frame
-	
+	frame:SetBackdropColor(0.1, 0.1, 0.1, 0.9)
+	frame:SetAttribute("unit", unit)
+	frame:SetAttribute("checkselfcast", false)
+	frame:SetAttribute("checkfocuscast", false)
+	frame:SetAttribute("checkmouseovercast", false)
+	frame:SetAttribute("toggleForVehicle", true)
+	frame.nameText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	frame.nameText:SetPoint("TOPLEFT", 5, -4)
+	frame.nameText:SetWidth(115)
+	frame.nameText:SetJustifyH("LEFT")
+	frame.healthBar = CreateFrame("StatusBar", nil, frame)
+	frame.healthBar:SetPoint("BOTTOMLEFT", 4, 4)
+	frame.healthBar:SetSize(117, 12)
+	frame.healthBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+	frame.healthBar:SetStatusBarColor(0.2, 0.8, 0.2, 1)
+	frame.healthText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	frame.healthText:SetPoint("CENTER", frame.healthBar, "CENTER")
+	self.frames[unit] = frame
 	return frame
 end
 
---- Set up click-casting for a frame
-function InfinityHealer:SetupClickCasting(frame)
-	-- Make frame secure for action buttons
-	frame:SetAttribute("type", "spell")
-	frame:SetAttribute("spell", "") -- Will be set when clicked
-	
-	-- Right-click to cast spell 1
-	frame:SetAttribute("*type1", "spell")
-	frame:SetAttribute("*spell1", "Heal") -- Default spell
-	
-	-- Shift+click for spell 2
-	frame:SetAttribute("shift-type1", "spell")
-	frame:SetAttribute("shift-spell1", "Renew")
-	
-	-- Ctrl+click for spell 3
-	frame:SetAttribute("ctrl-type1", "spell")
-	frame:SetAttribute("ctrl-spell1", "Power Word: Shield")
-	
-	-- Alt+click for spell 4
-	frame:SetAttribute("alt-type1", "spell")
-	frame:SetAttribute("alt-spell1", "Prayer of Mending")
-	
-	frame:SetScript("OnClick", function(f, button)
-		if button == "RightButton" then
-			InfinityHealer:OnFrameClick(f, "heal")
-		end
-	end)
-end
-
---- Layout frames based on current mode
-function InfinityHealer:LayoutFrames()
-	local mode = self.settings.layoutMode
-	local xOffset = 10
-	local yOffset = -100
-	local index = 0
-	
-	for unitToken, frame in pairs(self.frames) do
-		if mode == "party" then
-			-- Stack vertically
-			frame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", xOffset, yOffset - (index * (self.settings.frameSize.height + self.settings.frameSpacing)))
-		elseif mode == "raid" or mode == "smallRaid" then
-			-- Group layout: 5-8 per column
-			local groupSize = 5
-			local row = index % groupSize
-			local col = math.floor(index / groupSize)
-			local xPos = xOffset + (col * (self.settings.frameSize.width + self.settings.frameSpacing))
-			local yPos = yOffset - (row * (self.settings.frameSize.height + self.settings.frameSpacing))
-			frame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", xPos, yPos)
-		end
-		
-		index = index + 1
-	end
-end
-
---- Highlight a frame (player moused over)
-function InfinityHealer:HighlightFrame(frame)
-	frame:SetBackdropBorderColor(1, 1, 0, 1) -- Yellow
-end
-
---- Unhighlight a frame
-function InfinityHealer:UnhighlightFrame(frame)
-	frame:SetBackdropBorderColor(0.5, 0.5, 0.5, 0.8) -- Default
-end
-
---- Clear all raid frames
-function InfinityHealer:ClearRaidFrames()
-	for unitToken, frame in pairs(self.frames) do
-		if frame then
-			frame:Hide()
-			frame = nil
-		end
-	end
-	self.frames = {}
-end
-
--- ============================================================================
--- HEALTH UPDATES
--- ============================================================================
-
---- Update health display for a unit
-function InfinityHealer:UpdateUnitHealth(unitToken)
-	local frame = self.frames[unitToken]
-	if not frame then
-		return
-	end
-	
-	local currentHealth = UnitHealth(unitToken)
-	local maxHealth = UnitHealthMax(unitToken)
-	
-	if maxHealth == 0 then
-		maxHealth = 1 -- Prevent divide by zero
-	end
-	
-	local healthPercent = (currentHealth / maxHealth) * 100
-	
-	-- Update health bar
-	frame.healthBar:SetMinMaxValues(0, maxHealth)
-	frame.healthBar:SetValue(currentHealth)
-	
-	-- Color bar based on health
-	if healthPercent > 50 then
-		frame.healthBar:SetStatusBarColor(0.2, 0.8, 0.2, 1) -- Green
-	elseif healthPercent > 25 then
-		frame.healthBar:SetStatusBarColor(1, 0.8, 0.2, 1) -- Yellow
+function Healer:UpdateUnit(unit)
+	local frame = self.frames[unit]
+	if not frame or self.rosterPending then return end
+	local name = _G.UnitName and UnitName(unit)
+	if _G.issecretvalue and _G.issecretvalue(name) then
+		frame.nameText:SetText(name)
 	else
-		frame.healthBar:SetStatusBarColor(0.8, 0.2, 0.2, 1) -- Red
+		frame.nameText:SetText(type(name) == "string" and name or unit)
 	end
-	
-	-- Update text
-	if self.settings.healthFormat == "PERCENT" then
-		frame.healthText:SetText(math.floor(healthPercent) .. "%")
-	elseif self.settings.healthFormat == "ACTUAL" then
-		frame.healthText:SetText(math.floor(currentHealth / 1000) .. "k")
-	else
-		frame.healthText:SetText(math.floor(healthPercent) .. "% (" .. math.floor(currentHealth / 1000) .. "k)")
-	end
-end
-
--- ============================================================================
--- AURA MANAGEMENT
--- ============================================================================
-
---- Update auras (buffs/debuffs) for a unit
-function InfinityHealer:UpdateUnitAuras(unitToken)
-	local frame = self.frames[unitToken]
-	if not frame then
-		return
-	end
-	
-	-- Clear existing aura display
-	for i = 1, #frame.auras do
-		frame.auras[i]:Hide()
-	end
-	
-	-- Get auras
-	local buffIndex = 1
-	local debuffIndex = 1
-	
-	-- Display buffs (up to 3)
-	for i = 1, UnitAuraCount(unitToken, "HELPFUL") do
-		local name, icon, count, dispelType, duration, expirationTime = UnitAura(unitToken, i, "HELPFUL")
-		
-		if buffIndex <= 3 and name then
-			self:DisplayAura(frame, buffIndex, name, icon, duration, expirationTime, "buff")
-			buffIndex = buffIndex + 1
-		end
-	end
-	
-	-- Display debuffs (up to 3)
-	for i = 1, UnitAuraCount(unitToken, "HARMFUL") do
-		local name, icon, count, dispelType, duration, expirationTime = UnitAura(unitToken, i, "HARMFUL")
-		
-		if debuffIndex <= 3 and name then
-			self:DisplayAura(frame, 10 + debuffIndex, name, icon, duration, expirationTime, "debuff")
-			debuffIndex = debuffIndex + 1
-		end
-	end
-end
-
---- Display a single aura icon
-function InfinityHealer:DisplayAura(frame, index, name, icon, duration, expirationTime, auraType)
-	-- This is simplified; in full implementation would create icon frames
-	-- For now just track that aura exists
-	if not frame.auras[index] then
-		frame.auras[index] = {name = name, type = auraType, duration = duration}
-	end
-end
-
--- ============================================================================
--- CLICK-CASTING
--- ============================================================================
-
---- Handle frame click for spell casting
-function InfinityHealer:OnFrameClick(frame, spellType)
-	local unitToken = frame.unitToken
-	
-	if not unitToken then
-		return
-	end
-	
-	-- Get spell name based on click type
-	local spellName = "Heal" -- Default
-	
-	if spellType == "heal" then
-		spellName = "Heal"
-	end
-	
-	-- Cast spell on target
-	if UnitCanAssist("player", unitToken) then
-		CastSpellByName(spellName)
-		-- Wait a moment then cast on target
-		C_Timer.After(0.1, function()
-			if unitToken ~= "player" then
-				SetCursorSpell(spellName)
-				-- Target unit and cast
-			end
-		end)
-	else
-		InfinityUtils:Warning("Cannot assist " .. UnitName(unitToken), "Healer")
-	end
-end
-
--- ============================================================================
--- SPELL TRACKING
--- ============================================================================
-
---- Handle spell cast success
-function InfinityHealer:OnSpellCast(spellId)
-	-- Track spell for cooldown tracking
-	-- This integrates with healing prediction system
-end
-
--- ============================================================================
--- HEALING PREDICTION
--- ============================================================================
-
---- Register incoming heal from another player
-function InfinityHealer:RegisterIncomingHeal(targetUnit, healAmount, healer, spellId)
-	if not self.activeHeals[targetUnit] then
-		self.activeHeals[targetUnit] = {}
-	end
-	
-	table.insert(self.activeHeals[targetUnit], {
-		amount = healAmount,
-		healer = healer,
-		spellId = spellId,
-		timestamp = GetTime(),
-		duration = 2, -- Assume instant-cast spells land within 2 seconds
-	})
-end
-
---- Get predicted health for a unit (actual + incoming heals)
-function InfinityHealer:GetPredictedHealth(unitToken)
-	local currentHealth = UnitHealth(unitToken)
-	local maxHealth = UnitHealthMax(unitToken)
-	local incomingHeals = 0
-	
-	if self.activeHeals[unitToken] then
-		for _, heal in ipairs(self.activeHeals[unitToken]) do
-			incomingHeals = incomingHeals + heal.amount
-		end
-	end
-	
-	local predictedHealth = math.min(currentHealth + incomingHeals, maxHealth)
-	
-	return predictedHealth, incomingHeals
-end
-
--- ============================================================================
--- UTILITY FUNCTIONS
--- ============================================================================
-
---- Toggle raid frames visibility
-function InfinityHealer:ToggleFrames()
-	for unitToken, frame in pairs(self.frames) do
-		if frame:IsShown() then
-			frame:Hide()
+	local health = _G.UnitHealth and UnitHealth(unit)
+	local maximum = _G.UnitHealthMax and UnitHealthMax(unit)
+	local healthSecret = _G.issecretvalue and _G.issecretvalue(health)
+	local maximumSecret = _G.issecretvalue and _G.issecretvalue(maximum)
+	if healthSecret or maximumSecret then
+		local healthOK = healthSecret or (type(health) == "number" and health == health and health >= 0 and health < math.huge)
+		local maxOK = maximumSecret or (type(maximum) == "number" and maximum == maximum and maximum > 0 and maximum < math.huge)
+		if healthOK and maxOK then
+			frame.healthBar:SetMinMaxValues(0, maximum)
+			frame.healthBar:SetValue(health)
 		else
-			frame:Show()
+			frame.healthBar:SetMinMaxValues(0, 1)
+			frame.healthBar:SetValue(0)
+		end
+		frame.healthText:SetText("?")
+		return
+	end
+	if type(health) ~= "number" or type(maximum) ~= "number" or health ~= health or maximum ~= maximum
+		or health < 0 or maximum <= 0 or health >= math.huge or maximum >= math.huge then
+		frame.healthBar:SetMinMaxValues(0, 1)
+		frame.healthBar:SetValue(0)
+		frame.healthText:SetText("?")
+		return
+	end
+	frame.healthBar:SetMinMaxValues(0, maximum)
+	frame.healthBar:SetValue(health)
+	frame.healthText:SetText(string.format("%.0f%%", math.min(100, health * 100 / maximum)))
+end
+
+function Healer:RefreshRaidFrames(rosterChanged)
+	if InCombatLockdown and InCombatLockdown() then
+		self.pending = true
+		if rosterChanged then
+			self.rosterPending = true
+			for _, frame in pairs(self.frames) do
+				frame.nameText:SetText("Roster changed")
+				frame.healthText:SetText("")
+				frame.healthBar:SetMinMaxValues(0, 1)
+				frame.healthBar:SetValue(0)
+			end
+		end
+		return false
+	end
+	local count = _G.GetNumGroupMembers and GetNumGroupMembers()
+	local raid = _G.IsInRaid and IsInRaid()
+	if _G.issecretvalue and (_G.issecretvalue(count) or _G.issecretvalue(raid)) then
+		self.pending, self.rosterPending = true, true
+		for _, frame in pairs(self.frames) do frame:Hide() end
+		InfinityUtils:Warning("Group roster is protected; healer frames were hidden.", "Healer")
+		return false
+	end
+	if type(count) ~= "number" or count < 0 or count > 40 or count ~= math.floor(count)
+		or (raid ~= nil and raid ~= false and raid ~= true and raid ~= 1)
+		or ((raid == nil or raid == false) and count > 5) then
+		self.pending, self.rosterPending = true, true
+		for _, frame in pairs(self.frames) do frame:Hide() end
+		InfinityUtils:Warning("Group roster unavailable; healer frames were hidden.", "Healer")
+		return false
+	end
+	local units = {}
+	if self.settings.visible and count > 0 then
+		if raid == true or raid == 1 then
+			for i = 1, count do units[#units + 1] = "raid" .. i end
+		else
+			units[1] = "player"
+			for i = 1, math.min(4, count - 1) do units[#units + 1] = "party" .. i end
 		end
 	end
-end
-
---- Set frame scale
-function InfinityHealer:SetFrameScale(scale)
-	for unitToken, frame in pairs(self.frames) do
-		frame:SetScale(scale)
+	self.rosterPending = false
+	for _, frame in pairs(self.frames) do frame:Hide() end
+	for index, unit in ipairs(units) do
+		local frame = self.frames[unit] or self:CreateUnitFrame(unit)
+		frame:ClearAllPoints()
+		frame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 10 + math.floor((index - 1) / 5) * 130,
+			-100 - ((index - 1) % 5) * 42)
+		frame:SetScale(self.settings.scale)
+		InfinityClickCast:Apply(frame)
+		self:UpdateUnit(unit)
+		frame:Show()
 	end
+	self.pending = false
+	return true
 end
 
---- Set frame alpha (transparency)
-function InfinityHealer:SetFrameAlpha(alpha)
-	for unitToken, frame in pairs(self.frames) do
-		frame:SetAlpha(alpha)
+function Healer:ToggleFrames()
+	self.settings.visible = not self.settings.visible
+	if not self:RefreshRaidFrames() and InCombatLockdown and InCombatLockdown() then
+		print("Frame visibility saved; applies after combat.")
 	end
+	return self.settings.visible
 end
 
-return InfinityHealer
+function Healer:SetFrameScale(scale)
+	if type(scale) ~= "number" or scale ~= scale or scale < 0.5 or scale > 2 then
+		InfinityUtils:Warning("Frame scale must be between 0.5 and 2.", "Healer")
+		return false
+	end
+	self.settings.scale = scale
+	if not self:RefreshRaidFrames() and InCombatLockdown and InCombatLockdown() then
+		print("Frame scale saved; applies after combat.")
+	end
+	return true
+end
+
+return Healer

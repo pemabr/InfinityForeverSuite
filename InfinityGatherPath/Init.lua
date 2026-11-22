@@ -3,9 +3,10 @@
 
 local addonName = "InfinityGatherPath"
 local addonVersion = "1.0.0"
+local initialized = false
 
 local function InitializeGatherPath()
-	if not _G.InfinityCore then
+	if initialized or not _G.InfinityCore then
 		return
 	end
 	
@@ -17,9 +18,11 @@ local function InitializeGatherPath()
 	local UI = InfinityGatherPathUI or _G.InfinityGatherPathUI
 	
 	-- Initialize
-	if UI and UI.Initialize then
-		if UI then pcall(function() UI:Initialize() end) end
+	if not NodeDB or not Routes or not Optimization or not UI or not UI.Initialize then
+		InfinityUtils:Error("GatherPath modules unavailable.", addonName)
+		return
 	end
+	UI:Initialize()
 	
 	-- Register with InfinityCore
 	if _G.InfinityCore and _G.InfinityCore.RegisterAddon then
@@ -38,26 +41,11 @@ local function InitializeGatherPath()
 		end)
 		
 		_G.InfinityCore:RegisterCommand("/gatherpath record", "Record current node", function()
-			local zone = GetRealZoneText()
-			if zone then
-				local x, y = GetPlayerMapPosition("player")
-				if x and y then
-					NodeDB:RecordNode("herb", x * 100, y * 100, zone, 300)
-					print("Node recorded in " .. zone)
-				end
-			end
+			UI:RecordCurrentNode()
 		end)
 		
 		_G.InfinityCore:RegisterCommand("/gatherpath optimize", "Optimize current route", function()
-			local zone = GetRealZoneText()
-			if zone then
-				local nodes = NodeDB:GetNodesByZone(zone)
-				if #nodes > 0 then
-					local optimized = Optimization:OptimizeRoute(nodes)
-					local distance = Optimization:CalculateTotalDistance(optimized)
-					print(string.format("Route optimized: %d nodes, %.0f yards", #optimized, distance))
-				end
-			end
+			UI:OptimizeCurrentZone()
 		end)
 		
 		_G.InfinityCore:RegisterCommand("/gatherpath nodes", "Show node count", function()
@@ -77,6 +65,7 @@ local function InitializeGatherPath()
 		end
 	end)
 	
+	initialized = true
 	print("InfinityGatherPath loaded - Use /gatherpath for route management")
 end
 

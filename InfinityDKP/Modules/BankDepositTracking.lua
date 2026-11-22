@@ -333,6 +333,15 @@ end
 if not IsTestingLua then
     SLASH_BANKDEPOSIT1 = "/bankdeposit"
     SlashCmdList["BANKDEPOSIT"] = function(msg)
+        if not BankDepositTracking.enabled or not BankDepositTracking.db then
+            local ui = _G.InfinityDKPUI
+            if msg == "" and ui and type(ui.Initialize) == "function" then
+                ui:Initialize()
+                if type(ui.ShowGuildBankLog) == "function" then ui:ShowGuildBankLog(); return end
+            end
+            InfinityUtils:Warning("Legacy bank deposit tracking is unavailable.", "DKP")
+            return
+        end
         local cmd, args = msg:match("^(%S*)%s*(.*)$")
         cmd = cmd or ""
         

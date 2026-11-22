@@ -1,11 +1,11 @@
 ## Interface: 16001
 ## Title: |cff00ccffInfinity|r Inventory
-## Notes: Unified inventory and bag management for the Infinity Suite.
+## Notes: Searchable inventory and bank snapshots, guild bag reports, reagent checks and shopping lists.
 ## Author: Infinity Suite Team
 ## Version: 1.2.0
 ## SavedVariables: InfinityInventoryDB
 ## Depends: InfinityCore
-## OptionalDeps: TradeSkillMaster, Auctionator
+## OptionalDeps: TradeSkillMaster, Auctionator, InfinityGuide, InfinityDataCollector
 ## X-Category: Bags, Inventory
 
 Localization\Localization.lua
@@ -16,6 +16,8 @@ Modules\CraftingIntegration.lua
 Modules\VendorPricing.lua
 Modules\BagValueCalculator.lua
 Modules\CraftingMaterialChecker.lua
+Modules\AuctionPrices.lua
+Modules\ShoppingLists.lua
 
 UI\InventoryUI.lua
 

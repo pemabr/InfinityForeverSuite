@@ -3,9 +3,63 @@
 
 local addonName = "InfinityDetails"
 local addonVersion = "1.0.0"
+local initialized = false
+
+local function InitializeNativeDetails()
+	if not InfinityDetailsUI or not InfinityCommandRegistry or not InfinityUIFramework then
+		error("InfinityDetails required modules unavailable")
+	end
+	local UI = InfinityDetailsUI
+	UI:Initialize()
+	InfinityCore:RegisterAddon(addonName, {
+		version = addonVersion,
+		author = "Infinity Forever",
+		description = "Native combat damage and healing meters",
+		enabled = true,
+	})
+	InfinityCommandRegistry:RegisterCommand("details", function(args)
+		local command = args and args[1]
+		if not command then
+			UI:Toggle()
+		elseif command == "dps" then
+			print(UI:BuildReport("damage"))
+		elseif command == "hps" then
+			print(UI:BuildReport("healing"))
+		elseif command == "report" then
+			print(UI:BuildReport("damage") .. "\n" .. UI:BuildReport("healing"))
+		elseif command == "breakdown" then
+			UI:Show()
+			print("Click a public source to view its spell breakdown.")
+		elseif command == "damage" or command == "healing" or command == "absorbs"
+			or command == "taken" or command == "interrupts" or command == "dispels" then
+			UI.metric, UI.selected = command, nil
+			UI:Show()
+		elseif command == "threat" or command == "deaths" then
+			print("This report is not available from the native meter.")
+		else
+			print("Usage: /details [damage|healing|absorbs|taken|interrupts|dispels|dps|hps|report|breakdown]")
+		end
+	end)
+	local updateFrame = CreateFrame("Frame")
+	local elapsed = 0
+	updateFrame:SetScript("OnUpdate", function(_, dt)
+		elapsed = elapsed + dt
+		if elapsed >= 0.5 then
+			elapsed = 0
+			UI:Update()
+		end
+	end)
+	print("InfinityDetails loaded - Use /details for native combat metrics")
+end
 
 local function InitializeDetails()
+	if initialized then return end
 	if not _G.InfinityCore then
+		return
+	end
+	if _G.C_DamageMeter and _G.C_DamageMeter.GetCombatSessionFromType then
+		InitializeNativeDetails()
+		initialized = true
 		return
 	end
 	
@@ -114,11 +168,53 @@ local function InitializeDetails()
 		end
 	end)
 	
-	-- Update loop (throttled to 10Hz)
+	-- Update loop (throttled to 10Hz) + C_DamageMeter sync for Forever 1.60.1
 	local updateFrame = CreateFrame("Frame")
 	local updateElapsed = 0
+	local dmElapsed = 0
+	local function SyncFromDamageMeter()
+		if not (_G.C_DamageMeter and _G.C_DamageMeter.GetCombatSessionFromType) then return end
+		local isSec = _G.issecretvalue
+		local dmgSeg = _G.C_DamageMeter.GetCombatSessionFromType(1, 0) or _G.C_DamageMeter.GetCombatSessionFromType(0, 0)
+		if dmgSeg and dmgSeg.combatSources then
+			for _, src in ipairs(dmgSeg.combatSources) do
+				local name = src.name
+				local guid = src.sourceGUID or name
+				local amt = src.totalAmount
+				local cls = src.classFilename
+				if name and amt and not (isSec and (isSec(name) or isSec(guid) or isSec(amt))) then
+					local actor = Actor:GetOrCreateActor(guid, name, (not (isSec and isSec(cls))) and cls or nil, true)
+					actor.damage_total = amt
+					actor.damage_hits = math.max(actor.damage_hits or 0, 1)
+					actor.damage_avg = amt / actor.damage_hits
+				end
+			end
+			if dmgSeg.durationSeconds and not (isSec and isSec(dmgSeg.durationSeconds)) and dmgSeg.durationSeconds > 0 then
+				Meters.duration = dmgSeg.durationSeconds
+			end
+		end
+		local healSeg = _G.C_DamageMeter.GetCombatSessionFromType(1, 2) or _G.C_DamageMeter.GetCombatSessionFromType(0, 2)
+		if healSeg and healSeg.combatSources then
+			for _, src in ipairs(healSeg.combatSources) do
+				local name = src.name
+				local guid = src.sourceGUID or name
+				local amt = src.totalAmount
+				local cls = src.classFilename
+				if name and amt and not (isSec and (isSec(name) or isSec(guid) or isSec(amt))) then
+					local actor = Actor:GetOrCreateActor(guid, name, (not (isSec and isSec(cls))) and cls or nil, true)
+					actor.healing_total = amt
+					actor.healing_hits = math.max(actor.healing_hits or 0, 1)
+				end
+			end
+		end
+	end
 	updateFrame:SetScript("OnUpdate", function(_, elapsed)
 		updateElapsed = updateElapsed + (elapsed or 0)
+		dmElapsed = dmElapsed + (elapsed or 0)
+		if dmElapsed >= 0.5 then
+			dmElapsed = 0
+			pcall(SyncFromDamageMeter)
+		end
 		if updateElapsed < 0.1 then return end
 		updateElapsed = 0
 		if Meters and Meters.Update then pcall(function() Meters:Update() end) end
@@ -127,6 +223,7 @@ local function InitializeDetails()
 	end)
 	
 	print("InfinityDetails loaded - Use /details for metrics")
+	initialized = true
 end
 
 local frame = CreateFrame("Frame")

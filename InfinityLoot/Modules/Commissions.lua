@@ -31,6 +31,7 @@ end
 
 -- Register a commission/repeatable quest
 function InfinityLootCommissions:RegisterQuest(questId, questName, npcName, questGiver, rewards)
+	if self.db.commissions[questId] then return false end
 	local quest = {
 		id = questId,
 		name = questName,
@@ -50,17 +51,27 @@ end
 
 -- Mark commission as completed
 function InfinityLootCommissions:CompleteQuest(questId)
-	if not self.db.commissions[questId] then
+	if not self.db.commissions[questId] or self:IsCompletedToday(questId) then
 		return false
 	end
 	
 	local quest = self.db.commissions[questId]
 	quest.timesCompleted = quest.timesCompleted + 1
 	quest.lastCompleted = InfinityUtils:GetTimeStamp()
+	self:MarkDailyCompleted(questId)
 	
 	InfinityUtils:Info("Commission completed: " .. quest.name, "InfinityLoot")
 	InfinityMessaging:Publish(INFINITY_EVENTS.DATA_CHANGED, "loot_commissions", "quest_completed", questId)
 	
+	return true
+end
+
+function InfinityLootCommissions:RemoveQuest(questId)
+	if not self.db.commissions[questId] then return false end
+	self.db.commissions[questId] = nil
+	for _, day in pairs(self.db.dailyQuests) do
+		if type(day.completed) == "table" then day.completed[questId] = nil end
+	end
 	return true
 end
 

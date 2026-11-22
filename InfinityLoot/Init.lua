@@ -10,28 +10,43 @@ local function InitializeInfinityLoot()
 		return
 	end
 	
+	local function InitializeModule(name, module)
+		if not module then return end
+		local ok, err = pcall(function() module:Initialize() end)
+		if not ok then
+			if _G.issecretvalue and _G.issecretvalue(err) then err = nil end
+			InfinityUtils:Error(name .. " initialization failed: " .. tostring(err or "protected error"), "InfinityLoot")
+		end
+	end
 	-- Initialize all modules
-	if InfinityLootManager then pcall(function() InfinityLootManager:Initialize() end) end
-	if InfinityLootTracking then pcall(function() InfinityLootTracking:Initialize() end) end
-	if InfinityLootEconomy then pcall(function() InfinityLootEconomy:Initialize() end) end
-	if InfinityLootCommissions then pcall(function() InfinityLootCommissions:Initialize() end) end
-	if InfinityLootAuctions then pcall(function() InfinityLootAuctions:Initialize() end) end
-	if InfinityLootAdvancedEconomy then pcall(function() InfinityLootAdvancedEconomy:Initialize() end) end
-	if InfinityLootEPGP then pcall(function() InfinityLootEPGP:Initialize() end) end
-	if InfinityLootDecay then pcall(function() InfinityLootDecay:Initialize() end) end
-	if InfinityLootHistory then pcall(function() InfinityLootHistory:Initialize() end) end
-	if InfinityDKPUI then pcall(function() InfinityDKPUI:Initialize() end) end
-	if InfinityDKPTrade then pcall(function() InfinityDKPTrade:Initialize() end) end
-	if InfinityDKPTaxation then pcall(function() InfinityDKPTaxation:Initialize() end) end
-	if InfinityPointAuditing then pcall(function() InfinityPointAuditing:Initialize() end) end
-	if InfinityLootAccessControl then pcall(function() InfinityLootAccessControl:Initialize() end) end
-	if InfinityTooltipPrices then pcall(function() InfinityTooltipPrices:Initialize() end) end
-	if InfinityLootAuctionIntegration then pcall(function() InfinityLootAuctionIntegration:Initialize() end) end
-	if InfinityLootAuctionUI then pcall(function() InfinityLootAuctionUI:Initialize() end) end
-	if InfinityPerformanceOptimizer and InfinityPerformanceOptimizer.Enable then InfinityPerformanceOptimizer:Enable() end
+	InitializeModule("Loot manager", InfinityLootManager)
+	InitializeModule("Loot tracking", InfinityLootTracking)
+	InitializeModule("Loot economy", InfinityLootEconomy)
+	InitializeModule("Commissions", InfinityLootCommissions)
+	InitializeModule("Auctions", InfinityLootAuctions)
+	if InfinityLootAdvancedEconomy then
+		local ok, err = pcall(function() InfinityLootAdvancedEconomy:Initialize() end)
+		if not ok then InfinityUtils:Error("Advanced Economy initialization failed: " .. tostring(err), "InfinityLoot") end
+	end
+	InitializeModule("Loot EP/GP", InfinityLootEPGP)
+	InitializeModule("Decay", InfinityLootDecay)
+	InitializeModule("Loot history", InfinityLootHistory)
+	if InfinityLootDKPUI then
+		local ok, err = pcall(function() InfinityLootDKPUI:Initialize() end)
+		if not ok then InfinityUtils:Error("Loot DKP UI initialization failed: " .. tostring(err), "InfinityLoot") end
+	end
+	InitializeModule("Loot trade", InfinityDKPTrade)
+	InitializeModule("Loot taxation", InfinityDKPTaxation)
+	InitializeModule("Point audit", InfinityPointAuditing)
+	InitializeModule("Loot access control", InfinityLootAccessControl)
+	InitializeModule("Tooltip prices", InfinityTooltipPrices)
+	InitializeModule("Auction integration", InfinityLootAuctionIntegration)
+	if InfinityLootAuctionUI then
+		local ok, err = pcall(function() InfinityLootAuctionUI:Initialize() end)
+		if not ok then InfinityUtils:Error("Auction UI initialization failed: " .. tostring(err), "InfinityLoot") end
+	end
+	if InfinityLootPerformanceOptimizer and InfinityLootPerformanceOptimizer.Enable then InfinityLootPerformanceOptimizer:Enable() end
 	if InfinityCompatibilityChecker and InfinityCompatibilityChecker.RegisterAddonsForChecking then InfinityCompatibilityChecker:RegisterAddonsForChecking() end
-	if InfinityDataIntegrityVerifier then pcall(function() InfinityDataIntegrityVerifier:Initialize() end) end
-	if InfinityDiagnosticsConsole then pcall(function() InfinityDiagnosticsConsole:Initialize() end) end
 	
 	-- Register global exports
 	_G.InfinityLootManager = InfinityLootManager
@@ -43,14 +58,14 @@ local function InitializeInfinityLoot()
 	_G.InfinityLootEPGP = InfinityLootEPGP
 	_G.InfinityLootDecay = InfinityLootDecay
 	_G.InfinityLootHistory = InfinityLootHistory
-	_G.InfinityDKPUI = InfinityDKPUI
+	_G.InfinityLootDKPUI = InfinityLootDKPUI
 	_G.InfinityDKPTrade = InfinityDKPTrade
 	_G.InfinityDKPTaxation = InfinityDKPTaxation
 	_G.InfinityPointAuditing = InfinityPointAuditing
 	_G.InfinityLootAccessControl = InfinityLootAccessControl
 	_G.InfinityLootAuctionIntegration = InfinityLootAuctionIntegration
 	_G.InfinityLootAuctionUI = InfinityLootAuctionUI
-	_G.InfinityPerformanceOptimizer = InfinityPerformanceOptimizer
+	_G.InfinityLootPerformanceOptimizer = InfinityLootPerformanceOptimizer
 	_G.InfinityCompatibilityChecker = InfinityCompatibilityChecker
 	_G.InfinityDataIntegrityVerifier = InfinityDataIntegrityVerifier
 	_G.InfinityDiagnosticsConsole = InfinityDiagnosticsConsole
@@ -59,6 +74,16 @@ local function InitializeInfinityLoot()
 	InfinityCommandRegistry:RegisterCommand("loot", function(args, msg)
 		if not args or #args == 0 then
 			InfinityLootUI:Toggle()
+		elseif args[1] == "price" then
+			local itemID = args[2] and tonumber(args[2])
+			if not InfinityLootAdvancedEconomy.initialized then
+				print("Local loot prices are unavailable: economy initialization failed.")
+			elseif #args ~= 3 or not itemID or itemID <= 0 or itemID == math.huge or itemID ~= math.floor(itemID)
+				or not InfinityLootAdvancedEconomy:SetItemPrice(itemID, args[3]) then
+				print("Usage: /loot price <itemID> <non-negative GP>")
+			else
+				print("Local tooltip price set for item " .. itemID .. ": " .. args[3] .. " GP (not guild-synchronized).")
+			end
 		elseif args[1] == "stats" then
 			local stats = InfinityLootManager:GetStatistics()
 			InfinityUtils:Info("=== Loot Manager Stats ===", "InfinityLoot")
@@ -73,6 +98,20 @@ local function InitializeInfinityLoot()
 				InfinityUtils:Info("Gold/Hour: " .. InfinityUtils:FormatGold(trackStats.goldPerHour), "InfinityLoot")
 				InfinityUtils:Info("Items Looted: " .. trackStats.totalItems, "InfinityLoot")
 			end
+		elseif args[1] == "auction" then
+			InfinityLootAuctionUI:HandleAuctionCommand(args)
+		elseif args[1] == "bid" then
+			InfinityLootAuctionUI:HandleBidCommand(args)
+		elseif args[1] == "list" then
+			InfinityLootAuctionUI:ShowAuctionList()
+		elseif args[1] == "audit" then
+			InfinityLootAuctionUI:ShowAuditLog()
+		elseif args[1] == "role" then
+			InfinityLootAuctionUI:HandleRoleCommand(args)
+		elseif args[1] == "debug" then
+			InfinityLootAuctionUI:HandleDebugCommand(args)
+		else
+			InfinityLootAuctionUI:ShowHelp()
 		end
 	end, {"lm"})
 	
@@ -203,17 +242,17 @@ local function InitializeInfinityLoot()
 	-- DKP UI slash commands
 	InfinityCommandRegistry:RegisterCommand("dkpui", function(args, msg)
 		if not args or #args == 0 then
-			InfinityDKPUI:ToggleWindow()
+			InfinityLootDKPUI:ToggleWindow()
 		elseif args[1] == "leaderboard" or args[1] == "standing" then
-			InfinityDKPUI:ShowLeaderboard()
+			InfinityLootDKPUI:ShowLeaderboard()
 		elseif args[1] == "queue" then
-			InfinityDKPUI:ShowLootQueue()
+			InfinityLootDKPUI:ShowLootQueue()
 		elseif args[1] == "hide" then
-			if InfinityDKPUI.mainWindow then
-				InfinityDKPUI.mainWindow:Hide()
+			if InfinityLootDKPUI.mainWindow then
+				InfinityLootDKPUI.mainWindow:Hide()
 			end
 		end
-	end, {"dkp"})
+	end, {})
 	
 	-- DKP Trading slash commands
 	InfinityCommandRegistry:RegisterCommand("dkptrade", function(args, msg)
@@ -222,13 +261,12 @@ local function InitializeInfinityLoot()
 			InfinityUtils:Info("Usage: /dkptrade <player> <amount>", "DKPTrade")
 			InfinityUtils:Info("       /dkptrade history [player]", "DKPTrade")
 		elseif args[1] == "history" then
-			local history = InfinityDKPTrade:GetTradeHistory()
-			if args[2] then
-				history = InfinityDKPTrade:GetTradesByPlayer(args[2])
-			end
-			InfinityUtils:Info("=== DKP Trade History ===", "DKPTrade")
-			for i, trade in ipairs(history) do
-				print(string.format("%s → %s: %d DKP", trade.from, trade.to, trade.amount))
+			local trading = _G.InfinityDKPPlayerTrading
+			if not trading or type(trading.List) ~= "function" then
+				InfinityUtils:Warning("InfinityDKP guild trading is unavailable.", "DKPTrade")
+			else
+				if args[2] then InfinityUtils:Info("Showing all active trades; player filtering is unavailable.", "DKPTrade") end
+				trading:List()
 			end
 		elseif args[2] and tonumber(args[2]) then
 			local targetPlayer = args[1]
@@ -245,9 +283,13 @@ local function InitializeInfinityLoot()
 			InfinityUtils:Info("Donation Rate: " .. InfinityDKPTaxation.config.donationRatePerGold .. " DKP per gold", "Taxation")
 			InfinityUtils:Info("Enabled: " .. (InfinityDKPTaxation.config.enableTaxation and "Yes" or "No"), "Taxation")
 		elseif args[1] == "rate" and args[2] then
-			InfinityDKPTaxation:SetTaxRate(tonumber(args[2]))
+			if not InfinityDKPTaxation:SetTaxRate(tonumber(args[2])) then
+				InfinityUtils:Warning("Enter a non-negative finite tax rate.", "Taxation")
+			end
 		elseif args[1] == "donation" and args[2] then
-			InfinityDKPTaxation:SetDonationRate(tonumber(args[2]))
+			if not InfinityDKPTaxation:SetDonationRate(tonumber(args[2])) then
+				InfinityUtils:Warning("Enter a non-negative finite donation rate.", "Taxation")
+			end
 		elseif args[1] == "whitelist" and args[2] then
 			InfinityDKPTaxation:Whitelist(args[2])
 			InfinityUtils:Info("Item " .. args[2] .. " whitelisted", "Taxation")
@@ -305,7 +347,7 @@ local function InitializeInfinityLoot()
 			print(string.format("GP Spent: %d", report.gpSpent))
 			print(string.format("Net Points: %+d", report.netPoints))
 		end
-	end, {"audit"})
+	end, {})
 	
 	-- Register keybind
 	InfinityCommandRegistry:RegisterKeybind("TOGGLE_LOOT_MANAGER", "Toggle Loot Manager", function()
@@ -317,9 +359,6 @@ local function InitializeInfinityLoot()
 			_G.InfinityDKPUI:Toggle()
 		end
 	end)
-	
-	-- Mark feature as enabled by default
-	InfinityStorageManager:SetFeatureEnabled(INFINITY_FEATURES.LOOT, true)
 	
 	if _G.InfinityAddonManager then
 		_G.InfinityAddonManager:RegisterAddon("InfinityLoot", "1.2.2", {

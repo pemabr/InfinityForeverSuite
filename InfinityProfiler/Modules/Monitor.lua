@@ -1,245 +1,111 @@
--- InfinityProfiler Monitoring Module
--- Real-time monitoring and diagnostics
-
 InfinityProfilerMonitor = {
-	monitoring = {},
-	alerts = {},
-	thresholds = {
-		cpuWarning = 2.0,      -- ms
-		cpuCritical = 5.0,     -- ms
-		memoryWarning = 10240, -- 10 MB
-		memoryCritical = 50 * 1024, -- 50 MB
-	},
-	samplingInterval = 0.5,  -- seconds
-	updateFrame = nil,
+	snapshots = {},
+	maxSnapshots = 60,
+	thresholds = { cpuWarning = 2, memoryWarning = 10240 },
 }
 
--- Initialize monitoring
-function InfinityProfilerMonitor:Initialize()
-	if self.updateFrame then
-		return
-	end
-	
-	self.updateFrame = CreateFrame("Frame")
-	self.updateFrame:SetScript("OnUpdate", function(self, elapsed)
-		InfinityProfilerMonitor:OnUpdate(elapsed)
-	end)
-	
-	InfinityUtils:Info("Performance monitoring initialized", "Profiler")
+local function Public(value)
+	if _G.issecretvalue and _G.issecretvalue(value) then return nil end
+	return value
 end
 
--- Main monitoring loop
-function InfinityProfilerMonitor:OnUpdate(elapsed)
-	local now = time()
-	
-	-- Check addon metrics every sampling interval
-	local metrics = InfinityProfilerCore:GetAllMetrics()
-	
-	for addonName, addon in pairs(metrics) do
-		-- Check CPU thresholds
-		if addon.cpu.avg > self.thresholds.cpuCritical then
-			self:CreateAlert(addonName, "critical_cpu", 
-				string.format("CPU critical: %.2f ms", addon.cpu.avg))
-		elseif addon.cpu.avg > self.thresholds.cpuWarning then
-			self:CreateAlert(addonName, "warning_cpu",
-				string.format("CPU warning: %.2f ms", addon.cpu.avg))
-		end
-		
-		-- Check memory thresholds
-		if addon.memory.current > self.thresholds.memoryCritical then
-			self:CreateAlert(addonName, "critical_memory",
-				string.format("Memory critical: %s", InfinityProfilerCore:FormatKB(addon.memory.current)))
-		elseif addon.memory.current > self.thresholds.memoryWarning then
-			self:CreateAlert(addonName, "warning_memory",
-				string.format("Memory warning: %s", InfinityProfilerCore:FormatKB(addon.memory.current)))
-		end
-	end
+local function Number(value)
+	value = Public(value)
+	if type(value) == "number" and value == value and value >= 0 and value < math.huge then return value end
 end
 
--- Create a performance alert
-function InfinityProfilerMonitor:CreateAlert(addonName, alertType, message)
-	local alertKey = addonName .. "_" .. alertType
-	
-	if not self.alerts[alertKey] then
-		self.alerts[alertKey] = {
-			addon = addonName,
-			type = alertType,
-			message = message,
-			createdAt = time(),
-			count = 1,
-			lastOccurrence = time(),
-		}
-	else
-		self.alerts[alertKey].count = self.alerts[alertKey].count + 1
-		self.alerts[alertKey].lastOccurrence = time()
-		self.alerts[alertKey].message = message
-	end
-end
-
--- Get active alerts
-function InfinityProfilerMonitor:GetActiveAlerts()
-	local alerts = {}
-	for _, alert in pairs(self.alerts) do
-		table.insert(alerts, alert)
-	end
-	return alerts
-end
-
--- Get alerts for specific addon
-function InfinityProfilerMonitor:GetAddonAlerts(addonName)
-	local alerts = {}
-	for _, alert in pairs(self.alerts) do
-		if alert.addon == addonName then
-			table.insert(alerts, alert)
-		end
-	end
-	return alerts
-end
-
--- Clear alerts
-function InfinityProfilerMonitor:ClearAlerts()
-	self.alerts = {}
-end
-
--- Set CPU warning threshold
-function InfinityProfilerMonitor:SetCPUWarning(milliseconds)
-	if type(milliseconds) == "number" and milliseconds > 0 then
-		self.thresholds.cpuWarning = milliseconds
-		return true
-	end
-	return false
-end
-
--- Set CPU critical threshold
-function InfinityProfilerMonitor:SetCPUCritical(milliseconds)
-	if type(milliseconds) == "number" and milliseconds > 0 then
-		self.thresholds.cpuCritical = milliseconds
-		return true
-	end
-	return false
-end
-
--- Set memory warning threshold
-function InfinityProfilerMonitor:SetMemoryWarning(kilobytes)
-	if type(kilobytes) == "number" and kilobytes > 0 then
-		self.thresholds.memoryWarning = kilobytes
-		return true
-	end
-	return false
-end
-
--- Set memory critical threshold
-function InfinityProfilerMonitor:SetMemoryCritical(kilobytes)
-	if type(kilobytes) == "number" and kilobytes > 0 then
-		self.thresholds.memoryCritical = kilobytes
-		return true
-	end
-	return false
-end
-
--- Get performance report
-function InfinityProfilerMonitor:GenerateReport()
-	local topCPU = InfinityProfilerCore:GetTopCPUConsumers(5)
-	local topMemory = InfinityProfilerCore:GetTopMemoryConsumers(5)
-	local systemMetrics = InfinityProfilerCore:GetSystemMetrics()
-	local alerts = self:GetActiveAlerts()
-	
-	local report = {
-		timestamp = time(),
-		systemMetrics = systemMetrics,
-		topCPUConsumers = topCPU,
-		topMemoryConsumers = topMemory,
-		activeAlerts = #alerts,
-		alertDetails = alerts,
-		thresholds = self.thresholds,
-	}
-	
-	return report
-end
-
--- Export report as text
-function InfinityProfilerMonitor:ExportReportAsText()
-	local report = self:GenerateReport()
-	local text = ""
-	
-	text = text .. "┌─ INFINITY PROFILER REPORT ─────────────────────┐\n"
-	text = text .. string.format("│ Time: %s\n", date("%Y-%m-%d %H:%M:%S", report.timestamp))
-	text = text .. string.format("│ Total Addons: %d\n", report.systemMetrics.addonCount)
-	text = text .. "├────────────────────────────────────────────────┤\n"
-	
-	text = text .. "│ TOP CPU CONSUMERS:\n"
-	for i, addon in ipairs(report.topCPUConsumers) do
-		text = text .. string.format("│  %d. %s: %.2f ms (%.1f%%)\n", 
-			i, addon.name, addon.cpu, addon.percent)
-	end
-	
-	text = text .. "├────────────────────────────────────────────────┤\n"
-	text = text .. "│ TOP MEMORY CONSUMERS:\n"
-	for i, addon in ipairs(report.topMemoryConsumers) do
-		text = text .. string.format("│  %d. %s: %s\n",
-			i, addon.name, InfinityProfilerCore:FormatKB(addon.memory))
-	end
-	
-	text = text .. "├────────────────────────────────────────────────┤\n"
-	text = text .. string.format("│ ACTIVE ALERTS: %d\n", report.activeAlerts)
-	
-	for _, alert in ipairs(report.alertDetails) do
-		text = text .. string.format("│  • %s: %s (x%d)\n", alert.addon, alert.message, alert.count)
-	end
-	
-	text = text .. "└────────────────────────────────────────────────┘\n"
-	
-	return text
-end
-
--- Start monitoring
-function InfinityProfilerMonitor:Start()
-	self:Initialize()
-	InfinityUtils:Info("Performance monitoring started", "Profiler")
-end
-
--- Stop monitoring
-function InfinityProfilerMonitor:Stop()
-	if self.updateFrame then
-		self.updateFrame:Hide()
-	end
-	InfinityUtils:Info("Performance monitoring stopped", "Profiler")
-end
-
--- Get addon diagnostics
-function InfinityProfilerMonitor:GetAddonDiagnostics(addonName)
-	local metrics = InfinityProfilerCore:GetAddonMetrics(addonName)
-	if not metrics then
+local function Call(label, fn, ...)
+	local ok, value = pcall(fn, ...)
+	if not ok then
+		InfinityUtils:Warning(label .. ": " .. tostring(value), "Profiler")
 		return nil
 	end
-	
-	local diagnostics = {
-		name = metrics.name,
-		version = metrics.version,
-		status = metrics.status,
-		uptime = InfinityProfilerCore:GetAddonUptime(addonName),
-		
-		cpu = {
-			current = InfinityProfilerCore:FormatMS(metrics.cpu.current),
-			average = InfinityProfilerCore:FormatMS(metrics.cpu.avg),
-			peak = InfinityProfilerCore:FormatMS(metrics.cpu.peak),
-			percent = InfinityProfilerCore:GetCPUPercent(addonName),
-		},
-		
-		memory = {
-			current = InfinityProfilerCore:FormatKB(metrics.memory.current),
-			peak = InfinityProfilerCore:FormatKB(metrics.memory.peak),
-		},
-		
-		performance = {
-			calls = metrics.callCount,
-			errors = metrics.errorCount,
-			events = InfinityProfilerCore:CountTable(metrics.events),
-			frames = InfinityProfilerCore:CountTable(metrics.frames),
-		},
-		
-		alerts = self:GetAddonAlerts(addonName),
+	return Public(value)
+end
+
+function InfinityProfilerMonitor:CaptureSnapshot()
+	local addons = _G.C_AddOns
+	local getCount = addons and addons.GetNumAddOns or _G.GetNumAddOns
+	local getInfo = addons and addons.GetAddOnInfo or _G.GetAddOnInfo
+	local isLoaded = addons and addons.IsAddOnLoaded or _G.IsAddOnLoaded
+	if type(getCount) ~= "function" or type(getInfo) ~= "function" or type(isLoaded) ~= "function" then
+		InfinityUtils:Warning("Loaded-addon API unavailable.", "Profiler")
+		return nil
+	end
+	local count = Number(Call("Addon count unavailable", getCount))
+	if not count or count ~= math.floor(count) then
+		InfinityUtils:Warning("Addon count unavailable.", "Profiler")
+		return nil
+	end
+
+	local memoryAvailable = type(_G.UpdateAddOnMemoryUsage) == "function" and type(_G.GetAddOnMemoryUsage) == "function"
+	if memoryAvailable then
+		local ok, err = pcall(_G.UpdateAddOnMemoryUsage)
+		if not ok then
+			InfinityUtils:Warning("Memory update failed: " .. tostring(err), "Profiler")
+			memoryAvailable = false
+		end
+	end
+	local profiler = _G.C_AddOnProfiler
+	local metrics = _G.Enum and _G.Enum.AddOnProfilerMetric
+	local metric = metrics and Public(metrics.RecentAverageTime)
+	local enabled = profiler and type(profiler.IsEnabled) == "function"
+		and Call("CPU profiler status unavailable", profiler.IsEnabled)
+	local cpuAvailable = enabled == true and type(profiler.GetAddOnMetric) == "function" and type(metric) == "number"
+
+	local snapshot = {
+		time = time(), addons = {}, alerts = {}, cpuAvailable = cpuAvailable,
+		memoryAvailable = memoryAvailable, unknownAddons = 0, missingMemory = 0, missingCPU = 0,
 	}
-	
-	return diagnostics
+	local totalMemory = 0
+	for index = 1, count do
+		local name = Call("Addon name unavailable", getInfo, index)
+		local loaded
+		if type(name) == "string" and name ~= "" then loaded = Call("Addon state unavailable", isLoaded, index) end
+		if loaded == true then
+			local memory, cpu
+			if memoryAvailable then memory = Number(Call("Addon memory unavailable", _G.GetAddOnMemoryUsage, name)) end
+			if cpuAvailable then cpu = Number(Call("Addon CPU unavailable", profiler.GetAddOnMetric, name, metric)) end
+			local entry = { name = name, memory = memory, cpu = cpu }
+			snapshot.addons[#snapshot.addons + 1] = entry
+			if memory == nil then snapshot.missingMemory = snapshot.missingMemory + 1 else totalMemory = totalMemory + memory end
+			if cpu == nil then snapshot.missingCPU = snapshot.missingCPU + 1 end
+			if memory and memory > self.thresholds.memoryWarning then
+				snapshot.alerts[#snapshot.alerts + 1] = { addon = name, message = "Memory: " .. InfinityProfilerCore:FormatKB(memory) }
+			end
+			if cpu and cpu > self.thresholds.cpuWarning then
+				snapshot.alerts[#snapshot.alerts + 1] = { addon = name, message = string.format("Recent CPU: %.3f ms", cpu) }
+			end
+		elseif loaded ~= false then
+			snapshot.unknownAddons = snapshot.unknownAddons + 1
+		end
+	end
+	table.sort(snapshot.addons, function(a, b) return a.name:lower() < b.name:lower() end)
+	if memoryAvailable and snapshot.missingMemory == 0 and snapshot.unknownAddons == 0 then snapshot.totalMemory = totalMemory end
+	self.current = snapshot
+	self.snapshots[#self.snapshots + 1] = snapshot
+	if #self.snapshots > self.maxSnapshots then table.remove(self.snapshots, 1) end
+	return snapshot
+end
+
+function InfinityProfilerMonitor:SetCPUWarning(value)
+	if not Number(value) or value == 0 then return false end
+	self.thresholds.cpuWarning = value
+	return true
+end
+
+function InfinityProfilerMonitor:SetMemoryWarning(value)
+	if not Number(value) or value == 0 then return false end
+	self.thresholds.memoryWarning = value
+	return true
+end
+
+function InfinityProfilerMonitor:ClearSnapshots()
+	self.snapshots, self.current = {}, nil
+end
+
+function InfinityProfilerMonitor:FormatEntry(entry)
+	local cpu = entry.cpu and string.format("%.3f ms", entry.cpu) or "unavailable"
+	local memory = entry.memory and InfinityProfilerCore:FormatKB(entry.memory) or "unavailable"
+	return entry.name .. " | CPU recent: " .. cpu .. " | Memory: " .. memory
 end

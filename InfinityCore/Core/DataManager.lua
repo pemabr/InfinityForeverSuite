@@ -30,7 +30,7 @@ function InfinityDataManager:RegisterSource(sourceName, updateCallback)
 			data = initialData,
 			lastUpdate = nil,
 			callback = updateCallback,
-			enabled = false,
+			enabled = true,
 		}
 		InfinityUtils:Info("Data source registered: " .. sourceName, "DataManager")
 		return true
@@ -176,7 +176,9 @@ function InfinityDataManager:GetStatistics()
 		end
 		
 		if type(sourceData.data) == "table" then
-			stats.totalDataPoints = stats.totalDataPoints + #sourceData.data
+			for _ in pairs(sourceData.data) do
+				stats.totalDataPoints = stats.totalDataPoints + 1
+			end
 		else
 			stats.totalDataPoints = stats.totalDataPoints + 1
 		end

@@ -88,44 +88,37 @@ function InfinityStorageManager:GetFeatureSetting(featureName, key, default)
 end
 
 function InfinityStorageManager:GetFeatureSettings(featureName)
-	return self.db.global.settings[featureName] or {}
+	local settings = self.db.global.settings
+	local feature = settings[featureName]
+	if feature == nil then
+		feature = {}
+		settings[featureName] = feature
+	elseif type(feature) ~= "table" then
+		error("Invalid saved settings for feature: " .. tostring(featureName))
+	end
+	return feature
 end
 
 -- Feature enabled/disabled
 function InfinityStorageManager:SetFeatureEnabled(featureName, enabled)
-	if not self.db then self.db = _G.InfinityCoreDB or {} end
-	if not self.db.global then self.db.global = {} end
-	if not self.db.global.enabledFeatures then self.db.global.enabledFeatures = {} end
-	local state = not not enabled
-	self.db.global.enabledFeatures[featureName] = state
-	if _G.InfinityAddonManager and _G.InfinityAddonManager.addons and _G.InfinityAddonManager.addons[featureName] then
-		_G.InfinityAddonManager.addons[featureName].enabled = state
+	if _G.InfinityAddonManager then
+		return _G.InfinityAddonManager:SetAddonEnabled(featureName, enabled)
 	end
-	return true
+	InfinityUtils:Error("Addon manager unavailable", "StorageManager")
+	return false
 end
 
 function InfinityStorageManager:IsFeatureEnabled(featureName)
-	if not self.db or not self.db.global or not self.db.global.enabledFeatures then
-		return false
+	if _G.InfinityAddonManager then
+		return _G.InfinityAddonManager:IsAddonEnabled(featureName)
 	end
-	local val = self.db.global.enabledFeatures[featureName]
-	if val == nil then
-		local loaded = false
-		if C_AddOns and C_AddOns.IsAddOnLoaded then
-			loaded = not not C_AddOns.IsAddOnLoaded(featureName)
-		elseif _G.IsAddOnLoaded then
-			loaded = not not _G.IsAddOnLoaded(featureName)
-		end
-		self.db.global.enabledFeatures[featureName] = loaded
-		return loaded
-	end
-	return val == true
+	return nil
 end
 
 function InfinityStorageManager:GetEnabledFeatures()
 	local enabled = {}
-	for name, isEnabled in pairs(self.db.global.enabledFeatures) do
-		if isEnabled then
+	for _, name in pairs(INFINITY_FEATURES) do
+		if self:IsFeatureEnabled(name) then
 			table.insert(enabled, name)
 		end
 	end

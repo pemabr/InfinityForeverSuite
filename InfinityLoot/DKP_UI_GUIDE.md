@@ -4,6 +4,18 @@
 
 The **DKP Display UI Module** provides a comprehensive visual interface for DKP auctions and loot distribution. It includes bid bars, notification popups, loot queue displays, leaderboards, and anti-snipe countdowns - everything players need to track DKP auctions in real-time.
 
+## Local Loot Auctions
+
+Pick up an item and use `/loot auction create --mode open --duration 60 --minbid 10`.
+Use `/loot auction list`, `/bid <auctionId> <amount> [tier]`, or
+`/loot auction close <auctionId>`. The auction window also allows open bids.
+Alternatively, open **Loot Manager > DKP Manager > Loot auctions**. **Create**
+lets you select a mode for the cursor item, duration and minimum bid; click the
+mode twice to confirm. **Custom bid** supports an amount and optional tier.
+Auctions are session-local: bids are not synchronized, and item and point
+awards must be recorded manually. Closed and Vickrey bids are hidden in the
+local auction display; this is not a network privacy guarantee.
+
 ## Features
 
 ### Core Display Components
@@ -52,6 +64,14 @@ The **DKP Display UI Module** provides a comprehensive visual interface for DKP 
 ## Usage
 
 ### Slash Commands
+
+#### Local Item Tooltip Price
+
+`/loot price <itemID> <GP>` saves a manually configured local price. It is
+shown on item tooltips and persists across reloads; it is not synchronized
+with the guild and does not determine the actual auction or award price.
+Turn off **General > Enable Tooltips** in Infinity Suite settings to hide
+Infinity's tooltip additions.
 
 #### Toggle Main Window
 ```

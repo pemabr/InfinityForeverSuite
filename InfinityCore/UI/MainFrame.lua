@@ -3,6 +3,61 @@
 
 InfinityMainFrame = {}
 
+local featureWindows = {
+	InfinityAttendance = "InfinityAttendanceUI",
+	InfinityCalendar = "InfinityCalendarUI",
+	InfinityConsumables = "InfinityConsumablesUI",
+	InfinityDataCollector = "InfinityDataCollectorUI",
+	InfinityDetails = "InfinityDetailsUI",
+	InfinityDKP = "InfinityDKPUI",
+	InfinityEncounter = "InfinityEncounterUI",
+	InfinityGather = "InfinityGatherUI",
+	InfinityGatherPath = "InfinityGatherPathUI",
+	InfinityGear = "InfinityGearUI",
+	InfinityGearMgr = "InfinityGearMgrUI",
+	InfinityGuide = "InfinityGuideUI",
+	InfinityGuild = "InfinityGuildUI",
+	InfinityHealer = "InfinityHealerUI",
+	InfinityInventory = "InfinityInventoryUI",
+	InfinityLoot = "InfinityLootUI",
+	InfinityLootHistory = "InfinityLootHistoryUI",
+	InfinityNavigation = "InfinityNavigationUI",
+	InfinityPerformanceAnalytics = "InfinityPerformanceAnalyticsUI",
+	InfinityProfiler = "InfinityProfilerUI",
+	InfinityQoL = "InfinityQoLUI",
+	InfinityQuestie = "InfinityQuestieUI",
+	InfinityRaid = "InfinityRaidUI",
+	InfinityRosterMgr = "InfinityRosterMgrUI",
+	InfinityWorldBoss = "InfinityWorldBossUI",
+}
+
+local function AvailableFeatureWindow(name)
+	local api = _G.C_AddOns
+	local isLoaded = api and api.IsAddOnLoaded or _G.IsAddOnLoaded
+	if isLoaded and not isLoaded(name) then return nil end
+	local window = featureWindows[name] and _G[featureWindows[name]]
+	if type(window) == "table" and type(window.Toggle) == "function" then return window end
+end
+
+function InfinityMainFrame:OpenFeature(name)
+	local window = AvailableFeatureWindow(name)
+	if not window then
+		InfinityUtils:Warning("Feature window unavailable: " .. tostring(name), "Core")
+		return false
+	end
+	local ok, err = pcall(window.Toggle, window)
+	if not ok then
+		if _G.issecretvalue and _G.issecretvalue(err) then err = nil end
+		InfinityUtils:Error("Could not open " .. name .. ": " .. tostring(err or "protected error"), "Core")
+		return false
+	end
+	return true
+end
+
+function InfinityMainFrame:IsFeatureAvailable(name)
+	return AvailableFeatureWindow(name) ~= nil
+end
+
 function InfinityMainFrame:Create()
 	if _G.InfinityMainWindow then
 		return _G.InfinityMainWindow
@@ -128,7 +183,7 @@ function InfinityMainFrame:ShowOverviewTab(frame)
 		"Data Sources: " .. stats.enabledSources .. "/" .. stats.totalSources,
 		"Cached Data Points: " .. stats.totalDataPoints,
 		"",
-		"Use the Feature tab to enable/disable modules",
+		"Feature changes take effect after reloading the UI",
 		"Use the Settings tab to configure features",
 		"Use the Keybinds tab to manage shortcuts",
 	}
@@ -194,38 +249,46 @@ function InfinityMainFrame:ShowCharactersTab(frame)
 	y = y - 22
 	
 	local characters = InfinityCharacterManager:GetAllCharacters()
+	table.sort(characters, function(a, b)
+		if a.name == b.name then return (a.realm or "") < (b.realm or "") end
+		return a.name < b.name
+	end)
+	local scroll = CreateFrame("ScrollFrame", nil, frame.contentFrame, "UIPanelScrollFrameTemplate")
+	scroll:SetPoint("TOPLEFT", 10, y)
+	scroll:SetSize(570, math.max(1, 380 + y))
+	local list = CreateFrame("Frame", nil, scroll)
+	list:SetSize(540, math.max(1, #characters * 22))
+	scroll:SetScrollChild(list)
 	for i, char in ipairs(characters) do
-		if i > 10 or y < -360 then break end
-		
-		local charStr = char.name .. " - Level " .. char.level .. " " .. tostring(char.class)
+		local rowY = -(i - 1) * 22
+		local charStr = char.name .. " - " .. (char.realm or "?") .. " - Level " .. char.level .. " " .. tostring(char.class)
 		if char.isMain then
 			charStr = charStr .. " " .. INFINITY_COLORS.SUCCESS .. "[MAIN]" .. INFINITY_COLORS.RESET
 		elseif char.linkedTo then
 			charStr = charStr .. " " .. INFINITY_COLORS.WARNING .. "[" .. char.linkedTo .. "]" .. INFINITY_COLORS.RESET
 		end
 		
-		local charLabel = InfinityUIFramework:CreateLabel(frame.contentFrame, charStr)
-		charLabel:SetPoint("TOPLEFT", 20, y)
+		local charLabel = InfinityUIFramework:CreateLabel(list, charStr)
+		charLabel:SetPoint("TOPLEFT", 0, rowY)
 		
 		if not char.isMain then
 			local targetKey = InfinityCharacterManager:GetCharacterKey(char.name, char.realm)
-			local setMainBtn = InfinityUIFramework:CreateButton(frame.contentFrame, "Set Main", 80, 18, function()
+			local setMainBtn = InfinityUIFramework:CreateButton(list, "Set Main", 80, 18, function()
 				InfinityCharacterManager:MarkAsMain(targetKey)
 				self:ShowTab(frame, "Characters")
 			end)
-			setMainBtn:SetPoint("TOPRIGHT", -20, y + 2)
+			setMainBtn:SetPoint("TOPRIGHT", 0, rowY + 2)
 		end
-		y = y - 22
 	end
+	scroll:UpdateScrollChildRect()
 	
 	-- Character stats
-	y = y - 10
 	local stats = InfinityCharacterManager:GetCharacterStats()
 	local statsLabel = InfinityUIFramework:CreateLabel(frame.contentFrame,
 		"Total: " .. stats.totalCharacters .. " | " ..
 		stats.mains .. " Mains | " ..
 		stats.twinks .. " Twinks")
-	statsLabel:SetPoint("TOPLEFT", 10, y)
+	statsLabel:SetPoint("BOTTOMLEFT", 10, 10)
 end
 
 function InfinityMainFrame:ShowFeaturesTab(frame)
@@ -237,40 +300,61 @@ function InfinityMainFrame:ShowFeaturesTab(frame)
 	titleLabel:SetFont("Fonts/FRIZQT__.TTF", 14, "")
 	
 	y = y - 30
-	
-	local features = {
-		INFINITY_FEATURES.LOOT,
-		INFINITY_FEATURES.GUILD,
-		INFINITY_FEATURES.RAID,
-		INFINITY_FEATURES.GATHER,
-		INFINITY_FEATURES.GUIDE,
-		INFINITY_FEATURES.GEAR,
-		INFINITY_FEATURES.QOL,
-		INFINITY_FEATURES.DATA,
-	}
+	local hint = InfinityUIFramework:CreateLabel(frame.contentFrame, "Open loaded modules here. Enable/disable changes apply after /reload.")
+	hint:SetPoint("TOPLEFT", 10, y)
+	local scroll = CreateFrame("ScrollFrame", nil, frame.contentFrame, "UIPanelScrollFrameTemplate")
+	scroll:SetPoint("TOPLEFT", 10, y - 24)
+	scroll:SetSize(555, 310)
+	local list = CreateFrame("Frame", nil, scroll)
+	list:SetSize(525, 1)
+	scroll:SetScrollChild(list)
+	y = -5
+
+	local features = {}
+	local api = _G.C_AddOns
+	local getCount = api and api.GetNumAddOns or _G.GetNumAddOns
+	local getInfo = api and api.GetAddOnInfo or _G.GetAddOnInfo
+	if getCount and getInfo then
+		for i = 1, getCount() do
+			local name = getInfo(i)
+			if type(name) == "string" and name:match("^Infinity") and name ~= INFINITY_CORE_NAME then
+				table.insert(features, name)
+			end
+		end
+	else
+		for _, name in pairs(INFINITY_FEATURES) do table.insert(features, name) end
+	end
+	table.sort(features)
 	
 	for _, feature in ipairs(features) do
 		local targetFeature = feature
 		local isEnabled = InfinityStorageManager:IsFeatureEnabled(targetFeature)
 		local nextState = not isEnabled
-		local status = isEnabled and INFINITY_COLORS.SECONDARY .. "Enabled" or "|cffccccccDisabled"
+		local status = isEnabled == nil and INFINITY_COLORS.WARNING .. "Unavailable" or
+			(isEnabled and INFINITY_COLORS.SECONDARY .. "Enabled" or "|cffccccccDisabled")
 		
-		local label = InfinityUIFramework:CreateLabel(frame.contentFrame, 
+		local label = InfinityUIFramework:CreateLabel(list,
 			targetFeature .. ": " .. status .. INFINITY_COLORS.RESET)
 		label:SetPoint("TOPLEFT", 10, y)
 		
-		local toggleBtn = InfinityUIFramework:CreateButton(frame.contentFrame, isEnabled and "Disable" or "Enable", 80, 20, 
+		local toggleBtn = InfinityUIFramework:CreateButton(list, isEnabled and "Disable" or "Enable", 80, 20,
 			function()
 				InfinityStorageManager:SetFeatureEnabled(targetFeature, nextState)
-				if InfinityMessaging then
-					InfinityMessaging:Publish(INFINITY_EVENTS.FEATURE_ENABLED, targetFeature, nextState)
-				end
 				self:ShowTab(frame, "Features")
 			end)
 		toggleBtn:SetPoint("TOPRIGHT", -20, y + 2)
+		if isEnabled == nil then toggleBtn:Disable() end
+		local window = AvailableFeatureWindow(targetFeature)
+		local openBtn = InfinityUIFramework:CreateButton(list, "Open", 65, 20, function()
+			self:OpenFeature(targetFeature)
+		end)
+		openBtn:SetPoint("RIGHT", toggleBtn, "LEFT", -5, 0)
+		if not window then openBtn:Disable() end
 		
 		y = y - 28
 	end
+	list:SetHeight(math.max(1, -y))
+	scroll:UpdateScrollChildRect()
 end
 
 function InfinityMainFrame:ShowAddonsTab(frame)
@@ -297,8 +381,9 @@ function InfinityMainFrame:ShowAddonsTab(frame)
 	end
 	
 	for _, addon in ipairs(addons) do
-		local isEnabled = addon.enabled == true
-		local status = isEnabled and INFINITY_COLORS.SUCCESS .. "✓" or INFINITY_COLORS.ERROR .. "✗"
+		local isEnabled = addon.enabled
+		local status = isEnabled == nil and INFINITY_COLORS.WARNING .. "?" or
+			(isEnabled and INFINITY_COLORS.SUCCESS .. "✓" or INFINITY_COLORS.ERROR .. "✗")
 		local addonText = status .. INFINITY_COLORS.RESET .. " " .. addon.name .. " v" .. addon.version
 		
 		local label = InfinityUIFramework:CreateLabel(frame.contentFrame, addonText)
@@ -312,6 +397,7 @@ function InfinityMainFrame:ShowAddonsTab(frame)
 				end
 			end)
 		toggleBtn:SetPoint("TOPRIGHT", -20, y - 2)
+		if isEnabled == nil then toggleBtn:Disable() end
 		
 		y = y - 22
 		if y < -370 then break end
@@ -361,7 +447,15 @@ function InfinityMainFrame:ShowSettingsTab(frame)
 	minimapCheckbox:SetPoint("TOPLEFT", 180, y)
 	minimapCheckbox:SetChecked(InfinityStorageManager:GetProfile("minimap.enabled", true))
 	minimapCheckbox:SetScript("OnClick", function(self)
-		InfinityStorageManager:SetProfile("minimap.enabled", self:GetChecked())
+		local enabled = self:GetChecked() == true
+		if _G.InfinitySettingsPanel and InfinitySettingsPanel.SetSetting then
+			InfinitySettingsPanel:SetSetting("General", "Show Minimap Button", enabled)
+		else
+			InfinityStorageManager:SetProfile("minimap.enabled", enabled)
+			if _G.InfinityUIIntegration and InfinityUIIntegration.UpdateMinimapVisibility then
+				InfinityUIIntegration:UpdateMinimapVisibility()
+			end
+		end
 	end)
 	
 	y = y - 30

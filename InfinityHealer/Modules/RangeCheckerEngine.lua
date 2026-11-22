@@ -111,12 +111,16 @@ function RangeCheckerEngine:CalculateLineOfSight(unit1, unit2)
     if not unit1 or not unit2 then
         return false
     end
-    
-    -- Simplified LOS check - in production would use raycasting
-    -- For now, assume LOS if on same map and not behind walls
-    -- This would need actual implementation with collision detection
-    
-    return true  -- Placeholder
+    local target = (unit1 == "player") and unit2 or unit1
+    if _G.UnitExists and _G.UnitExists(target) then
+        if _G.UnitIsVisible and not _G.UnitIsVisible(target) then
+            return false
+        end
+        if _G.UnitInPhase and not _G.UnitInPhase(target) then
+            return false
+        end
+    end
+    return true
 end
 
 function RangeCheckerEngine:GetRangeBand(distance)

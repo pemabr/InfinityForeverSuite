@@ -41,7 +41,7 @@ end
 
 function InfinityVendorPricing:CalculateBagValue()
 	local total = 0
-	InfinityBagTracker:ScanBags()
+	if not InfinityBagTracker:ScanBags() then return nil end
 	
 	for bag, slots in pairs(InfinityBagTracker.bagContents) do
 		for slot, item in pairs(slots) do
@@ -51,6 +51,23 @@ function InfinityVendorPricing:CalculateBagValue()
 	end
 	
 	return total
+end
+
+function InfinityVendorPricing:CalculateVendorValue()
+	if InfinityBagTracker:GetFreeSlots() == nil then return nil end
+	local total, missing = 0, 0
+	for _, slots in pairs(InfinityBagTracker.bagContents) do
+		for _, item in pairs(slots) do
+			local _, _, _, _, _, _, _, _, _, _, price = InfinityUtils:GetItemInfo(item.itemId)
+			if _G.issecretvalue and _G.issecretvalue(price) then price = nil end
+			if type(price) == "number" and price >= 0 and price < math.huge then
+				total = total + price * item.quantity
+			else
+				missing = missing + 1
+			end
+		end
+	end
+	return total, missing
 end
 
 return InfinityVendorPricing

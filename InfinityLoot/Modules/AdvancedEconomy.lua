@@ -14,13 +14,22 @@ InfinityLootAdvancedEconomy = {
 -- Initialize advanced economy system
 function InfinityLootAdvancedEconomy:Initialize()
 	InfinityUtils:Info("Advanced Economy system initializing...", "InfinityLoot")
-	self.db = InfinityStorageManager:GetFeatureSettings(INFINITY_FEATURES.LOOT) or {}
+	self.initialized = false
+	self.db = InfinityStorageManager:GetFeatureSettings(INFINITY_FEATURES.LOOT)
+	if type(self.db) ~= "table" then error("Loot settings are unavailable") end
+	for _, key in ipairs({ "itemPrices", "itemValues" }) do
+		if self.db[key] == nil then self.db[key] = {} end
+		if type(self.db[key]) ~= "table" then error("Invalid saved economy data: " .. key) end
+	end
+	self.itemPrices = self.db.itemPrices
+	self.itemValues = self.db.itemValues
 	
 	-- Initialize default multipliers
 	self:InitializeSlotMultipliers()
 	self:InitializeClassMultipliers()
 	self:InitializeRarityMultipliers()
 	
+	self.initialized = true
 	InfinityUtils:Info("Advanced Economy system initialized", "InfinityLoot")
 end
 
@@ -30,7 +39,8 @@ end
 
 -- Set static price for an item
 function InfinityLootAdvancedEconomy:SetItemPrice(itemId, basePrice)
-	if not itemId or basePrice < 0 then
+	basePrice = tonumber(basePrice)
+	if not itemId or not basePrice or basePrice ~= basePrice or basePrice < 0 or basePrice == math.huge then
 		InfinityUtils:Warning("Invalid item price parameters", "Economy")
 		return false
 	end
@@ -40,13 +50,14 @@ function InfinityLootAdvancedEconomy:SetItemPrice(itemId, basePrice)
 		setTime = GetTime(),
 		source = "manual",
 	}
+	if _G.InfinityTooltipPrices then _G.InfinityTooltipPrices:ClearCache() end
 	
 	InfinityUtils:Debug("Item price set: " .. itemId .. " = " .. basePrice, "Economy")
 	return true
 end
 
 -- Get item price with all modifiers applied
-function InfinityLootAdvancedEconomy:GetItemValue(itemId, slot, class, rarity)
+function InfinityLootAdvancedEconomy:GetItemValue(itemId, slot, class, rarity, armorType)
 	if not self.itemPrices[itemId] then
 		return 0 -- Default if no price set
 	end
@@ -61,8 +72,8 @@ function InfinityLootAdvancedEconomy:GetItemValue(itemId, slot, class, rarity)
 	
 	-- Apply class multiplier (plate wearers get plate armor cheaper)
 	local classMult = 1.0
-	if class then
-		classMult = self.classMultipliers[class] or 1.0
+	if class and armorType then
+		classMult = self:GetClassMultiplier(class, armorType)
 	end
 	
 	-- Apply rarity multiplier
@@ -401,13 +412,20 @@ end
 
 -- Import economy data
 function InfinityLootAdvancedEconomy:ImportData(data)
-	if not data then
+	if type(data) ~= "table"
+		or (data.itemPrices ~= nil and type(data.itemPrices) ~= "table")
+		or (data.itemValues ~= nil and type(data.itemValues) ~= "table")
+		or (data.transactions ~= nil and type(data.transactions) ~= "table") then
+		InfinityUtils:Warning("Invalid economy import data", "Economy")
 		return false
 	end
 	
 	self.itemPrices = data.itemPrices or self.itemPrices
 	self.itemValues = data.itemValues or self.itemValues
+	self.db.itemPrices = self.itemPrices
+	self.db.itemValues = self.itemValues
 	self.db.transactions = data.transactions or {}
+	if _G.InfinityTooltipPrices then _G.InfinityTooltipPrices:ClearCache() end
 	
 	InfinityUtils:Info("Economy data imported", "Economy")
 	return true

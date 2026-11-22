@@ -4,6 +4,17 @@
 
 The Decay System manages periodic point degradation, interval awards for attendance, and weekly/lifetime caps. This ensures EP/GP remain balanced over time and prevents excessive point accumulation.
 
+Open Loot Manager, then **DKP Manager > Decay / awards** for local decay
+settings, history, and manual batch actions. Changes require two clicks and a
+valid decay permission; changed player data requires confirmation again.
+This legacy Loot EP/GP system is session-only and separate from InfinityDKP.
+The attendance batch action targets all eligible registered Loot EP/GP players,
+not the current raid roster. Adding GP with the manual action also records a
+loot count.
+**DKP Manager > Point audit** displays local transaction statistics, player or
+type history, EP sources, GP items, possible anomalies and date-range totals.
+Anomalies are heuristics, not proof of wrongdoing.
+
 ## Features
 
 ### 1. Automatic Decay

@@ -15,30 +15,51 @@ function InfinityCommandRegistry:RegisterCommand(command, callback, aliases)
 		callback = opts.func or opts.callback
 		aliases = opts.aliases
 	end
-	if type(command) ~= "string" or command == "" then
+	if type(command) ~= "string" or command == "" or type(callback) ~= "function" then
+		InfinityUtils:Warning("Invalid slash command or callback", "CommandRegistry")
 		return false
 	end
-	command = string.lower(command)
+	command = string.lower(command):gsub("^/", "")
+	if not command:match("^%S+$") then
+		InfinityUtils:Warning("Invalid slash command: " .. command, "CommandRegistry")
+		return false
+	end
 	
 	-- Store the main command
 	self.commands[command] = callback
+	for alias, owner in pairs(self.commandAliases) do
+		if owner == command then self.commandAliases[alias] = nil end
+	end
 	
 	-- Register slash command with WoW
-	_G["SLASH_INFINITY_" .. string.upper(command)] = "/" .. command
-	SlashCmdList["INFINITY_" .. string.upper(command)] = function(msg)
+	local slashName = "INFINITY_" .. string.upper(command)
+	local slashPrefix = "SLASH_" .. slashName
+	local index = 1
+	while _G[slashPrefix .. index] do
+		_G[slashPrefix .. index] = nil
+		index = index + 1
+	end
+	_G[slashPrefix .. "1"] = "/" .. command
+	SlashCmdList[slashName] = function(msg)
+		msg = msg or ""
 		local args = InfinityUtils:Split(msg, " ")
-		pcall(callback, args, msg)
+		local ok, err = pcall(callback, args, msg)
+		if not ok then
+			InfinityUtils:Error("Command /" .. command .. " failed: " .. tostring(err), "CommandRegistry")
+		end
 	end
 	
 	-- Register aliases
 	if aliases and type(aliases) == "table" then
+		index = 2
 		for _, alias in ipairs(aliases) do
-			alias = string.lower(alias)
-			self.commandAliases[alias] = command
-			_G["SLASH_INFINITY_" .. string.upper(alias)] = "/" .. alias
-			SlashCmdList["INFINITY_" .. string.upper(alias)] = function(msg)
-				local args = InfinityUtils:Split(msg, " ")
-				pcall(callback, args, msg)
+			if type(alias) == "string" then
+				alias = string.lower(alias):gsub("^/", "")
+				if alias ~= command and alias:match("^%S+$") then
+					self.commandAliases[alias] = command
+					_G[slashPrefix .. index] = "/" .. alias
+					index = index + 1
+				end
 			end
 		end
 	end
@@ -71,7 +92,8 @@ local function GetOrCreateKeybindButton(action, callback)
 	end
 	local btn = keybindButtons[action]
 	btn:SetScript("OnClick", function(_, _, down)
-		if down == false or down == nil then
+		local useKeyDown = _G.GetCVarBool and _G.GetCVarBool("ActionButtonUseKeyDown") or false
+		if down == nil or (not not down) == (not not useKeyDown) then
 			local entry = InfinityCommandRegistry.keybinds[action]
 			local fn = (entry and entry.callback) or callback
 			if type(fn) == "function" then
@@ -85,10 +107,15 @@ local function GetOrCreateKeybindButton(action, callback)
 	return btn
 end
 
+_G.BINDING_HEADER_INFINITYSUITE = "Infinity Suite"
+_G["BINDING_NAME_CLICK InfinityKeybindBtn_TOGGLE_INFINITY_SUITE:LeftButton"] = "Toggle Infinity Suite"
+
 function InfinityCommandRegistry:ApplyAllKeybinds()
 	if InCombatLockdown and InCombatLockdown() then
+		keybindOwner:RegisterEvent("PLAYER_REGEN_ENABLED")
 		return false
 	end
+	keybindOwner:UnregisterEvent("PLAYER_REGEN_ENABLED")
 	if _G.ClearOverrideBindings then
 		_G.ClearOverrideBindings(keybindOwner)
 	end

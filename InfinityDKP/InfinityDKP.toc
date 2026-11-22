@@ -1,6 +1,6 @@
 ## Interface: 16001
-## Title: Infinity DKP (Guild Loot Management)
-## Notes: Full DKP/EPGP system with unified auctions, taxation, guild bank donations, and player trading
+## Title: Infinity DKP (Local Loot Management)
+## Notes: Local points, guild-master snapshots, guild auctions, and explicitly approved guild trades
 ## Author: Infinity Forever Suite
 ## Version: 1.1.0
 ## RequiredDeps: InfinityCore
@@ -13,6 +13,8 @@ Modules\Points.lua
 Modules\Auctions.lua
 Modules\History.lua
 Modules\Reports.lua
+Modules\GuildSync.lua
+Modules\GuildAuctions.lua
 Modules\UnifiedAuctions.lua
 Modules\TaxSystem.lua
 Modules\GuildBankDonations.lua
