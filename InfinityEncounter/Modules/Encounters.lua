@@ -9,14 +9,29 @@ InfinityEncounterMgr.encounter_history = {}
 InfinityEncounterMgr.current_boss = nil
 InfinityEncounterMgr.callbacks = {}
 
+local function IsRaidBossUnit(unit)
+    if not unit or type(unit) ~= "string" or not UnitExists(unit) then
+        return false
+    end
+    if unit:match("^boss%d+$") then
+        return true
+    end
+    local classification = UnitClassification and UnitClassification(unit)
+    if classification == "worldboss" then
+        return true
+    end
+    local level = UnitLevel and UnitLevel(unit)
+    return level == -1
+end
+
 function InfinityEncounterMgr:GetCurrentBoss()
     -- Scan for boss units
     for _, unitID in ipairs({"boss1", "boss2", "boss3", "boss4", "target", "focus"}) do
-        if UnitExists(unitID) and UnitIsRaidBoss(unitID) then
+        if IsRaidBossUnit(unitID) then
             local name = UnitName(unitID)
-            local health = UnitHealth(unitID)
-            local maxHealth = UnitHealthMax(unitID)
-            local healthPercent = (health / maxHealth) * 100
+            local health = UnitHealth(unitID) or 0
+            local maxHealth = UnitHealthMax(unitID) or 0
+            local healthPercent = maxHealth > 0 and ((health / maxHealth) * 100) or 0
             
             return {
                 unitID = unitID,

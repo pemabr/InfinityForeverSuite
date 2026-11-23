@@ -97,9 +97,15 @@ function InfinityHealerSpells:CastSpellOnTarget(spellID, targetUnit)
 		return false
 	end
 	
-	local spellName = GetSpellInfo(spellID)
+	local spellName
+	if C_Spell and C_Spell.GetSpellInfo then
+		local info = C_Spell.GetSpellInfo(spellID)
+		spellName = info and info.name
+	elseif GetSpellInfo then
+		spellName = GetSpellInfo(spellID)
+	end
 	if not spellName then
-		InfinityUtils:Warning("Spell not found: " .. spellID, "Healer")
+		InfinityUtils:Warning("Spell not found: " .. tostring(spellID), "Healer")
 		return false
 	end
 	

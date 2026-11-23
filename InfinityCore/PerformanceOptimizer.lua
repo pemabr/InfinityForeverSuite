@@ -26,12 +26,23 @@ local PerformanceOptimizer = {
 		lastReportTime = time(),
 		inCombat = false,
 	},
+
+	initialized = false,
+	enabled = false,
 }
 
 _G.InfinityPerformanceOptimizer = PerformanceOptimizer
 
 function PerformanceOptimizer:Initialize()
-	InfinityUtils:Info("Performance Optimizer initialized", "Core")
+	if self.initialized then
+		return
+	end
+	self.initialized = true
+	self.enabled = true
+
+	if InfinityUtils and InfinityUtils.Info then
+		InfinityUtils:Info("Performance Optimizer initialized", "Core")
+	end
 	
 	-- Hook combat events
 	local frame = CreateFrame("Frame")
@@ -39,6 +50,7 @@ function PerformanceOptimizer:Initialize()
 	frame:RegisterEvent("PLAYER_REGEN_DISABLED")
 	
 	frame:SetScript("OnEvent", function(f, event)
+		if not PerformanceOptimizer.enabled then return end
 		if event == "PLAYER_REGEN_DISABLED" then
 			PerformanceOptimizer.metrics.inCombat = true
 			PerformanceOptimizer:OnEnterCombat()
@@ -49,26 +61,49 @@ function PerformanceOptimizer:Initialize()
 	end)
 	
 	-- Start profiling timer
-	C_Timer.NewTicker(self.config.profileInterval, function()
-		PerformanceOptimizer:ProfileFrame()
-	end)
-	
-	-- Start reporting timer
-	C_Timer.NewTicker(self.config.reportInterval, function()
-		PerformanceOptimizer:GenerateReport()
-	end)
+	if C_Timer and C_Timer.NewTicker then
+		C_Timer.NewTicker(self.config.profileInterval, function()
+			if PerformanceOptimizer.enabled then
+				PerformanceOptimizer:ProfileFrame()
+			end
+		end)
+		
+		-- Start reporting timer
+		C_Timer.NewTicker(self.config.reportInterval, function()
+			if PerformanceOptimizer.enabled then
+				PerformanceOptimizer:GenerateReport()
+			end
+		end)
+	end
+end
+
+function PerformanceOptimizer:Enable()
+	self.enabled = true
+	self.config.enableMonitoring = true
+	if not self.initialized then
+		self:Initialize()
+	end
+end
+
+function PerformanceOptimizer:Disable()
+	self.enabled = false
+	self.config.enableMonitoring = false
+end
+
+function PerformanceOptimizer:GetReport()
+	return self:GenerateReport()
 end
 
 function PerformanceOptimizer:OnEnterCombat()
 	-- Reduce data transmission during combat
-	if InfinityMessaging then
+	if InfinityMessaging and InfinityMessaging.SetThrottleMode then
 		InfinityMessaging:SetThrottleMode("aggressive")
 	end
 end
 
 function PerformanceOptimizer:OnExitCombat()
 	-- Resume normal data transmission
-	if InfinityMessaging then
+	if InfinityMessaging and InfinityMessaging.SetThrottleMode then
 		InfinityMessaging:SetThrottleMode("normal")
 	end
 end

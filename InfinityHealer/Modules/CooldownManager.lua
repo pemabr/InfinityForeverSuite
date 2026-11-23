@@ -41,12 +41,33 @@ function CooldownManager:Initialize()
 	end)
 end
 
+local function SafeGetSpellCooldownStart(spellId)
+	if C_Spell and C_Spell.GetSpellCooldown then
+		local cd = C_Spell.GetSpellCooldown(spellId)
+		return cd and cd.duration or 0
+	elseif GetSpellCooldown then
+		local start, duration = GetSpellCooldown(spellId)
+		return (start and start > 0) and (duration or 0) or 0
+	end
+	return 0
+end
+
 -- Called when spell is cast
 function CooldownManager:OnSpellCast(unit, spellCast, spellId)
 	if unit == "player" and spellId then
 		-- Record spell info
 		if not self.spells[spellId] then
-			local name, _, icon = GetSpellInfo(spellId)
+			local name, icon
+			if C_Spell and C_Spell.GetSpellInfo then
+				local info = C_Spell.GetSpellInfo(spellId)
+				if info then
+					name = info.name
+					icon = info.iconID
+				end
+			elseif GetSpellInfo then
+				local n, _, i = GetSpellInfo(spellId)
+				name, icon = n, i
+			end
 			self.spells[spellId] = {
 				name = name,
 				icon = icon,
@@ -59,7 +80,7 @@ function CooldownManager:OnSpellCast(unit, spellCast, spellId)
 		self.globalCooldown.duration = 1.5
 		
 		-- Start cooldown for this spell
-		local cooldown = select(1, GetSpellCooldown(spellId))
+		local cooldown = SafeGetSpellCooldownStart(spellId)
 		if cooldown and cooldown > 0 then
 			self:SetCooldown(spellId, cooldown)
 		end
@@ -70,7 +91,7 @@ end
 function CooldownManager:OnCooldownUpdate()
 	-- Scan all healing spells for cooldown changes
 	for spellId, _ in pairs(self.spells) do
-		local cooldown = select(1, GetSpellCooldown(spellId))
+		local cooldown = SafeGetSpellCooldownStart(spellId)
 		if cooldown and cooldown > 0 then
 			self:SetCooldown(spellId, cooldown)
 		else

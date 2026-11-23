@@ -150,7 +150,13 @@ function InfinityHealerFrames:OnFrameClick(frame, button)
 	end
 	
 	-- Cast spell on target
-	local name, rank, icon, castTime, minRange, maxRange = GetSpellInfo(spellInfo.spellID)
+	local name
+	if C_Spell and C_Spell.GetSpellInfo then
+		local info = C_Spell.GetSpellInfo(spellInfo.spellID)
+		name = info and info.name
+	elseif GetSpellInfo then
+		name = GetSpellInfo(spellInfo.spellID)
+	end
 	
 	if name then
 		InfinityUtils:Info("Casting " .. name .. " on " .. frame.name, "Healer")

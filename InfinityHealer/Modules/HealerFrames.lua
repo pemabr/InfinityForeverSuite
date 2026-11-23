@@ -18,7 +18,7 @@ InfinityHealer.config = {
 
 -- Core state
 InfinityHealer.frames = {} -- {unitToken = frame}
-InformityHealer.activeHeals = {} -- {unitToken = {spell, amount, duration}}
+InfinityHealer.activeHeals = {} -- {unitToken = {spell, amount, duration}}
 InfinityHealer.hotData = {} -- {unitToken = {buffName = {duration, caster}}}
 InfinityHealer.playerSpells = {} -- {spellName = {spellId, cooldown, range}}
 InfinityHealer.settings = {
@@ -55,19 +55,22 @@ end
 --- Register for WoW events
 function InfinityHealer:RegisterEvents()
 	local frame = CreateFrame("Frame")
-	
-	frame:RegisterEvent("GROUP_ROSTER_UPDATE")
-	frame:RegisterEvent("UNIT_HEALTH")
-	frame:RegisterEvent("UNIT_HEALTH_FREQUENT")
-	frame:RegisterEvent("UNIT_AURA")
-	frame:RegisterEvent("SPELL_CAST_SUCCESS")
-	frame:RegisterEvent("SPELL_CAST_FAILED")
-	frame:RegisterEvent("UNIT_SPELLCAST_START")
-	frame:RegisterEvent("UNIT_SPELLCAST_STOP")
-	frame:RegisterEvent("UNIT_SPELLCAST_FAILED")
-	frame:RegisterEvent("PARTY_MEMBERS_CHANGED")
-	frame:RegisterEvent("RAID_ROSTER_UPDATE")
-	frame:RegisterEvent("ARENA_OPPONENT_UPDATE")
+	local events = {
+		"GROUP_ROSTER_UPDATE",
+		"UNIT_HEALTH",
+		"UNIT_HEALTH_FREQUENT",
+		"UNIT_AURA",
+		"UNIT_SPELLCAST_START",
+		"UNIT_SPELLCAST_STOP",
+		"UNIT_SPELLCAST_FAILED",
+		"UNIT_SPELLCAST_SUCCEEDED",
+		"PARTY_MEMBERS_CHANGED",
+		"RAID_ROSTER_UPDATE",
+		"ARENA_OPPONENT_UPDATE",
+	}
+	for _, ev in ipairs(events) do
+		pcall(frame.RegisterEvent, frame, ev)
+	end
 	
 	frame:SetScript("OnEvent", function(f, event, ...)
 		InfinityHealer:OnEvent(event, ...)
@@ -146,18 +149,21 @@ function InfinityHealer:CreateUnitFrame(unitToken)
 	end
 	
 	local frameName = "InfinityHealer_" .. unitToken
-	local frame = CreateFrame("Button", frameName, UIParent, "SecureActionButtonTemplate")
+	local template = BackdropTemplateMixin and "SecureActionButtonTemplate, BackdropTemplate" or "SecureActionButtonTemplate"
+	local frame = CreateFrame("Button", frameName, UIParent, template)
 	
 	-- Frame styling
 	frame:SetSize(self.settings.frameSize.width, self.settings.frameSize.height)
-	frame:SetBackdrop({
-		bgFile = "Interface/Tooltips/UI-Tooltip-Background",
-		edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
-		tile = true, tileSize = 16, edgeSize = 16,
-		insets = {left = 2, right = 2, top = 2, bottom = 2}
-	})
-	frame:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
-	frame:SetBackdropBorderColor(0.5, 0.5, 0.5, 0.8)
+	if frame.SetBackdrop then
+		frame:SetBackdrop({
+			bgFile = "Interface/Tooltips/UI-Tooltip-Background",
+			edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
+			tile = true, tileSize = 16, edgeSize = 16,
+			insets = {left = 2, right = 2, top = 2, bottom = 2}
+		})
+		frame:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
+		frame:SetBackdropBorderColor(0.5, 0.5, 0.5, 0.8)
+	end
 	
 	-- Name text
 	local nameText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -269,12 +275,16 @@ end
 
 --- Highlight a frame (player moused over)
 function InfinityHealer:HighlightFrame(frame)
-	frame:SetBackdropBorderColor(1, 1, 0, 1) -- Yellow
+	if frame and frame.SetBackdropBorderColor then
+		frame:SetBackdropBorderColor(1, 1, 0, 1) -- Yellow
+	end
 end
 
 --- Unhighlight a frame
 function InfinityHealer:UnhighlightFrame(frame)
-	frame:SetBackdropBorderColor(0.5, 0.5, 0.5, 0.8) -- Default
+	if frame and frame.SetBackdropBorderColor then
+		frame:SetBackdropBorderColor(0.5, 0.5, 0.5, 0.8) -- Default
+	end
 end
 
 --- Clear all raid frames
@@ -335,6 +345,19 @@ end
 -- AURA MANAGEMENT
 -- ============================================================================
 
+local function GetAuraAtIndex(unitToken, index, filter)
+	if C_UnitAuras and C_UnitAuras.GetAuraDataByIndex then
+		local aura = C_UnitAuras.GetAuraDataByIndex(unitToken, index, filter)
+		if aura then
+			return aura.name, aura.icon, aura.applications, aura.dispelName, aura.duration, aura.expirationTime
+		end
+		return nil
+	elseif UnitAura then
+		return UnitAura(unitToken, index, filter)
+	end
+	return nil
+end
+
 --- Update auras (buffs/debuffs) for a unit
 function InfinityHealer:UpdateUnitAuras(unitToken)
 	local frame = self.frames[unitToken]
@@ -344,7 +367,9 @@ function InfinityHealer:UpdateUnitAuras(unitToken)
 	
 	-- Clear existing aura display
 	for i = 1, #frame.auras do
-		frame.auras[i]:Hide()
+		if frame.auras[i] and frame.auras[i].Hide then
+			frame.auras[i]:Hide()
+		end
 	end
 	
 	-- Get auras
@@ -352,20 +377,22 @@ function InfinityHealer:UpdateUnitAuras(unitToken)
 	local debuffIndex = 1
 	
 	-- Display buffs (up to 3)
-	for i = 1, UnitAuraCount(unitToken, "HELPFUL") do
-		local name, icon, count, dispelType, duration, expirationTime = UnitAura(unitToken, i, "HELPFUL")
+	for i = 1, 40 do
+		local name, icon, count, dispelType, duration, expirationTime = GetAuraAtIndex(unitToken, i, "HELPFUL")
+		if not name then break end
 		
-		if buffIndex <= 3 and name then
+		if buffIndex <= 3 then
 			self:DisplayAura(frame, buffIndex, name, icon, duration, expirationTime, "buff")
 			buffIndex = buffIndex + 1
 		end
 	end
 	
 	-- Display debuffs (up to 3)
-	for i = 1, UnitAuraCount(unitToken, "HARMFUL") do
-		local name, icon, count, dispelType, duration, expirationTime = UnitAura(unitToken, i, "HARMFUL")
+	for i = 1, 40 do
+		local name, icon, count, dispelType, duration, expirationTime = GetAuraAtIndex(unitToken, i, "HARMFUL")
+		if not name then break end
 		
-		if debuffIndex <= 3 and name then
+		if debuffIndex <= 3 then
 			self:DisplayAura(frame, 10 + debuffIndex, name, icon, duration, expirationTime, "debuff")
 			debuffIndex = debuffIndex + 1
 		end
@@ -400,18 +427,15 @@ function InfinityHealer:OnFrameClick(frame, spellType)
 		spellName = "Heal"
 	end
 	
-	-- Cast spell on target
+	-- Cast spell on target (secure attributes handle in-combat casting; safe fallback out of combat)
 	if UnitCanAssist("player", unitToken) then
-		CastSpellByName(spellName)
-		-- Wait a moment then cast on target
-		after(0.1, function()
-			if unitToken ~= "player" then
-				SetCursorSpell(spellName)
-				-- Target unit and cast
-			end
-		end)
+		if not InCombatLockdown() and CastSpellByName then
+			pcall(CastSpellByName, spellName, unitToken)
+		end
 	else
-		InfinityUtils:Warning("Cannot assist " .. UnitName(unitToken), "Healer")
+		if InfinityUtils and InfinityUtils.Warning then
+			InfinityUtils:Warning("Cannot assist " .. (UnitName(unitToken) or tostring(unitToken)), "Healer")
+		end
 	end
 end
 

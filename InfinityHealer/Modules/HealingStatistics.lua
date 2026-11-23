@@ -125,13 +125,24 @@ end
 -- Track spell cast (for mana tracking, cooldowns)
 function HealingStats:OnSpellCast(casterName, spellId, spellName, ...)
 	-- Store spell info if we don't have it
-	if not self.spellDatabase[spellId] then
-		local _, _, icon, castTime, cooldown, range = GetSpellInfo(spellName)
+	if spellId and not self.spellDatabase[spellId] then
+		local icon, castTime, cooldown, range
+		if C_Spell and C_Spell.GetSpellInfo then
+			local info = C_Spell.GetSpellInfo(spellId or spellName)
+			if info then
+				icon = info.iconID
+				castTime = info.castTime
+				range = info.maxRange
+			end
+		elseif GetSpellInfo then
+			local _, _, i, ct, minR, maxR = GetSpellInfo(spellId or spellName)
+			icon, castTime, range = i, ct, maxR
+		end
 		self.spellDatabase[spellId] = {
 			name = spellName,
 			icon = icon,
 			castTime = castTime,
-			cooldown = cooldown,
+			cooldown = cooldown or 0,
 			range = range,
 		}
 	end

@@ -31,9 +31,17 @@ local function InitializeInfinityCore()
 		addons = {},
 	}
 
-	function _G.InfinityCore:RegisterAddon(name, config)
+	function _G.InfinityCore:RegisterAddon(name, versionOrConfig, maybeConfig)
 		if not name then return false end
-		config = config or {}
+		local config
+		if type(versionOrConfig) == "table" then
+			config = versionOrConfig
+		else
+			config = type(maybeConfig) == "table" and maybeConfig or {}
+			if type(versionOrConfig) == "string" and not config.version then
+				config.version = versionOrConfig
+			end
+		end
 		self.addons[name] = config
 		if _G.InfinityAddonManager and _G.InfinityAddonManager.RegisterAddon then
 			_G.InfinityAddonManager:RegisterAddon(name, config.version or "1.0.0", config)
@@ -46,6 +54,44 @@ local function InitializeInfinityCore()
 			return _G.InfinityCommandRegistry:RegisterCommand(cmd, descOrFn, fnOrAliases)
 		end
 		return false
+	end
+
+	function _G.InfinityCore:RegisterSlashCommand(cmd, callback, aliasOrSub)
+		if not cmd or type(callback) ~= "function" then
+			return false
+		end
+		if not (_G.InfinityCommandRegistry and _G.InfinityCommandRegistry.RegisterCommand) then
+			return false
+		end
+
+		local cleanCmd = string.lower((tostring(cmd):gsub("^/", "")):match("^%s*(.-)%s*$") or "")
+		if cleanCmd == "" then return false end
+
+		local wrappedCallback = function(argsOrMsg, rawMsg)
+			local text = ""
+			if type(argsOrMsg) == "string" then
+				text = argsOrMsg
+			elseif type(rawMsg) == "string" then
+				text = rawMsg
+			elseif type(argsOrMsg) == "table" then
+				text = table.concat(argsOrMsg, " ")
+			end
+			return callback(text)
+		end
+
+		local aliases = {}
+		if type(aliasOrSub) == "string" and aliasOrSub ~= "" then
+			local cleanAlias = string.lower((aliasOrSub:gsub("^/", "")):match("^%s*(.-)%s*$") or "")
+			if cleanAlias ~= "" and cleanAlias ~= cleanCmd then
+				table.insert(aliases, cleanAlias)
+			end
+		elseif type(aliasOrSub) == "table" then
+			aliases = aliasOrSub
+		end
+
+		_G.InfinityCommandRegistry:RegisterCommand(cleanCmd, wrappedCallback, aliases)
+		_G.InfinityCommandRegistry:RegisterCommand("infinity " .. cleanCmd, cleanCmd .. " subcommand", wrappedCallback)
+		return true
 	end
 
 	function _G.InfinityCore:GetRegisteredAddons()
@@ -118,7 +164,7 @@ local function InitializeInfinityCore()
 
 	pcall(function()
 		if _G.InfinityUtils then
-			_G.InfinityUtils:Info("Infinity Suite v" .. (INFINITY_SUITE_VERSION or "1.0.0") .. " loaded! Use /infinity or click the minimap orb.", "Core")
+			_G.InfinityUtils:Info("Infinity Suite v" .. (INFINITY_SUITE_VERSION or "1.0.0") .. " (1.60.1-fixed) loaded! Use /infinity or click the minimap orb.", "Core")
 		end
 	end)
 

@@ -39,13 +39,22 @@ function InfinityVendorPricing:GetAuctionPrice(itemId, link)
 	return self:GetVendorPrice(itemId)
 end
 
+local function SafeGetContainerItemLink(bag, slot)
+	if C_Container and C_Container.GetContainerItemLink then
+		return C_Container.GetContainerItemLink(bag, slot)
+	elseif GetContainerItemLink then
+		return GetContainerItemLink(bag, slot)
+	end
+	return nil
+end
+
 function InfinityVendorPricing:CalculateBagValue()
 	local total = 0
 	InfinityBagTracker:ScanBags()
 	
 	for bag, slots in pairs(InfinityBagTracker.bagContents) do
 		for slot, item in pairs(slots) do
-			local price = self:GetAuctionPrice(item.itemId, GetContainerItemLink(bag, slot))
+			local price = self:GetAuctionPrice(item.itemId, SafeGetContainerItemLink(bag, slot))
 			total = total + (price * item.quantity)
 		end
 	end

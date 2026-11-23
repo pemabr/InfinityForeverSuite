@@ -12,6 +12,30 @@ local BagValueCalculator = {
 
 _G.InfinityBagValueCalculator = BagValueCalculator
 
+local function SafeGetContainerNumSlots(bag)
+	if C_Container and C_Container.GetContainerNumSlots then
+		return C_Container.GetContainerNumSlots(bag) or 0
+	elseif GetContainerNumSlots then
+		return GetContainerNumSlots(bag) or 0
+	end
+	return 0
+end
+
+local function SafeGetSlotInfo(bag, slot)
+	if C_Container and C_Container.GetContainerItemInfo then
+		local info = C_Container.GetContainerItemInfo(bag, slot)
+		if type(info) == "table" then
+			return info.iconFileID, info.stackCount or 1, info.hyperlink
+		end
+		return nil, 0, nil
+	elseif GetContainerItemInfo then
+		local texture, count = GetContainerItemInfo(bag, slot)
+		local link = GetContainerItemLink and GetContainerItemLink(bag, slot) or nil
+		return texture, count or 1, link
+	end
+	return nil, 0, nil
+end
+
 -- Initialize calculator
 function BagValueCalculator:Initialize()
 	InfinityUtils:Info("Bag value calculator initialized", "Inventory")
@@ -69,15 +93,12 @@ function BagValueCalculator:CalculateInventoryValue()
 	
 	-- Scan all bags
 	for bag = 0, NUM_BAG_SLOTS or 4 do
-		for slot = 1, GetContainerNumSlots(bag) or 0 do
-			local texture, count = GetContainerItemInfo(bag, slot)
-			if texture then
-				local itemLink = GetContainerItemLink(bag, slot)
-				if itemLink then
-					local value = self:GetItemValue(itemLink)
-					totalValue = totalValue + (value * (count or 1))
-					itemCount = itemCount + 1
-				end
+		for slot = 1, SafeGetContainerNumSlots(bag) do
+			local texture, count, itemLink = SafeGetSlotInfo(bag, slot)
+			if texture and itemLink then
+				local value = self:GetItemValue(itemLink)
+				totalValue = totalValue + (value * (count or 1))
+				itemCount = itemCount + 1
 			end
 		end
 	end
@@ -126,9 +147,9 @@ function BagValueCalculator:GetItemValue(itemLink)
 		value = _G.AucAdvanced.API.GetMarketPrice(itemId) or 0
 	end
 	
-	-- Fallback to vendor price
+	-- Fallback to vendor price (11th return value of GetItemInfo is sellPrice)
 	if value == 0 then
-		local _, _, _, vendorPrice = GetItemInfo(itemLink)
+		local _, _, _, _, _, _, _, _, _, _, vendorPrice = GetItemInfo(itemLink)
 		value = vendorPrice or 0
 	end
 	
@@ -177,16 +198,13 @@ function BagValueCalculator:GetValueByQuality()
 	
 	-- Scan all bags
 	for bag = 0, NUM_BAG_SLOTS or 4 do
-		for slot = 1, GetContainerNumSlots(bag) or 0 do
-			local texture, count = GetContainerItemInfo(bag, slot)
-			if texture then
-				local itemLink = GetContainerItemLink(bag, slot)
-				if itemLink then
-					local _, _, quality = GetItemInfo(itemLink)
-					if quality then
-						local value = self:GetItemValue(itemLink)
-						breakdown[quality] = (breakdown[quality] or 0) + (value * (count or 1))
-					end
+		for slot = 1, SafeGetContainerNumSlots(bag) do
+			local texture, count, itemLink = SafeGetSlotInfo(bag, slot)
+			if texture and itemLink then
+				local _, _, quality = GetItemInfo(itemLink)
+				if quality then
+					local value = self:GetItemValue(itemLink)
+					breakdown[quality] = (breakdown[quality] or 0) + (value * (count or 1))
 				end
 			end
 		end
@@ -210,22 +228,19 @@ function BagValueCalculator:GetValueableItems(minValue)
 	
 	-- Scan all bags
 	for bag = 0, NUM_BAG_SLOTS or 4 do
-		for slot = 1, GetContainerNumSlots(bag) or 0 do
-			local texture, count = GetContainerItemInfo(bag, slot)
-			if texture then
-				local itemLink = GetContainerItemLink(bag, slot)
-				if itemLink then
-					local value = self:GetItemValue(itemLink)
-					if value >= minValue then
-						table.insert(items, {
-							link = itemLink,
-							value = value,
-							count = count or 1,
-							totalValue = value * (count or 1),
-							bag = bag,
-							slot = slot,
-						})
-					end
+		for slot = 1, SafeGetContainerNumSlots(bag) do
+			local texture, count, itemLink = SafeGetSlotInfo(bag, slot)
+			if texture and itemLink then
+				local value = self:GetItemValue(itemLink)
+				if value >= minValue then
+					table.insert(items, {
+						link = itemLink,
+						value = value,
+						count = count or 1,
+						totalValue = value * (count or 1),
+						bag = bag,
+						slot = slot,
+					})
 				end
 			end
 		end

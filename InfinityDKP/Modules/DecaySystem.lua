@@ -86,10 +86,10 @@ end
 
 function DecaySystem:PrepareDecayData()
 	-- Get all guild members
-	local guildSize = GetNumGuildMembers()
+	local guildSize = (GetNumGuildMembers and GetNumGuildMembers()) or 0
 	
 	for i = 1, guildSize do
-		local memberName = GetGuildMemberInfo(i)
+		local memberName = GetGuildRosterInfo and GetGuildRosterInfo(i)
 		if memberName then
 			local memberData = InfinityGuildRoster:GetMember(memberName)
 			if memberData then

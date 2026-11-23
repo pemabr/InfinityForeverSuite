@@ -96,7 +96,9 @@ function PointHistoryAudit:LogPointChange(playerName, action, amount, reason)
         amount = amount,
         reason = reason or "No reason provided",
         actor = UnitName("player") or "System",
-        changed_by_addon = GetAddOnMetadata(GetAddOnInfo("InfinityDKP"), "Title") or "InfinityDKP",
+        changed_by_addon = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata("InfinityDKP", "Title"))
+            or (GetAddOnMetadata and GetAddOnMetadata("InfinityDKP", "Title"))
+            or "InfinityDKP",
     }
     
     -- Store entry

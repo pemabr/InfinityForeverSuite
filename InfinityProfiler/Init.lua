@@ -4,10 +4,13 @@
 local addonName = "InfinityProfiler"
 local addonVersion = "1.0"
 
+local profilerInitialized = false
+
 local function InitializeProfiler()
-	if not _G.InfinityCore then
+	if profilerInitialized or not _G.InfinityCore then
 		return
 	end
+	profilerInitialized = true
 	
 	-- Register with InfinityCore
 	_G.InfinityCore:RegisterAddon(addonName, addonVersion, {
@@ -33,9 +36,12 @@ local function InitializeProfiler()
 	
 	-- Slash command handler
 	local function HandleProfilerCommand(msg)
-		msg = msg:trim():lower()
+		if type(msg) == "table" then
+			msg = table.concat(msg, " ")
+		end
+		msg = tostring(msg or ""):match("^%s*(.-)%s*$"):lower()
 		
-		if msg == "show" or msg == "ui" then
+		if msg == "" or msg == "show" or msg == "ui" then
 			UI:Show()
 			_G.InfinityUtils:Info("Profiler UI opened", addonName)
 		
@@ -119,21 +125,34 @@ local function InitializeProfiler()
 	end
 	
 	-- Register slash command
-	_G.InfinityCore:RegisterSlashCommand("profiler", HandleProfilerCommand, "profiler")
+	if _G.InfinityCore.RegisterSlashCommand then
+		_G.InfinityCore:RegisterSlashCommand("profiler", HandleProfilerCommand, "profiler")
+	elseif _G.InfinityCommandRegistry and _G.InfinityCommandRegistry.RegisterCommand then
+		_G.InfinityCommandRegistry:RegisterCommand("profiler", function(args, raw)
+			HandleProfilerCommand(raw or "")
+		end, { "prof" })
+	end
 	
 	-- Hook into InfinityCore's addon registration
-	local originalRegisterAddon = _G.InfinityCore.RegisterAddon
-	function _G.InfinityCore:RegisterAddon(name, version, config)
-		local result = originalRegisterAddon(self, name, version, config)
-		if result then
-			ProfilerCore:RegisterAddon(name, version)
+	if type(_G.InfinityCore.RegisterAddon) == "function" then
+		local originalRegisterAddon = _G.InfinityCore.RegisterAddon
+		function _G.InfinityCore:RegisterAddon(name, version, config)
+			local result = originalRegisterAddon(self, name, version, config)
+			if result and ProfilerCore and ProfilerCore.RegisterAddon then
+				local resolvedVersion = type(version) == "string" and version or (type(version) == "table" and version.version) or "1.0"
+				pcall(function() ProfilerCore:RegisterAddon(name, resolvedVersion) end)
+			end
+			return result
 		end
-		return result
 	end
 	
 	-- Start monitoring
-	Monitor:Start()
-	_G.InfinityUtils:Info(string.format("Loaded %s v%s", addonName, addonVersion), addonName)
+	if Monitor and Monitor.Start then
+		pcall(function() Monitor:Start() end)
+	end
+	if _G.InfinityUtils and _G.InfinityUtils.Info then
+		_G.InfinityUtils:Info(string.format("Loaded %s v%s", addonName, addonVersion), addonName)
+	end
 end
 
 

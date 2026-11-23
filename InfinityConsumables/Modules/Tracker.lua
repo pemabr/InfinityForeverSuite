@@ -13,15 +13,47 @@ function InfinityConsumables:Initialize()
 	self:ScanInventory()
 end
 
+local function SafeGetContainerNumSlots(bag)
+	if C_Container and C_Container.GetContainerNumSlots then
+		return C_Container.GetContainerNumSlots(bag) or 0
+	elseif GetContainerNumSlots then
+		return GetContainerNumSlots(bag) or 0
+	end
+	return 0
+end
+
+local function SafeGetContainerItemID(bag, slot)
+	if C_Container and C_Container.GetContainerItemID then
+		return C_Container.GetContainerItemID(bag, slot)
+	elseif GetContainerItemID then
+		return GetContainerItemID(bag, slot)
+	end
+	return nil
+end
+
+local function SafeGetContainerItemCount(bag, slot)
+	if C_Container and C_Container.GetContainerItemInfo then
+		local info = C_Container.GetContainerItemInfo(bag, slot)
+		if type(info) == "table" then
+			return info.stackCount or 1
+		end
+	elseif GetContainerItemInfo then
+		local _, count = GetContainerItemInfo(bag, slot)
+		return count or 1
+	end
+	return 1
+end
+
 function InfinityConsumables:ScanInventory()
 	self.inventory = {}
 	
-	for bag = 0, 4 do
-		for slot = 1, GetContainerNumSlots(bag) do
-			local itemID = GetContainerItemID(bag, slot)
+	for bag = 0, NUM_BAG_SLOTS or 4 do
+		local numSlots = SafeGetContainerNumSlots(bag)
+		for slot = 1, numSlots do
+			local itemID = SafeGetContainerItemID(bag, slot)
 			if itemID then
 				local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType, itemSubType = GetItemInfo(itemID)
-				local itemCount = select(2, GetContainerItemInfo(bag, slot))
+				local itemCount = SafeGetContainerItemCount(bag, slot)
 				
 				if itemType == "Consumable" or itemType == "Food & Drink" then
 					if not self.inventory[itemID] then
@@ -87,7 +119,7 @@ function InfinityConsumables:RecordBuffExpired(spellID)
 	return false
 end
 
-function InfinityConsumables:GetActiveBufcfs()
+function InfinityConsumables:GetActiveBuffs()
 	local result = {}
 	local now = InfinityUtils:GetTimeStamp()
 	
@@ -100,6 +132,10 @@ function InfinityConsumables:GetActiveBufcfs()
 	end
 	
 	return result
+end
+
+function InfinityConsumables:GetActiveBufcfs()
+	return self:GetActiveBuffs()
 end
 
 function InfinityConsumables:GetBuffDuration(spellID)

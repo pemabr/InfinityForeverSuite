@@ -18,21 +18,13 @@ local function InitializeCalendar()
 		category = "guild",
 	})
 
-	-- Load core modules
-	local basePath = "Interface\\AddOns\\InfinityForever\\sink\\InfinityCalendar\\"
-
-	-- Load core
-	dofile(basePath .. "Core\\CalendarCore.lua")
-
-	-- Load modules
-	dofile(basePath .. "Modules\\Notifications.lua")
-
-	-- Load UI
-	dofile(basePath .. "UI\\Main.lua")
-
-	-- Initialize calendar
-	if InfinityCalendarCore then pcall(function() InfinityCalendarCore:Initialize() end) end
-	if InfinityCalendarNotifications then pcall(function() InfinityCalendarNotifications:Initialize() end) end
+	-- Core, modules, and UI are already loaded by InfinityCalendar.toc
+	if InfinityCalendarCore and InfinityCalendarCore.Initialize then
+		pcall(function() InfinityCalendarCore:Initialize() end)
+	end
+	if InfinityCalendarNotifications and InfinityCalendarNotifications.Initialize then
+		pcall(function() InfinityCalendarNotifications:Initialize() end)
+	end
 
 -- Pre-populate with some example events if database is empty
 local function InitializeDefaultEvents()
@@ -83,10 +75,15 @@ end
 
 -- Slash command handler
 local function HandleCalendarCommand(msg)
-	msg = msg:trim():lower()
+	if type(msg) == "table" then
+		msg = table.concat(msg, " ")
+	end
+	msg = tostring(msg or ""):match("^%s*(.-)%s*$"):lower()
 	
-	if msg == "show" or msg == "ui" or msg == "open" then
-		InfinityCalendarUI:Show()
+	if msg == "" or msg == "show" or msg == "ui" or msg == "open" then
+		if InfinityCalendarUI and InfinityCalendarUI.Show then
+			InfinityCalendarUI:Show()
+		end
 		InfinityUtils:Info("Calendar opened", addonName)
 	
 	elseif msg == "hide" or msg == "close" then
@@ -118,12 +115,10 @@ local function HandleCalendarCommand(msg)
 	
 	elseif msg:find("^create ") then
 		-- Parse: create "Event Name" raid 2024-01-01 20:00 3600
-		local title, eventType, date, time, duration = msg:match("^create \"(.+)\" (%w+) ([%d-]+) ([%d:]+) (%d+)$")
-		if title and eventType and date and time and duration then
-			local dateStr = date .. " " .. time
-			local startTime = time()  -- Simplified - should parse dateStr properly
-			
-			success, eventID = InfinityCalendarCore:CreateEvent({
+		local title, eventType, datePart, timePart, duration = msg:match("^create \"(.+)\" (%w+) ([%d-]+) ([%d:]+) (%d+)$")
+		if title and eventType and datePart and timePart and duration then
+			local startTime = time()
+			local success, eventID = InfinityCalendarCore:CreateEvent({
 				title = title,
 				type = eventType,
 				startTime = startTime,
@@ -165,12 +160,22 @@ local function HandleCalendarCommand(msg)
 end
 
 -- Register slash command
-InfinityCore:RegisterSlashCommand("calendar", HandleCalendarCommand, "calendar")
+if InfinityCore and InfinityCore.RegisterSlashCommand then
+	InfinityCore:RegisterSlashCommand("calendar", HandleCalendarCommand, "calendar")
+elseif InfinityCommandRegistry and InfinityCommandRegistry.RegisterCommand then
+	InfinityCommandRegistry:RegisterCommand("calendar", function(args, raw)
+		HandleCalendarCommand(raw or "")
+	end, { "cal" })
+end
 
 -- Initialize
-InitializeDefaultEvents()
-SetupReminders()
-InfinityCalendarNotifications:Start()
+if InfinityCalendarCore then
+	pcall(InitializeDefaultEvents)
+	pcall(SetupReminders)
+end
+if InfinityCalendarNotifications and InfinityCalendarNotifications.Start then
+	pcall(function() InfinityCalendarNotifications:Start() end)
+end
 
 InfinityUtils:Info(string.format("Loaded %s v%s", addonName, addonVersion), addonName)
 end

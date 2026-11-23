@@ -12,6 +12,33 @@ InfinityEncounterCD.combat_start_time = nil
 InfinityEncounterCD.boss_deaths = {}
 InfinityEncounterCD.callbacks = {}
 
+local function IsRaidBossUnit(unit)
+    if not unit or type(unit) ~= "string" or not UnitExists(unit) then
+        return false
+    end
+    if unit:match("^boss%d+$") then
+        return true
+    end
+    local classification = UnitClassification and UnitClassification(unit)
+    if classification == "worldboss" then
+        return true
+    end
+    local level = UnitLevel and UnitLevel(unit)
+    return level == -1
+end
+
+local function IsRaidBossGUID(guid)
+    if not guid or type(guid) ~= "string" or not UnitGUID then
+        return false
+    end
+    for _, unitID in ipairs({"boss1", "boss2", "boss3", "boss4", "boss5", "target", "focus"}) do
+        if IsRaidBossUnit(unitID) and UnitGUID(unitID) == guid then
+            return true
+        end
+    end
+    return false
+end
+
 function InfinityEncounterCD:IsInCombat()
     return self.state == "in_combat"
 end
@@ -58,7 +85,7 @@ function InfinityEncounterCD:DetectBoss()
     
     -- Also check bosses in target/focus
     for _, unitID in ipairs({"target", "focus", "boss1", "boss2", "boss3", "boss4"}) do
-        if UnitExists(unitID) and UnitIsRaidBoss(unitID) then
+        if IsRaidBossUnit(unitID) then
             self.boss_units[unitID] = true
             return true
         end
@@ -103,7 +130,8 @@ function InfinityEncounterCD:OnCombatLogEvent(...)
     
     -- Detect boss death
     if subevent == "UNIT_DIED" then
-        if bit.band(destFlags, COMBATLOG_OBJECT_RAIDTARGET) ~= 0 or UnitIsRaidBoss("target") then
+        local isMarked = destFlags and COMBATLOG_OBJECT_RAIDTARGET and bit and bit.band(destFlags, COMBATLOG_OBJECT_RAIDTARGET) ~= 0
+        if isMarked or IsRaidBossGUID(destGUID) or IsRaidBossUnit("target") then
             table.insert(self.boss_deaths, {
                 name = destName,
                 time = GetTime(),
@@ -115,7 +143,7 @@ function InfinityEncounterCD:OnCombatLogEvent(...)
     
     -- Detect phase change patterns (ability usage)
     if subevent == "SPELL_CAST_SUCCESS" then
-        if UnitIsRaidBoss(sourceGUID) then
+        if IsRaidBossGUID(sourceGUID) then
             self:TriggerCallback("ability_cast", sourceName, spellName, spellID)
         end
     end

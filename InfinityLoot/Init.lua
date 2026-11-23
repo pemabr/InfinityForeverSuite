@@ -27,8 +27,16 @@ local function InitializeInfinityLoot()
 	if InfinityLootAccessControl then pcall(function() InfinityLootAccessControl:Initialize() end) end
 	if InfinityLootAuctionIntegration then pcall(function() InfinityLootAuctionIntegration:Initialize() end) end
 	if InfinityLootAuctionUI then pcall(function() InfinityLootAuctionUI:Initialize() end) end
-	InfinityPerformanceOptimizer:Enable()
-	InfinityCompatibilityChecker:RegisterAddonsForChecking()
+	if InfinityPerformanceOptimizer then
+		if InfinityPerformanceOptimizer.Enable then
+			pcall(function() InfinityPerformanceOptimizer:Enable() end)
+		elseif InfinityPerformanceOptimizer.Initialize then
+			pcall(function() InfinityPerformanceOptimizer:Initialize() end)
+		end
+	end
+	if InfinityCompatibilityChecker and InfinityCompatibilityChecker.RegisterAddonsForChecking then
+		pcall(function() InfinityCompatibilityChecker:RegisterAddonsForChecking() end)
+	end
 	if InfinityDataIntegrityVerifier then pcall(function() InfinityDataIntegrityVerifier:Initialize() end) end
 	if InfinityDiagnosticsConsole then pcall(function() InfinityDiagnosticsConsole:Initialize() end) end
 	

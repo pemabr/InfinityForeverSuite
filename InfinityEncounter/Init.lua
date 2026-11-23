@@ -55,45 +55,80 @@ local function InitializeEncounter()
 		end)
 	end
 	
+	local function IsRaidBossUnit(unit)
+		if not unit or type(unit) ~= "string" or not UnitExists(unit) then
+			return false
+		end
+		if unit:match("^boss%d+$") then
+			return true
+		end
+		local classification = UnitClassification and UnitClassification(unit)
+		if classification == "worldboss" then
+			return true
+		end
+		local level = UnitLevel and UnitLevel(unit)
+		if level == -1 then
+			return true
+		end
+		return false
+	end
+
 	-- Event handling
 	local combatFrame = CreateFrame("Frame")
-	combatFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-	combatFrame:RegisterEvent("UNIT_HEALTH")
-	combatFrame:RegisterEvent("UNIT_DIED")
-	combatFrame:RegisterEvent("ENCOUNTER_START")
-	combatFrame:RegisterEvent("ENCOUNTER_END")
+	for _, ev in ipairs({ "COMBAT_LOG_EVENT_UNFILTERED", "UNIT_HEALTH", "ENCOUNTER_START", "ENCOUNTER_END" }) do
+		pcall(combatFrame.RegisterEvent, combatFrame, ev)
+	end
 	
 	combatFrame:SetScript("OnEvent", function(self, event, ...)
 		if event == "COMBAT_LOG_EVENT_UNFILTERED" then
-			CD:OnCombatLogEvent(...)
-			local _, subevent, _, sourceGUID, sourceName, _, _, destGUID, destName = ...
-			if subevent == "SPELL_CAST_SUCCESS" then
-				Abilities:OnAbilityCast(select(12, ...), select(13, ...), 0, 30)
+			local timestamp, subevent, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName
+			if CombatLogGetCurrentEventInfo then
+				timestamp, subevent, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName = CombatLogGetCurrentEventInfo()
+			else
+				timestamp, subevent, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName = ...
+			end
+			if CD and CD.OnCombatLogEvent then
+				CD:OnCombatLogEvent(timestamp, subevent, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName)
+			end
+			if subevent == "SPELL_CAST_SUCCESS" and Abilities and Abilities.OnAbilityCast then
+				Abilities:OnAbilityCast(spellID, spellName, 0, 30)
 			end
 		elseif event == "UNIT_HEALTH" then
 			local unit = ...
-			if UnitIsRaidBoss(unit) then
+			if IsRaidBossUnit(unit) then
 				local name = UnitName(unit)
 				local health = UnitHealth(unit)
 				local maxHealth = UnitHealthMax(unit)
-				StatusBars:UpdateBar(name or "Boss", health, maxHealth)
+				if StatusBars and StatusBars.UpdateBar then
+					StatusBars:UpdateBar(name or "Boss", health, maxHealth)
+				end
 			end
 		elseif event == "ENCOUNTER_START" then
 			local encounterID, encounterName, difficultyID = ...
-			Encounters:StartEncounter(encounterName)
-			Alerts:SendAlert("Encounter: " .. encounterName, Alerts.LEVEL_INFO)
+			if Encounters and Encounters.StartEncounter then
+				Encounters:StartEncounter(encounterName)
+			end
+			if Alerts and Alerts.SendAlert then
+				Alerts:SendAlert("Encounter: " .. tostring(encounterName or "Unknown"), Alerts.LEVEL_INFO)
+			end
 		elseif event == "ENCOUNTER_END" then
 			local encounterID, encounterName, difficultyID, groupSize, success = ...
-			Encounters:EndEncounter(success == 1)
+			if Encounters and Encounters.EndEncounter then
+				Encounters:EndEncounter(success == 1)
+			end
 		end
 	end)
 	
-	-- Timer update loop
+	-- Timer update loop (throttled to ~10Hz)
 	local timerFrame = CreateFrame("Frame")
-	timerFrame:SetScript("OnUpdate", function()
-		Timer:Update()
-		UI:Update()
-		CD:UpdateCombatState()
+	local elapsedAcc = 0
+	timerFrame:SetScript("OnUpdate", function(_, elapsed)
+		elapsedAcc = elapsedAcc + (elapsed or 0)
+		if elapsedAcc < 0.1 then return end
+		elapsedAcc = 0
+		if Timer and Timer.Update then Timer:Update() end
+		if UI and UI.Update then UI:Update() end
+		if CD and CD.UpdateCombatState then CD:UpdateCombatState() end
 	end)
 	
 	print("InfinityEncounter loaded - Use /encounter to toggle window")

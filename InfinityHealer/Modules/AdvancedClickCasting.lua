@@ -47,9 +47,20 @@ ClickCaster.currentCast = nil
 -- SPELL BINDING
 -- ============================================================================
 
+local function SafeGetSpellID(spellName)
+	if not spellName then return nil end
+	if C_Spell and C_Spell.GetSpellInfo then
+		local info = C_Spell.GetSpellInfo(spellName)
+		return info and info.spellID or nil
+	elseif GetSpellInfo then
+		return select(7, GetSpellInfo(spellName))
+	end
+	return nil
+end
+
 --- Bind a spell to a click action
 function ClickCaster:BindSpell(action, spellName, spellId)
-	spellId = spellId or select(7, GetSpellInfo(spellName))
+	spellId = spellId or SafeGetSpellID(spellName)
 	
 	self.spellBindings[action] = {
 		spellName = spellName,
@@ -194,24 +205,40 @@ function ClickCaster:CanCastSpell(spellName, unitToken)
 	end
 	
 	-- Check mana
-	local mana = UnitMana("player")
-	local maxMana = UnitMaxMana("player")
-	if mana < (maxMana * 0.1) then -- Less than 10% mana
+	local mana = (UnitPower and UnitPower("player", 0)) or (UnitMana and UnitMana("player")) or 0
+	local maxMana = (UnitPowerMax and UnitPowerMax("player", 0)) or (UnitMaxMana and UnitMaxMana("player")) or 1
+	if maxMana > 0 and mana < (maxMana * 0.1) then -- Less than 10% mana
 		return false
 	end
 	
 	-- Check if spell is off cooldown
-	local spellId = select(7, GetSpellInfo(spellName))
+	local spellId = SafeGetSpellID(spellName)
 	if spellId then
-		local start, duration, enable = GetSpellCooldown(spellId)
-		if start > 0 and duration > 0 then
+		local start, duration = 0, 0
+		if C_Spell and C_Spell.GetSpellCooldown then
+			local cd = C_Spell.GetSpellCooldown(spellId)
+			if cd then
+				start, duration = cd.startTime or 0, cd.duration or 0
+			end
+		elseif GetSpellCooldown then
+			start, duration = GetSpellCooldown(spellId)
+		end
+		if (start or 0) > 0 and (duration or 0) > 0 then
 			return false
 		end
 	end
 	
 	-- Check range
 	if unitToken ~= "player" then
-		if not IsSpellInRange(spellName, unitToken) then
+		local inRange = true
+		if C_Spell and C_Spell.IsSpellInRange then
+			local r = C_Spell.IsSpellInRange(spellName, unitToken)
+			if r == false or r == 0 then inRange = false end
+		elseif IsSpellInRange then
+			local r = IsSpellInRange(spellName, unitToken)
+			if r == 0 or r == false then inRange = false end
+		end
+		if not inRange then
 			return false
 		end
 	end

@@ -5,21 +5,49 @@ _G.InfinityBagTracker = InfinityBagTracker
 InfinityBagTracker.bagContents = {} -- {bagId = {slot = {itemId, quantity}}}
 InfinityBagTracker.bagSpaces = {} -- {bagId = usedSlots}
 
+local function SafeGetContainerNumSlots(bag)
+	if C_Container and C_Container.GetContainerNumSlots then
+		return C_Container.GetContainerNumSlots(bag) or 0
+	elseif GetContainerNumSlots then
+		return GetContainerNumSlots(bag) or 0
+	end
+	return 0
+end
+
+local function SafeGetContainerItemID(bag, slot)
+	if C_Container and C_Container.GetContainerItemID then
+		return C_Container.GetContainerItemID(bag, slot)
+	elseif GetContainerItemID then
+		return GetContainerItemID(bag, slot)
+	end
+	return nil
+end
+
+local function SafeGetContainerItemCount(bag, slot)
+	if C_Container and C_Container.GetContainerItemInfo then
+		local info = C_Container.GetContainerItemInfo(bag, slot)
+		if type(info) == "table" then
+			return info.stackCount or 1
+		end
+	elseif GetContainerItemInfo then
+		local _, count = GetContainerItemInfo(bag, slot)
+		return count or 1
+	end
+	return 1
+end
+
 function InfinityBagTracker:Initialize()
 	InfinityUtils:Info("Bag tracker initialized", "Inventory")
 end
 
 function InfinityBagTracker:ScanBags()
 	for bag = 0, NUM_BAG_SLOTS or 4 do
-		if not self.bagContents[bag] then
-			self.bagContents[bag] = {}
-		end
+		self.bagContents[bag] = {}
 		
-		for slot = 1, GetContainerNumSlots(bag) or 0 do
-			local itemId = GetContainerItemID(bag, slot)
-			local quantity = select(2, GetContainerItemInfo(bag, slot))
-			
+		for slot = 1, SafeGetContainerNumSlots(bag) do
+			local itemId = SafeGetContainerItemID(bag, slot)
 			if itemId then
+				local quantity = SafeGetContainerItemCount(bag, slot)
 				self.bagContents[bag][slot] = {
 					itemId = itemId,
 					quantity = quantity or 1,
@@ -28,7 +56,9 @@ function InfinityBagTracker:ScanBags()
 		end
 	end
 	
-	InfinityMessaging:Publish("bags_scanned")
+	if InfinityMessaging and InfinityMessaging.Publish then
+		InfinityMessaging:Publish("bags_scanned")
+	end
 end
 
 function InfinityBagTracker:GetItemCount(itemId)
@@ -46,7 +76,7 @@ end
 function InfinityBagTracker:GetFreeSlots()
 	local free = 0
 	for bag = 0, NUM_BAG_SLOTS or 4 do
-		for slot = 1, GetContainerNumSlots(bag) or 0 do
+		for slot = 1, SafeGetContainerNumSlots(bag) do
 			if not self.bagContents[bag] or not self.bagContents[bag][slot] then
 				free = free + 1
 			end

@@ -16,28 +16,35 @@ function InfinityRosterManager:Initialize()
 end
 
 function InfinityRosterManager:ScanGuild()
-	if not IsInGuild() then
+	if not IsInGuild or not IsInGuild() then
 		return false
 	end
 	
-	self.guildName = GetGuildInfo("player")
-	local guildLevel = select(2, GetGuildLevel())
-	self.guildLevel = guildLevel or 0
+	self.guildName = (GetGuildInfo and GetGuildInfo("player")) or ""
+	local guildLevel = 0
+	if GetGuildLevel then
+		local ok, _, lvl = pcall(GetGuildLevel)
+		if ok and type(lvl) == "number" then
+			guildLevel = lvl
+		end
+	end
+	self.guildLevel = guildLevel
 	
 	-- Get total members
-	local totalMembers = GetNumGuildMembers()
+	local totalMembers = (GetNumGuildMembers and GetNumGuildMembers()) or 0
+	local realm = (GetRealmName and GetRealmName()) or "Unknown"
 	self.members = {}
 	
 	for i = 1, totalMembers do
 		local name, rank, rankIndex, level, class, zone, note, officerNote, isOnline, status, classFileName, achievementPoints, achLevel, mobile = GetGuildRosterInfo(i)
 		
 		if name then
-			local charKey = name .. "-" .. GetRealmName()
+			local charKey = name .. "-" .. realm
 			self.members[charKey] = {
 				name = name,
 				rank = rank,
 				rankIndex = rankIndex,
-				level = level,
+				level = level or 0,
 				class = class,
 				classFileName = classFileName,
 				zone = zone,
@@ -46,17 +53,19 @@ function InfinityRosterManager:ScanGuild()
 				isOnline = isOnline,
 				status = status,
 				achievementPoints = achievementPoints,
-				lastSeen = InfinityUtils:GetTimeStamp(),
+				lastSeen = InfinityUtils and InfinityUtils:GetTimeStamp() or time(),
 			}
 			
 			-- Link to character manager if applicable
-			if InfinityCharacterManager then
+			if InfinityCharacterManager and InfinityCharacterManager.LinkCharacterToMain then
 				InfinityCharacterManager:LinkCharacterToMain(name, name)
 			end
 		end
 	end
 	
-	InfinityUtils:Info("Guild roster scanned: " .. totalMembers .. " members", "Roster")
+	if InfinityUtils and InfinityUtils.Info then
+		InfinityUtils:Info("Guild roster scanned: " .. totalMembers .. " members", "Roster")
+	end
 	return true
 end
 

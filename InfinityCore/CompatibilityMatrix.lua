@@ -46,6 +46,15 @@ local CompatibilityMatrix = {
 
 _G.InfinityCompatibilityMatrix = CompatibilityMatrix
 
+local function SafeIsAddOnLoaded(addonName)
+	if C_AddOns and C_AddOns.IsAddOnLoaded then
+		return C_AddOns.IsAddOnLoaded(addonName)
+	elseif IsAddOnLoaded then
+		return IsAddOnLoaded(addonName)
+	end
+	return false
+end
+
 function CompatibilityMatrix:Initialize()
 	InfinityUtils:Info("Compatibility Matrix initialized", "Core")
 	
@@ -83,7 +92,7 @@ function CompatibilityMatrix:CheckAddonLoadStatus()
 	local missing = {}
 	
 	for _, addonName in ipairs(self.addons) do
-		local isLoaded = IsAddOnLoaded(addonName)
+		local isLoaded = SafeIsAddOnLoaded(addonName)
 		if isLoaded then
 			loaded = loaded + 1
 		else
@@ -194,7 +203,7 @@ function CompatibilityMatrix:CheckCoreDependency()
 	print("")
 	print("|cffffd700Checking core dependency...|r")
 	
-	local coreLoaded = IsAddOnLoaded("InfinityCore")
+	local coreLoaded = SafeIsAddOnLoaded("InfinityCore")
 	
 	if not coreLoaded then
 		print("|cffff0000✗ InfinityCore not loaded! Other addons will fail!|r")
@@ -206,7 +215,7 @@ function CompatibilityMatrix:CheckCoreDependency()
 	local coreInaccessible = {}
 	
 	for _, addonName in ipairs(self.addons) do
-		if addonName ~= "InfinityCore" and IsAddOnLoaded(addonName) then
+		if addonName ~= "InfinityCore" and SafeIsAddOnLoaded(addonName) then
 			if not InfinityCore then
 				table.insert(coreInaccessible, addonName)
 			end
@@ -256,7 +265,7 @@ function CompatibilityMatrix:TestSpecificInteraction(addonA, addonB)
 	print("|cffffd700Testing interaction between " .. addonA .. " and " .. addonB .. "|r")
 	
 	-- Check both are loaded
-	if not IsAddOnLoaded(addonA) or not IsAddOnLoaded(addonB) then
+	if not SafeIsAddOnLoaded(addonA) or not SafeIsAddOnLoaded(addonB) then
 		print("|cffff0000One or both addons not loaded|r")
 		return false
 	end

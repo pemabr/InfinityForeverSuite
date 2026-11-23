@@ -59,7 +59,7 @@ function DiagnosticsConsole:GetAddonStatus()
 	}
 	
 	for _, addonName in ipairs(addonNames) do
-		local loaded = IsAddOnLoaded(addonName)
+		local loaded = (C_AddOns and C_AddOns.IsAddOnLoaded and C_AddOns.IsAddOnLoaded(addonName)) or (IsAddOnLoaded and IsAddOnLoaded(addonName)) or false
 		status.addons[addonName] = {
 			loaded = loaded,
 			version = loaded and "1.0" or "N/A",

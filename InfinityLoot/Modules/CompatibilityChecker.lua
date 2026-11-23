@@ -100,8 +100,8 @@ function CompatibilityChecker:TestGracefulDegradation(addonName)
 	-- Simulate missing optional dependencies
 	for _, dep in ipairs(addon.dependencies) do
 		if dep ~= "InfinityCore" then
-			-- Temporarily hide optional addon
-			local originalStatus = IsAddOnLoaded(dep)
+			-- Check optional addon availability
+			local originalStatus = (C_AddOns and C_AddOns.IsAddOnLoaded and C_AddOns.IsAddOnLoaded(dep)) or (IsAddOnLoaded and IsAddOnLoaded(dep)) or false
 			-- Check that addon still functions
 		end
 	end
