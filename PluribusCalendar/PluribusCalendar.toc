@@ -1,0 +1,12 @@
+## Interface: 16001
+## Title: Pluribus Calendar
+## Author: Pluribus Suite
+## Version: 1.0
+## Notes: Guild event scheduling, raid calendar integration, and automatic reminders
+## RequiredDeps: PluribusCore
+## SavedVariables: PluribusCalendarDB
+
+Core\CalendarCore.lua
+Modules\Notifications.lua
+UI\Main.lua
+Init.lua

@@ -1,0 +1,21 @@
+## Interface: 16001
+## Title: |cff00ccffPluribus|r Raid
+## Notes: Raiding tools, encounter warnings, and combat enhancements for the Pluribus Suite.
+## Author: Pluribus Suite Team
+## Version: 1.3.0
+## SavedVariables: PluribusPluribusRaidDB
+## Depends: PluribusCore
+## X-Category: Utility
+
+Localization\Localization.lua
+
+Modules\EncounterManager.lua
+Modules\CombatAlerts.lua
+Modules\HealingManager.lua
+Modules\RaidCompositionAnalyzer.lua
+Modules\EncounterDatabase.lua
+Modules\AdvancedEncounterSystem.lua
+
+UI\MainUI.lua
+
+Init.lua

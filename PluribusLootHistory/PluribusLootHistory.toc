@@ -1,0 +1,12 @@
+## Interface: 16001
+## Title: Pluribus Loot History
+## Notes: Advanced loot tracking and history with statistics
+## Author: Pluribus Suite
+## Version: 1.0.0
+## Depends: PluribusCore
+## SavedVariables: PluribusLootHistoryDB
+## OptionalDeps: PluribusCore
+
+Init.lua
+
+Modules\Tracker.lua

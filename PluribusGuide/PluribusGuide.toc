@@ -1,0 +1,19 @@
+## Interface: 16001
+## Title: |cff00ccffPluribus|r Guide
+## Notes: Quest tracking, loot information, and zone guides for the Pluribus Suite.
+## Author: Pluribus Suite Team
+## Version: 1.0.0
+## SavedVariables: PluribusPluribusGuideDB
+## Depends: PluribusCore
+## X-Category: Utility
+
+Localization\Localization.lua
+
+Modules\QuestTracker.lua
+Modules\LootDatabase.lua
+Modules\ZoneGuide.lua
+
+UI\MainUI.lua
+
+Init.lua
+

@@ -1,0 +1,12 @@
+## Interface: 16001
+## Title: Pluribus Consumables
+## Notes: Consumable item tracking and buff management
+## Author: Pluribus Suite
+## Version: 1.0.0
+## Parent: PluribusCore
+## SavedVariables: PluribusConsumablesDB
+## OptionalDeps: PluribusCore
+
+Init.lua
+
+Modules\Tracker.lua

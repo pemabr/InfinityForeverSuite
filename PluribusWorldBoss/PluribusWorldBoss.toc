@@ -1,0 +1,11 @@
+## Interface: 16001
+## Title: Pluribus World Boss
+## Notes: World boss respawn tracking with notifications and guild sharing
+## Author: Pluribus
+## Version: 1.0.0
+## Dependencies: PluribusCore, PluribusDataCollector
+
+Core\WorldBossCore.lua
+Modules\Timers.lua
+UI\Main.lua
+Init.lua

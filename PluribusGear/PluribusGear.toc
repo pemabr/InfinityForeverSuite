@@ -1,0 +1,19 @@
+## Interface: 16001
+## Title: |cff00ccffPluribus|r Gear
+## Notes: Gear evaluation, talent management, and character progression for the Pluribus Suite.
+## Author: Pluribus Suite Team
+## Version: 1.1.0
+## SavedVariables: PluribusPluribusGearDB
+## Depends: PluribusCore
+## X-Category: Utility
+
+Localization\Localization.lua
+
+Modules\GearEvaluator.lua
+Modules\TalentManager.lua
+Modules\ProgressionTracker.lua
+Modules\GearOptimizer.lua
+
+UI\MainUI.lua
+
+Init.lua

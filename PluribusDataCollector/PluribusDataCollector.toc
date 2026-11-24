@@ -1,0 +1,17 @@
+## Interface: 16001
+## Title: Pluribus Data Collector
+## Notes: Autonomous data gathering, database integration, and secure P2P sharing
+## Author: Pluribus
+## Version: 1.0.0
+## Dependencies: PluribusCore, PluribusData
+## OptionalDeps: Questie, QuestieDB, WowHeadDB, WoWHeadDB, GathererDB, GatherMate2
+
+Core\DataCollectorCore.lua
+Modules\AutomaticHooks.lua
+Modules\Privacy.lua
+Modules\Network.lua
+Modules\DBIntegration.lua
+Modules\DataCollector.lua
+Modules\DataSharing.lua
+UI\Main.lua
+Init.lua

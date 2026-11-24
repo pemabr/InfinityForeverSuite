@@ -1,0 +1,22 @@
+## Interface: 16001
+## Title: |cff00ccffPluribus|r Inventory
+## Notes: Unified inventory and bag management for the Pluribus Suite.
+## Author: Pluribus Suite Team
+## Version: 1.2.0
+## SavedVariables: PluribusInventoryDB
+## Depends: PluribusCore
+## OptionalDeps: TradeSkillMaster, Auctionator
+## X-Category: Bags, Inventory
+
+Localization\Localization.lua
+
+Modules\BagTracker.lua
+Modules\ItemTracking.lua
+Modules\CraftingIntegration.lua
+Modules\VendorPricing.lua
+Modules\BagValueCalculator.lua
+Modules\CraftingMaterialChecker.lua
+
+UI\InventoryUI.lua
+
+Init.lua

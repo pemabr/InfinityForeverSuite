@@ -1,0 +1,26 @@
+## Interface: 16001
+## Title: |cff00ccffPluribus|r Gather
+## Notes: Resource gathering, route optimization, and skill-up tracking for the Pluribus Suite.
+## Author: Pluribus Suite Team
+## Version: 1.0.0
+## SavedVariables: PluribusPluribusGatherDB
+## Depends: PluribusCore
+## X-Category: Utility
+
+Localization\Localization.lua
+
+Modules\GatherNodeDatabaseEngine.lua
+Modules\GatherNodeFilteringEngine.lua
+Modules\GatherNodeCollectionEngine.lua
+Modules\GatherPersistenceEngine.lua
+Modules\GatherMate2IntegrationEngine.lua
+Modules\GatherRouteOptimizerEngine.lua
+Modules\GatherSkillTrackerEngine.lua
+Modules\GatherUIConfigEngine.lua
+Modules\GatherAnalyticsEngine.lua
+Modules\GatheringDatabase.lua
+
+UI\MainUI.lua
+
+Init.lua
+

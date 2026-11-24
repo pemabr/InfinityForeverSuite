@@ -1,0 +1,12 @@
+## Interface: 16001
+## Title: Pluribus Gear Manager
+## Notes: Gear tracking and equipment comparison
+## Author: Pluribus Suite
+## Version: 1.0.0
+## Depends: PluribusCore
+## SavedVariables: PluribusGearDB
+## OptionalDeps: PluribusCore
+
+Init.lua
+
+Modules\Tracker.lua

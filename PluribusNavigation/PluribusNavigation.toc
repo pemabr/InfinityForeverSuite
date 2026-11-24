@@ -1,0 +1,24 @@
+## Interface: 16001
+## Title: |cff00ccffPluribus|r Navigation
+## Notes: Quest pathfinding and navigation UI for the Pluribus Suite.
+## Author: Pluribus Suite Team
+## Version: 1.2.0
+## SavedVariables: PluribusNavigationDB
+## Depends: PluribusCore
+## OptionalDeps: Questie, ShortestPathForever, TomTom
+## X-Category: Quest, Navigation
+
+Localization\Localization.lua
+
+Modules\Navigator.lua
+Modules\QuestIntegration.lua
+Modules\PathFinding.lua
+Modules\WayPointUI.lua
+Modules\MinimapArrow.lua
+Modules\WorldMapMarkers.lua
+Modules\ScreenArrow.lua
+Modules\WaypointPersistence.lua
+
+UI\NavigationUI.lua
+
+Init.lua

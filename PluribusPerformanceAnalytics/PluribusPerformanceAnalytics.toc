@@ -1,0 +1,18 @@
+## Interface: 16001
+## Title: Pluribus Performance Analytics
+## Notes: Real-time DPS/HPS meter and performance analytics
+## Author: Pluribus Suite
+## Version: 1.0.0
+## Parent: PluribusCore
+## SavedVariables: PluribusPerformanceAnalyticsDB
+## OptionalDeps: PluribusCore
+
+Init.lua
+
+Modules\Meter.lua
+Modules\CombatAnalytics.lua
+Modules\BuffTracker.lua
+Modules\CompositionOptimizer.lua
+Modules\LootAnalytics.lua
+
+UI\Main.lua

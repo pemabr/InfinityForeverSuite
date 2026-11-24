@@ -12,9 +12,9 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = "0.0.0.0";
-const WOWHEAD_CACHE_PATH = path.join(__dirname, "InfinityData", "Data", "WowheadCache.lua");
-const CORE_DIR = path.join(__dirname, "InfinityCore");
-const CORE_TOC_PATH = path.join(CORE_DIR, "InfinityCore.toc");
+const WOWHEAD_CACHE_PATH = path.join(__dirname, "PluribusData", "Data", "WowheadCache.lua");
+const CORE_DIR = path.join(__dirname, "PluribusCore");
+const CORE_TOC_PATH = path.join(CORE_DIR, "PluribusCore.toc");
 
 let lastBridgeProbe = {
   status: "connected",
@@ -58,7 +58,7 @@ async function collectHiveHealthReport(runLiveProbe = false) {
     try {
       const resp = await fetch("https://nether.wowhead.com/classic/tooltip/item/19019?dataEnv=4&locale=0", {
         signal: ctrl.signal,
-        headers: { "User-Agent": "InfinityForever-HiveHealth/2.0" },
+        headers: { "User-Agent": "Pluribus-HiveHealth/2.0" },
       });
       const elapsed = Date.now() - started;
       lastBridgeProbe = {
@@ -176,11 +176,11 @@ function parseWowheadCacheLua() {
 
 function writeWowheadCacheLua(cache) {
   const lines = [
-    "-- InfinityData Wowhead On-Demand Cache",
+    "-- PluribusData Wowhead On-Demand Cache",
     "-- Pre-seeded Classic / Warcraft Forever item, quest & NPC reference data",
     "-- Updated live via the companion app's \"Sync from Wowhead\" tool and propagated P2P across the guild!",
     "",
-    "_G.InfinityWowheadCache = {",
+    "_G.PluribusWowheadCache = {",
     `\trevision = ${Number(cache.revision) || 1},`,
     `\tupdatedAt = ${Number(cache.updatedAt) || Math.floor(Date.now() / 1000)},`,
     "\titems = {",
@@ -221,7 +221,7 @@ async function fetchWowheadEntry(type, id) {
   try {
     const resp = await fetch(url, {
       signal: ctrl.signal,
-      headers: { "User-Agent": "InfinityForever-Companion/2.0" },
+      headers: { "User-Agent": "Pluribus-Companion/2.0" },
     });
     if (!resp.ok) throw new Error(`Wowhead HTTP ${resp.status}`);
     const json = await resp.json();
@@ -325,7 +325,7 @@ function collectAddonZipEntries(rootDir) {
 
   for (const entry of fs.readdirSync(rootDir, { withFileTypes: true })
     .sort((a, b) => a.name.localeCompare(b.name))) {
-    if (entry.isDirectory() && entry.name.startsWith("Infinity")) {
+    if (entry.isDirectory() && entry.name.startsWith("Pluribus")) {
       dirs.add(entry.name + "/");
       walk(path.join(rootDir, entry.name));
     }
@@ -473,7 +473,7 @@ function getAddonInventory() {
   const addons = [];
 
   for (const entry of entries) {
-    if (!entry.isDirectory() || !entry.name.startsWith("Infinity")) continue;
+    if (!entry.isDirectory() || !entry.name.startsWith("Pluribus")) continue;
     const addonDir = path.join(__dirname, entry.name);
     const tocPath = path.join(addonDir, `${entry.name}.toc`);
     const meta = parseToc(tocPath);
@@ -498,7 +498,7 @@ function getAddonInventory() {
 function safeResolveAddonFile(relPath) {
   if (!relPath || typeof relPath !== "string") return null;
   const normalized = path.posix.normalize(relPath).replace(/^\/+/, "");
-  if (normalized.includes("..") || !normalized.startsWith("Infinity")) return null;
+  if (normalized.includes("..") || !normalized.startsWith("Pluribus")) return null;
   if (!normalized.endsWith(".lua") && !normalized.endsWith(".toc")) return null;
   const full = path.resolve(__dirname, normalized);
   if (!full.startsWith(__dirname + path.sep)) return null;
@@ -512,8 +512,8 @@ function renderHtml() {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Infinity Suite — Warcraft Forever Addon Suite</title>
-  <meta name="description" content="Warcraft Forever 1.60.1 Lua Addon Suite Explorer for all 27 Infinity* addons." />
+  <title>Pluribus Suite — Warcraft Forever Addon Suite</title>
+  <meta name="description" content="Warcraft Forever 1.60.1 Lua Addon Suite Explorer for all 27 Pluribus* addons." />
   <style>
     :root {
       --bg: #0c0e14;
@@ -764,6 +764,7 @@ function renderHtml() {
       display: flex;
       flex-direction: column;
       min-height: 0;
+      min-width: 0;
     }
     .col:last-child { border-right: none; }
     .col-header {
@@ -830,7 +831,7 @@ function renderHtml() {
 <body>
   <header>
     <div class="brand">
-      <h1>InfinityForever WoW Addon Suite</h1>
+      <h1>Pluribus WoW Addon Suite</h1>
       <span id="summary">Loading addons...</span>
     </div>
     <div class="actions">
@@ -881,7 +882,7 @@ function renderHtml() {
   <div id="syncModal" class="modal-backdrop">
     <div class="modal">
       <h2>On-Demand Wowhead Classic Data Sync</h2>
-      <p>Pull live item, quest, or NPC data directly from Wowhead into <code>InfinityData/Data/WowheadCache.lua</code>. Once updated and installed by any guild member, the in-game Guild Hive P2P network automatically distributes the new revision to the whole guild.</p>
+      <p>Pull live item, quest, or NPC data directly from Wowhead into <code>PluribusData/Data/WowheadCache.lua</code>. Once updated and installed by any guild member, the in-game Guild Hive P2P network automatically distributes the new revision to the whole guild.</p>
       <div class="modal-row">
         <select id="whType">
           <option value="item">Item IDs</option>
@@ -915,8 +916,8 @@ function renderHtml() {
         <span id="viewerPath" class="viewer-path">Select a file to inspect</span>
         <span id="viewerInfo">Warcraft Forever 1.60.1 (Lua 5.1)</span>
       </div>
-      <pre id="codeView">-- Copy all 27 Infinity* folders into your Warcraft Forever Interface/AddOns/ directory.
--- Use /infinity, /hive, /bags, /sos, or click the minimap orb in-game to open the Guild Hive Hub.</pre>
+      <pre id="codeView">-- Copy all 27 Pluribus* folders into your Warcraft Forever Interface/AddOns/ directory.
+-- Use /pluribus, /hive, /bags, /sos, or click the minimap orb in-game to open the Guild Hive Hub.</pre>
     </section>
   </main>
   <script>
@@ -1015,7 +1016,7 @@ function renderHtml() {
       const totalLua = allAddons.reduce((sum, a) => sum + a.luaCount, 0);
       summaryEl.textContent = allAddons.length + " Addons · " + totalLua + " Lua Files · Interface 16001";
       renderAddons();
-      const core = allAddons.find(a => a.name === "InfinityCore") || allAddons[0];
+      const core = allAddons.find(a => a.name === "PluribusCore") || allAddons[0];
       if (core) selectAddon(core);
     }
 
@@ -1056,7 +1057,7 @@ function renderHtml() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = data.filename || "InfinityForever-AddOns.zip";
+        a.download = data.filename || "PluribusSuite-WoWForever-1.60.1.zip";
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -1391,7 +1392,7 @@ const server = http.createServer(async (req, res) => {
       const { buffer } = buildAddonsZipBuffer(__dirname);
       res.writeHead(200, {
         "Content-Type": "application/zip",
-        "Content-Disposition": 'attachment; filename="InfinityForever-AddOns.zip"',
+        "Content-Disposition": 'attachment; filename="PluribusSuite-WoWForever-1.60.1.zip"',
         "Content-Length": String(buffer.length),
         "Content-Encoding": "identity",
         "Cache-Control": "no-store, no-transform",
@@ -1413,7 +1414,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const { buffer, fileCount, dirCount } = buildAddonsZipBuffer(__dirname);
       const payload = JSON.stringify({
-        filename: "InfinityForever-AddOns.zip",
+        filename: "PluribusSuite-WoWForever-1.60.1.zip",
         size: buffer.length,
         fileCount,
         dirCount,
@@ -1442,5 +1443,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`InfinityForever WoW Addon Suite Explorer listening on http://${HOST}:${PORT}`);
+  console.log(`Pluribus WoW Addon Suite Explorer listening on http://${HOST}:${PORT}`);
 });

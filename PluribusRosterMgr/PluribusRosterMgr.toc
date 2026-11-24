@@ -1,0 +1,12 @@
+## Interface: 16001
+## Title: Pluribus Roster Manager
+## Notes: Guild roster management with member tracking
+## Author: Pluribus Suite
+## Version: 1.0.0
+## Depends: PluribusCore
+## SavedVariables: PluribusRosterDB
+## OptionalDeps: PluribusCore
+
+Init.lua
+
+Modules\Roster.lua

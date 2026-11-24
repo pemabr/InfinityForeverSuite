@@ -1,0 +1,12 @@
+## Interface: 16001
+## Title: Pluribus Profiler
+## Author: Pluribus Suite
+## Version: 1.0
+## Notes: Addon-level performance profiling and monitoring system for Pluribus Suite
+## RequiredDeps: PluribusCore
+## SavedVariables: PluribusProfilerDB
+
+Core\ProfilerCore.lua
+Modules\Monitor.lua
+UI\Main.lua
+Init.lua

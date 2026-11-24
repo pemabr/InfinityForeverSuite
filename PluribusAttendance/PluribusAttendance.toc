@@ -1,0 +1,12 @@
+## Interface: 16001
+## Title: Pluribus Attendance (Raid Tracking)
+## Notes: Automatic raid attendance logging and statistics
+## Author: Pluribus Suite
+## Version: 1.0.0
+## RequiredDeps: PluribusCore, PluribusDKP
+
+Core\Localization.lua
+Modules\Tracker.lua
+Modules\Statistics.lua
+UI\Main.lua
+Init.lua

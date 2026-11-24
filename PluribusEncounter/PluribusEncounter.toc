@@ -1,0 +1,17 @@
+## Interface: 16001
+## Title: Pluribus Encounter (DBM Replacement)
+## Notes: Complete encounter timers, boss ability tracking, and raid alerts
+## Author: Pluribus Suite
+## Version: 1.0.0
+## RequiredDeps: PluribusCore
+
+Core\Localization.lua
+Core\CombatDetection.lua
+Core\Timer.lua
+Core\EncounterData.lua
+Modules\Encounters.lua
+Modules\Abilities.lua
+Modules\Alerts.lua
+Modules\StatusBars.lua
+UI\Main.lua
+Init.lua

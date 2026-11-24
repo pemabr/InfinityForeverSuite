@@ -1,0 +1,18 @@
+## Interface: 16001
+## Title: |cff00ccffPluribus|r Data
+## Notes: Shared data storage and resource files for the Pluribus Suite.
+## Author: Pluribus Suite Team
+## Version: 1.0.0
+## SavedVariables: PluribusSavedData
+## Depends: PluribusCore
+## X-Category: Utility
+
+Localization\Localization.lua
+
+Data\WowheadCache.lua
+Modules\PluribusData.lua
+
+UI\MainUI.lua
+
+Init.lua
+
