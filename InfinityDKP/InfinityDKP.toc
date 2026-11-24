@@ -34,7 +34,6 @@ Modules\DKPCaps.lua
 Modules\MultipleAwardTypes.lua
 Modules\SessionTracking.lua
 Modules\PodiumDisplay.lua
-Modules\CompletionAwards.lua
 Modules\PointHistoryAudit.lua
 Modules\TooltipPriceInfo.lua
 Modules\RefundSystem.lua

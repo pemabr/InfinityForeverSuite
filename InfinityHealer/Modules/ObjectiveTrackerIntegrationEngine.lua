@@ -47,11 +47,12 @@ function ObjectiveTrackerIntegrationEngine:GetActiveQuests()
         return quests
     end
     
-    -- In a real implementation, would query quest log
-    -- This is a stub that shows how data would be structured
-    
-    for i = 1, GetNumQuestLogEntries() do
-        local questName, level, suggestedGroup, isHeader, isCollapsed, isComplete, frequency, questID = GetQuestLogTitle(i)
+    if not InfinityUtils or not InfinityUtils.GetQuestLogCount then
+        return quests
+    end
+
+    for i = 1, InfinityUtils:GetQuestLogCount() do
+        local questName, level, isHeader, questID, isComplete = InfinityUtils:GetQuestLogEntry(i)
         
         if questName and not isHeader and not isComplete then
             table.insert(quests, {

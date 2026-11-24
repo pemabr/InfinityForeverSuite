@@ -122,7 +122,8 @@ function DiagnosticsConsole:GetEventRegistry()
 		"LOOT_CLOSED",
 		"CHAT_MSG_SYSTEM",
 		"GROUP_ROSTER_UPDATE",
-		"COMBAT_LOG_EVENT_UNFILTERED",
+		"ENCOUNTER_START",
+		"DAMAGE_METER_COMBAT_SESSION_UPDATED",
 	}
 	
 	for _, event in ipairs(events) do

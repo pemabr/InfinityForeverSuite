@@ -120,15 +120,15 @@ function DispelEngine:FindDispellableDebuffs(playerName)
     -- Check all auras on player
     local index = 1
     while true do
-        local name, rank, texture, count, debuffType, duration, expirationTime, caster, isStealable = UnitAura(playerName, index, "HARMFUL")
+        local name, texture, count, debuffType, duration, expirationTime, caster, isStealable = InfinityUtils:GetUnitAura(playerName, index, "HARMFUL")
         
         if not name then
             break
         end
         
         -- Check if this debuff type is dispellable
-        local lowerType = debuffType:lower()
-        if self:CanDispel(lowerType) then
+        local lowerType = debuffType and debuffType:lower() or ""
+        if lowerType ~= "" and self:CanDispel(lowerType) then
             table.insert(dispellable, {
                 name = name,
                 type = lowerType,

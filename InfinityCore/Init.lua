@@ -26,9 +26,11 @@ local function InitializeInfinityCore()
 
 	_G.InfinityCore = {
 		name = INFINITY_CORE_NAME or "InfinityCore",
-		version = INFINITY_SUITE_VERSION or "1.0.0",
+		version = INFINITY_SUITE_VERSION or "2.0.0",
 		initialized = true,
 		addons = {},
+		OfficerDashboard = _G.InfinityOfficerDashboard,
+		Hive = _G.InfinityHive,
 	}
 
 	function _G.InfinityCore:RegisterAddon(name, versionOrConfig, maybeConfig)
@@ -118,16 +120,21 @@ local function InitializeInfinityCore()
 		pcall(function() InfinityDataCollector:Initialize() end)
 	end
 
+	-- Initialize the unified Guild Hive-Mind Engine
+	if _G.InfinityHive and _G.InfinityHive.Initialize then
+		pcall(function() _G.InfinityHive:Initialize() end)
+	end
+
 	-- Register core self
 	_G.InfinityCore:RegisterAddon("InfinityCore", {
-		version = INFINITY_SUITE_VERSION or "1.0.0",
+		version = INFINITY_SUITE_VERSION or "2.0.0",
 		author = "Infinity Forever",
-		description = "Core UI framework, storage, event routing, and suite hub",
+		description = "Guild Hive-Mind Hub, unified UI framework, storage, and comms",
 		category = "Core",
 		enabled = true,
 	})
 
-	-- Register primary suite slash commands
+	-- Register primary suite & Hive slash commands
 	if InfinityCommandRegistry and InfinityCommandRegistry.RegisterCommand then
 		InfinityCommandRegistry:RegisterCommand("infinity", function(args)
 			local sub = args and args[1] and string.lower(args[1]) or ""
@@ -135,13 +142,25 @@ local function InitializeInfinityCore()
 				if _G.InfinityOfficerDashboard and _G.InfinityOfficerDashboard.Toggle then
 					_G.InfinityOfficerDashboard:Toggle()
 				end
-			elseif sub == "addons" then
-				if _G.InfinityAddonManager and _G.InfinityAddonManager.Toggle then
-					_G.InfinityAddonManager:Toggle()
+			elseif sub == "addons" or sub == "modules" then
+				if _G.InfinityMainFrame and _G.InfinityMainFrame.OpenToTab then
+					_G.InfinityMainFrame:OpenToTab("Modules")
 				end
-			elseif sub == "settings" then
-				if _G.InfinitySettingsPanel and _G.InfinitySettingsPanel.Toggle then
-					_G.InfinitySettingsPanel:Toggle()
+			elseif sub == "settings" or sub == "privacy" then
+				if _G.InfinityMainFrame and _G.InfinityMainFrame.OpenToTab then
+					_G.InfinityMainFrame:OpenToTab("Privacy")
+				end
+			elseif sub == "bags" or sub == "bank" then
+				if _G.InfinityHiveUI and _G.InfinityHiveUI.ToggleInventoryViewer then
+					_G.InfinityHiveUI:ToggleInventoryViewer()
+				end
+			elseif sub == "profs" or sub == "professions" then
+				if _G.InfinityMainFrame and _G.InfinityMainFrame.OpenToTab then
+					_G.InfinityMainFrame:OpenToTab("Professions")
+				end
+			elseif sub == "cd" or sub == "cooldowns" then
+				if _G.InfinityHiveUI and _G.InfinityHiveUI.ToggleCooldownOverlay then
+					_G.InfinityHiveUI:ToggleCooldownOverlay()
 				end
 			else
 				if _G.InfinityMainFrame and _G.InfinityMainFrame.Toggle then
@@ -149,6 +168,44 @@ local function InitializeInfinityCore()
 				end
 			end
 		end, { "inf", "suite" })
+
+		InfinityCommandRegistry:RegisterCommand("hive", function(args)
+			local sub = args and args[1] and string.lower(args[1]) or ""
+			if sub == "bags" or sub == "bank" then
+				if _G.InfinityHiveUI then _G.InfinityHiveUI:ToggleInventoryViewer() end
+			elseif sub == "cd" or sub == "cooldowns" then
+				if _G.InfinityHiveUI then _G.InfinityHiveUI:ToggleCooldownOverlay() end
+			elseif sub == "sos" then
+				if _G.InfinityHiveDistress then _G.InfinityHiveDistress:BroadcastSOS(true) end
+			elseif sub == "sync" then
+				if _G.InfinityHive then _G.InfinityHive:RequestFullGuildSync() end
+				if _G.InfinityHiveNetworkDB then _G.InfinityHiveNetworkDB:CheckForNetworkUpdates() end
+				if _G.InfinityUtils then _G.InfinityUtils:Info("Requested full Guild Hive sync + DB update check.", "Hive") end
+			elseif sub == "profs" or sub == "professions" then
+				if _G.InfinityMainFrame then _G.InfinityMainFrame:OpenToTab("Professions") end
+			elseif sub == "market" or sub == "db" then
+				if _G.InfinityMainFrame then _G.InfinityMainFrame:OpenToTab("Market & DB") end
+			elseif sub == "lfg" then
+				if _G.InfinityMainFrame then _G.InfinityMainFrame:OpenToTab("Hive Live") end
+			else
+				if _G.InfinityMainFrame then _G.InfinityMainFrame:Toggle() end
+			end
+		end)
+
+		InfinityCommandRegistry:RegisterCommand("sos", function()
+			if _G.InfinityHiveDistress then
+				local ok = _G.InfinityHiveDistress:BroadcastSOS(true)
+				if not ok and _G.InfinityUtils then
+					_G.InfinityUtils:Warning("SOS is only active in the open world (disabled inside instances & raids).", "Hive")
+				end
+			end
+		end)
+
+		InfinityCommandRegistry:RegisterCommand("bags", function()
+			if _G.InfinityHiveUI and _G.InfinityHiveUI.ToggleInventoryViewer then
+				_G.InfinityHiveUI:ToggleInventoryViewer()
+			end
+		end, { "hivebags", "altbags" })
 
 		InfinityCommandRegistry:RegisterCommand("officer", function()
 			if _G.InfinityOfficerDashboard and _G.InfinityOfficerDashboard.Toggle then
@@ -164,7 +221,7 @@ local function InitializeInfinityCore()
 
 	pcall(function()
 		if _G.InfinityUtils then
-			_G.InfinityUtils:Info("Infinity Suite v" .. (INFINITY_SUITE_VERSION or "1.0.0") .. " (1.60.1-fixed) loaded! Use /infinity or click the minimap orb.", "Core")
+			_G.InfinityUtils:Info("InfinityForever Guild Hive Suite v2.0 (1.60.1) active! Use /infinity, /hive, /bags, or /sos.", "Core")
 		end
 	end)
 

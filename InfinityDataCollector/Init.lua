@@ -4,10 +4,14 @@
 local addonName = "InfinityDataCollector"
 local addonVersion = "1.0.0"
 
+local initialized = false
+local autoSyncEnabled = true
+
 local function InitializeDataCollector()
-	if not _G.InfinityCore then
+	if initialized or not _G.InfinityCore then
 		return  -- Will retry when INFINITY_DATA_LOADED fires
 	end
+	initialized = true
 
 	-- Initialize all modules
 	if InfinityDataCollectorHooks then pcall(function() InfinityDataCollectorHooks:Initialize() end) end
@@ -26,7 +30,7 @@ local function InitializeDataCollector()
 	InfinityCore:RegisterAddon(addonName, {
 		version = addonVersion,
 		author = "Infinity Forever",
-		description = "Autonomous data gathering, database integration, and secure P2P sharing",
+		description = "Autonomous standalone data gathering, optional DB integration, and P2P sharing",
 		enabled = true,
 	})
 	
@@ -51,51 +55,59 @@ local function InitializeDataCollector()
 			InfinityDataCollectorUI:ShowTab("network")
 		end)
 		
-		InfinityCore:RegisterCommand("/datacollector sync", "Force database sync", function()
+		InfinityCore:RegisterCommand("/datacollector sync", "Sync native game data and optional external DBs", function()
 			local results = InfinityDataCollectorDBIntegration:SyncAll()
+			if #results == 0 then
+				print("|cff00ccff[InfinityDataCollector]|r Standalone native gathering active (no optional external DBs installed).")
+				return
+			end
 			for _, result in ipairs(results) do
 				if result.success then
-					print("✓ Synced: " .. result.name)
+					print("|cff4ade80[InfinityDataCollector]|r Synced: " .. result.name)
 				else
-					print("✗ Failed: " .. result.name)
+					print("|cff94a3b8[InfinityDataCollector]|r Skipped optional DB: " .. result.name)
 				end
 			end
 		end)
 		
 		InfinityCore:RegisterCommand("/datacollector autosync", "Toggle auto-sync", function()
-			-- Enable auto-sync via timer
-			local timerFrame = CreateFrame("Frame")
-			local function OnUpdate()
-				InfinityDataCollectorDBIntegration:AutoSync()
-				InfinityDataCollectorNetwork:AutoShareData()
-				InfinityDataCollectorNetwork:CleanupRequests()
-			end
-			timerFrame:SetScript("OnUpdate", function()
-				OnUpdate()
-			end)
-			print("Auto-sync enabled - databases will sync every 30 minutes")
+			autoSyncEnabled = not autoSyncEnabled
+			print("|cff00ccff[InfinityDataCollector]|r Auto-sync " .. (autoSyncEnabled and "ENABLED" or "DISABLED"))
 		end)
 	end
 	
-	-- Setup periodic data gathering and sharing
+	-- Setup throttled periodic data gathering and sharing (every 30s, never every frame)
 	local updateFrame = CreateFrame("Frame")
+	local syncElapsed = 0
 	updateFrame:SetScript("OnUpdate", function(self, elapsed)
-		-- Auto-sync databases every 30 minutes
-		InfinityDataCollectorDBIntegration:AutoSync()
-		
-		-- Auto-share data to peers
-		InfinityDataCollectorNetwork:AutoShareData()
-		
-		-- Clean up old requests
-		InfinityDataCollectorNetwork:CleanupRequests()
+		syncElapsed = syncElapsed + (elapsed or 0)
+		if syncElapsed < 30 then return end
+		syncElapsed = 0
+
+		if autoSyncEnabled then
+			InfinityDataCollectorDBIntegration:AutoSync()
+			InfinityDataCollectorNetwork:AutoShareData()
+			InfinityDataCollectorNetwork:CleanupRequests()
+		end
 	end)
 	
-	-- Hook into guild events for member updates
+	-- Hook into guild events and late-loaded optional databases
 	local guildFrame = CreateFrame("Frame")
-	guildFrame:RegisterEvent("GUILD_ROSTER_UPDATE")
-	guildFrame:SetScript("OnEvent", function(self, event, ...)
+	pcall(guildFrame.RegisterEvent, guildFrame, "GUILD_ROSTER_UPDATE")
+	pcall(guildFrame.RegisterEvent, guildFrame, "PLAYER_ENTERING_WORLD")
+	pcall(guildFrame.RegisterEvent, guildFrame, "ADDON_LOADED")
+	guildFrame:SetScript("OnEvent", function(self, event, loadedAddon)
 		if event == "GUILD_ROSTER_UPDATE" then
 			InfinityDataCollectorPrivacy:RefreshGuildCache()
+		elseif event == "PLAYER_ENTERING_WORLD" then
+			InfinityDataCollectorDBIntegration:RefreshAvailability()
+			pcall(function() InfinityDataCollectorHooks:GatherQuestLogData() end)
+		elseif event == "ADDON_LOADED" and (
+			loadedAddon == "Questie" or loadedAddon == "QuestieDB" or
+			loadedAddon == "WowHeadDB" or loadedAddon == "WoWHeadDB" or
+			loadedAddon == "GathererDB" or loadedAddon == "GatherMate2"
+		) then
+			InfinityDataCollectorDBIntegration:RefreshAvailability()
 		end
 	end)
 	
@@ -110,18 +122,16 @@ local function InitializeDataCollector()
 		end, 5)
 	end
 	
-	-- Start gathering
+	-- Start standalone autonomous gathering + initial quest log scan
 	InfinityDataCollectorHooks:Start()
+	pcall(function() InfinityDataCollectorHooks:GatherQuestLogData() end)
 	
-	print("InfinityDataCollector loaded")
-	print("  - Autonomous data gathering: ACTIVE")
-	print("  - Privacy level: " .. InfinityDataCollectorPrivacy:GetSanitizationLevel())
-	print("  - Network sharing: " .. (InfinityDataCollectorNetwork.shareEnabled and "ENABLED" or "DISABLED"))
-	print("  - Use /datacollector for UI")
-	print("  - Use /datacollector sync to sync external databases")
-	print("  - Collected: " .. InfinityDataCollectorCore:GetStatistics().questCount .. " quests, " ..
-		InfinityDataCollectorCore:GetStatistics().mobCount .. " mobs, " ..
-		InfinityDataCollectorCore:GetStatistics().nodeCount .. " nodes")
+	local stats = InfinityDataCollectorCore:GetStatistics()
+	InfinityUtils:Info(
+		string.format("InfinityDataCollector standalone active (%d quests, %d mobs, %d nodes) — /datacollector",
+			stats.questCount or 0, stats.mobCount or 0, stats.nodeCount or 0),
+		"DataCollector"
+	)
 end
 
 

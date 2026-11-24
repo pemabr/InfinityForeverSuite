@@ -7,93 +7,164 @@ InfinityDataCollectorDBIntegration = {
 	version = 1,
 }
 
--- Register an external database integration
-function InfinityDataCollectorDBIntegration:RegisterDatabase(dbName, dbSource, updateCallback)
+-- Dynamic optional DB resolvers (handles naming/case variants across addons)
+function InfinityDataCollectorDBIntegration:GetQuestieDB()
+	return _G.QuestieDB or (_G.QuestieLoader and _G.QuestieLoader.ImportModule and select(2, pcall(_G.QuestieLoader.ImportModule, _G.QuestieLoader, "QuestieDB"))) or nil
+end
+
+function InfinityDataCollectorDBIntegration:GetWowHeadDB()
+	return _G.WowHeadDB or _G.WoWHeadDB or _G.WowheadDB or nil
+end
+
+function InfinityDataCollectorDBIntegration:GetGathererDB()
+	return _G.GathererDB or _G.GatherMate2DB or nil
+end
+
+-- Register an external or native database integration
+function InfinityDataCollectorDBIntegration:RegisterDatabase(dbName, dbSource, updateCallback, isAvailable)
 	if type(dbName) ~= "string" or dbName == "" then
 		return false
 	end
 	
 	if not self.integrations[dbName] then
+		local available = (isAvailable == nil) and true or (not not isAvailable)
 		self.integrations[dbName] = {
 			name = dbName,
 			source = dbSource,
 			updateCallback = updateCallback,
-			enabled = true,
+			enabled = available,
+			userDisabled = false,
+			available = available,
 			lastSync = 0,
 			syncInterval = 3600,  -- 1 hour
-			status = "not_loaded",
+			status = available and "ready" or "optional_not_installed",
 		}
 		
-		InfinityUtils:Info("Database integration registered: " .. dbName, "DBIntegration")
+		InfinityUtils:Debug("Database integration registered: " .. dbName .. " (" .. self.integrations[dbName].status .. ")", "DBIntegration")
 		return true
 	end
 	
 	return false
 end
 
--- Sync with QuestieDB
+-- Dynamically re-check optional external DBs (handles addons that load alphabetically later)
+function InfinityDataCollectorDBIntegration:RefreshAvailability()
+	local checks = {
+		questiedb = self:GetQuestieDB() ~= nil,
+		wowheaddb = self:GetWowHeadDB() ~= nil,
+		gathererdb = self:GetGathererDB() ~= nil,
+	}
+	for dbName, isAvail in pairs(checks) do
+		local entry = self.integrations[dbName]
+		if entry then
+			local wasAvail = entry.available
+			entry.available = isAvail
+			if isAvail then
+				if not entry.userDisabled then
+					entry.enabled = true
+				end
+				if entry.status == "optional_not_installed" then
+					entry.status = "ready"
+				end
+				if not wasAvail then
+					InfinityUtils:Info("Optional data source detected: " .. entry.source, "DBIntegration")
+				end
+			else
+				entry.enabled = false
+				entry.status = "optional_not_installed"
+			end
+		end
+	end
+end
+
+-- Sync native live game data (100% standalone, no external DBs required)
+function InfinityDataCollectorDBIntegration:SyncNativeGameData()
+	local ok = pcall(function()
+		if InfinityDataCollectorHooks and InfinityDataCollectorHooks.GatherQuestLogData then
+			InfinityDataCollectorHooks:GatherQuestLogData()
+		end
+		if InfinityDataCollectorHooks and InfinityDataCollectorHooks.GatherTargetMobData then
+			InfinityDataCollectorHooks:GatherTargetMobData()
+		end
+	end)
+	if self.integrations["native"] then
+		self.integrations["native"].status = ok and "synced" or "ready"
+		self.integrations["native"].lastSync = time()
+	end
+	return ok
+end
+
+-- Sync with QuestieDB (optional)
 function InfinityDataCollectorDBIntegration:SyncQuestieDB()
-	if not _G.QuestieDB then
-		InfinityUtils:Warning("QuestieDB not found, skipping sync", "DBIntegration")
+	local qdb = self:GetQuestieDB()
+	if not qdb then
+		if self.integrations["questiedb"] then
+			self.integrations["questiedb"].available = false
+			self.integrations["questiedb"].status = "optional_not_installed"
+			self.integrations["questiedb"].lastSync = time()
+			self.integrations["questiedb"].enabled = false
+		end
+		InfinityUtils:Debug("Optional QuestieDB not installed; using standalone live quest data", "DBIntegration")
 		return false
 	end
 	
-	pcall(function()
-		local questDB = _G.QuestieDB.questData or {}
-		local npcDB = _G.QuestieDB.npcData or {}
+	local ok = pcall(function()
+		local questDB = qdb.questData or qdb.Quest or {}
+		local npcDB = qdb.npcData or qdb.NPC or {}
 		
-		-- Import quests
 		for questID, questData in pairs(questDB) do
 			if type(questID) == "number" and questID > 0 and type(questData) == "table" then
-				local questName = questData.name or questData.title or "Unknown"
-				local questLevel = questData.level or questData.minLevel or 0
+				local questName = questData.name or questData.title or questData[1] or "Unknown"
+				local questLevel = questData.level or questData.minLevel or questData[7] or 0
 				local zone = questData.zone or "Unknown"
 				local objectives = questData.objectives or questData.description or ""
 				
-				-- Record quest
 				InfinityDataCollectorCore:RecordQuestData(questID, questName, questLevel, nil, 0, 0, zone, objectives, {})
 			end
 		end
 		
-		-- Import NPCs (quest givers)
 		for npcID, npcData in pairs(npcDB) do
 			if type(npcID) == "number" and npcID > 0 and type(npcData) == "table" then
-				local npcName = npcData.name or "Unknown"
+				local npcName = npcData.name or npcData[1] or "Unknown"
 				local zone = npcData.zone or "Unknown"
 				local x = npcData.x or 0
 				local y = npcData.y or 0
-				local npcType = "npc"
-				
-				if npcData.questGiver then
-					npcType = "quest_giver"
-				end
+				local npcType = npcData.questGiver and "quest_giver" or "npc"
 				
 				InfinityDataCollectorCore:RecordNPCData(npcID, npcName, x, y, zone, npcType)
 			end
 		end
 		
-		self.integrations["questiedb"].status = "synced"
-		self.integrations["questiedb"].lastSync = time()
+		if self.integrations["questiedb"] then
+			self.integrations["questiedb"].available = true
+			self.integrations["questiedb"].status = "synced"
+			self.integrations["questiedb"].lastSync = time()
+		end
 		
-		InfinityUtils:Info("QuestieDB sync complete", "DBIntegration")
-		return true
+		InfinityUtils:Info("Optional QuestieDB sync complete", "DBIntegration")
 	end)
 	
-	return false
+	return ok
 end
 
--- Sync with WowHead data (if available)
+-- Sync with WowHead data (optional)
 function InfinityDataCollectorDBIntegration:SyncWowHeadDB()
-	if not _G.WowHeadDB then
-		InfinityUtils:Warning("WowHeadDB not found, skipping sync", "DBIntegration")
+	local whdb = self:GetWowHeadDB()
+	if not whdb then
+		if self.integrations["wowheaddb"] then
+			self.integrations["wowheaddb"].available = false
+			self.integrations["wowheaddb"].status = "optional_not_installed"
+			self.integrations["wowheaddb"].lastSync = time()
+			self.integrations["wowheaddb"].enabled = false
+		end
+		InfinityUtils:Debug("Optional WowHeadDB not installed; using standalone live mob/loot data", "DBIntegration")
 		return false
 	end
 	
-	pcall(function()
-		local mobDB = _G.WowHeadDB.mobs or {}
-		local dropDB = _G.WowHeadDB.drops or {}
+	local ok = pcall(function()
+		local mobDB = whdb.mobs or whdb.Mobs or {}
+		local dropDB = whdb.drops or whdb.Drops or {}
 		
-		-- Import mobs
 		for mobID, mobData in pairs(mobDB) do
 			if type(mobID) == "number" and mobID > 0 and type(mobData) == "table" then
 				local mobName = mobData.name or "Unknown"
@@ -106,79 +177,98 @@ function InfinityDataCollectorDBIntegration:SyncWowHeadDB()
 			end
 		end
 		
-		-- Import drops
-		for dropKey, dropData in pairs(dropDB) do
+		for _, dropData in pairs(dropDB) do
 			if type(dropData) == "table" and dropData.mobID and dropData.itemID then
-				local mobID = dropData.mobID
-				local mobName = dropData.mobName or "Unknown"
-				local itemID = dropData.itemID
-				local itemName = dropData.itemName or "Unknown"
-				local dropRate = dropData.dropRate or 0
-				local rarity = dropData.rarity or "common"
-				
-				InfinityDataCollectorCore:RecordDropData(mobID, mobName, itemID, itemName, dropRate, rarity)
+				InfinityDataCollectorCore:RecordDropData(
+					dropData.mobID,
+					dropData.mobName or "Unknown",
+					dropData.itemID,
+					dropData.itemName or "Unknown",
+					dropData.dropRate or 0,
+					dropData.rarity or "common"
+				)
 			end
 		end
 		
-		self.integrations["wowheaddb"].status = "synced"
-		self.integrations["wowheaddb"].lastSync = time()
+		if self.integrations["wowheaddb"] then
+			self.integrations["wowheaddb"].available = true
+			self.integrations["wowheaddb"].status = "synced"
+			self.integrations["wowheaddb"].lastSync = time()
+		end
 		
-		InfinityUtils:Info("WowHeadDB sync complete", "DBIntegration")
-		return true
+		InfinityUtils:Info("Optional WowHeadDB sync complete", "DBIntegration")
 	end)
 	
-	return false
+	return ok
 end
 
--- Sync with GathererDB
+-- Sync with GathererDB / GatherMate2 (optional)
 function InfinityDataCollectorDBIntegration:SyncGathererDB()
-	if not _G.GathererDB then
-		InfinityUtils:Warning("GathererDB not found, skipping sync", "DBIntegration")
+	local gdb = self:GetGathererDB()
+	if not gdb then
+		if self.integrations["gathererdb"] then
+			self.integrations["gathererdb"].available = false
+			self.integrations["gathererdb"].status = "optional_not_installed"
+			self.integrations["gathererdb"].lastSync = time()
+			self.integrations["gathererdb"].enabled = false
+		end
+		InfinityUtils:Debug("Optional GathererDB not installed; using standalone live gathering recorder", "DBIntegration")
 		return false
 	end
 	
-	pcall(function()
-		local nodeDB = _G.GathererDB.nodes or {}
+	local ok = pcall(function()
+		local nodeDB = gdb.nodes or gdb
 		
-		-- Import nodes
 		for nodeType, nodes in pairs(nodeDB) do
 			if type(nodes) == "table" then
 				for nodeID, nodeData in pairs(nodes) do
 					if type(nodeData) == "table" and nodeData.x and nodeData.y then
-						local zone = nodeData.zone or "Unknown"
-						local x = nodeData.x
-						local y = nodeData.y
-						local level = nodeData.level or 0
-						local respawnTime = nodeData.respawnTime or 300
-						
-						InfinityDataCollectorCore:RecordNodeData(nodeType, nodeID, x, y, zone, level, respawnTime)
+						InfinityDataCollectorCore:RecordNodeData(
+							tostring(nodeType),
+							nodeID,
+							nodeData.x,
+							nodeData.y,
+							nodeData.zone or "Unknown",
+							nodeData.level or 0,
+							nodeData.respawnTime or 300
+						)
+						if _G.InfinityNodeDB and _G.InfinityNodeDB.RecordNode then
+							pcall(function()
+								_G.InfinityNodeDB:RecordNode(tostring(nodeType), nodeData.x, nodeData.y, nodeData.zone or "Unknown", nodeData.respawnTime or 300)
+							end)
+						end
 					end
 				end
 			end
 		end
 		
-		self.integrations["gathererdb"].status = "synced"
-		self.integrations["gathererdb"].lastSync = time()
+		if self.integrations["gathererdb"] then
+			self.integrations["gathererdb"].available = true
+			self.integrations["gathererdb"].status = "synced"
+			self.integrations["gathererdb"].lastSync = time()
+		end
 		
-		InfinityUtils:Info("GathererDB sync complete", "DBIntegration")
-		return true
+		InfinityUtils:Info("Optional GathererDB sync complete", "DBIntegration")
 	end)
 	
-	return false
+	return ok
 end
 
--- Perform all configured syncs
+-- Perform all active syncs (always includes standalone native data + any installed optional DBs)
 function InfinityDataCollectorDBIntegration:SyncAll()
+	self:RefreshAvailability()
 	local synced = {}
 	
 	for dbName, integration in pairs(self.integrations) do
 		if integration.enabled then
-			if dbName == "questiedb" then
-				table.insert(synced, {name = dbName, success = self:SyncQuestieDB()})
-			elseif dbName == "wowheaddb" then
-				table.insert(synced, {name = dbName, success = self:SyncWowHeadDB()})
-			elseif dbName == "gathererdb" then
-				table.insert(synced, {name = dbName, success = self:SyncGathererDB()})
+			if dbName == "native" then
+				table.insert(synced, {name = "Native WoW Data (Standalone)", success = self:SyncNativeGameData()})
+			elseif dbName == "questiedb" and integration.available then
+				table.insert(synced, {name = integration.source, success = self:SyncQuestieDB()})
+			elseif dbName == "wowheaddb" and integration.available then
+				table.insert(synced, {name = integration.source, success = self:SyncWowHeadDB()})
+			elseif dbName == "gathererdb" and integration.available then
+				table.insert(synced, {name = integration.source, success = self:SyncGathererDB()})
 			end
 		end
 	end
@@ -189,7 +279,9 @@ end
 -- Enable/disable an integration
 function InfinityDataCollectorDBIntegration:SetIntegrationEnabled(dbName, enabled)
 	if self.integrations[dbName] then
-		self.integrations[dbName].enabled = not not enabled
+		local flag = not not enabled
+		self.integrations[dbName].enabled = flag
+		self.integrations[dbName].userDisabled = not flag
 		return true
 	end
 	return false
@@ -206,16 +298,19 @@ end
 
 -- Auto-sync databases (call this periodically)
 function InfinityDataCollectorDBIntegration:AutoSync()
+	self:RefreshAvailability()
 	local now = time()
 	local synced = {}
 	
 	for dbName, integration in pairs(self.integrations) do
-		if integration.enabled and (now - integration.lastSync) >= integration.syncInterval then
-			if dbName == "questiedb" then
+		if integration.enabled and (now - (integration.lastSync or 0)) >= (integration.syncInterval or 1800) then
+			if dbName == "native" then
+				table.insert(synced, {name = dbName, success = self:SyncNativeGameData()})
+			elseif dbName == "questiedb" and integration.available then
 				table.insert(synced, {name = dbName, success = self:SyncQuestieDB()})
-			elseif dbName == "wowheaddb" then
+			elseif dbName == "wowheaddb" and integration.available then
 				table.insert(synced, {name = dbName, success = self:SyncWowHeadDB()})
-			elseif dbName == "gathererdb" then
+			elseif dbName == "gathererdb" and integration.available then
 				table.insert(synced, {name = dbName, success = self:SyncGathererDB()})
 			end
 		end
@@ -226,13 +321,16 @@ end
 
 -- Get integration status
 function InfinityDataCollectorDBIntegration:GetIntegrationStatus(dbName)
-	if self.integrations[dbName] then
+	local e = self.integrations[dbName]
+	if e then
 		return {
-			name = self.integrations[dbName].name,
-			enabled = self.integrations[dbName].enabled,
-			status = self.integrations[dbName].status,
-			lastSync = self.integrations[dbName].lastSync,
-			syncInterval = self.integrations[dbName].syncInterval,
+			name = e.name,
+			source = e.source,
+			enabled = e.enabled,
+			available = e.available,
+			status = e.status,
+			lastSync = e.lastSync,
+			syncInterval = e.syncInterval,
 		}
 	end
 	return nil
@@ -240,21 +338,34 @@ end
 
 -- Get all integration statuses
 function InfinityDataCollectorDBIntegration:GetAllIntegrationStatuses()
+	self:RefreshAvailability()
+	local order = { "native", "questiedb", "wowheaddb", "gathererdb" }
 	local statuses = {}
+	local added = {}
+	for _, dbName in ipairs(order) do
+		if self.integrations[dbName] then
+			table.insert(statuses, self:GetIntegrationStatus(dbName))
+			added[dbName] = true
+		end
+	end
 	for dbName in pairs(self.integrations) do
-		table.insert(statuses, self:GetIntegrationStatus(dbName))
+		if not added[dbName] then
+			table.insert(statuses, self:GetIntegrationStatus(dbName))
+		end
 	end
 	return statuses
 end
 
--- Initialize default database integrations
+-- Initialize default database integrations (standalone native always active; external DBs optional & auto-detected)
 function InfinityDataCollectorDBIntegration:InitializeDefaultIntegrations()
-	self:RegisterDatabase("questiedb", "QuestieDB", nil)
-	self:RegisterDatabase("wowheaddb", "WowHeadDB", nil)
-	self:RegisterDatabase("gathererdb", "GathererDB", nil)
+	self:RegisterDatabase("native", "Native WoW Live Data", nil, true)
+	self:RegisterDatabase("questiedb", "QuestieDB (Optional)", nil, self:GetQuestieDB() ~= nil)
+	self:RegisterDatabase("wowheaddb", "WoWHeadDB (Optional)", nil, self:GetWowHeadDB() ~= nil)
+	self:RegisterDatabase("gathererdb", "GathererDB / GatherMate2 (Optional)", nil, self:GetGathererDB() ~= nil)
 	
 	-- Set default sync intervals
-	self:SetSyncInterval("questiedb", 3600)    -- 1 hour
-	self:SetSyncInterval("wowheaddb", 7200)    -- 2 hours
-	self:SetSyncInterval("gathererdb", 1800)   -- 30 minutes
+	self:SetSyncInterval("native", 300)        -- 5 minutes
+	self:SetSyncInterval("questiedb", 3600)    -- 1 hour (when installed)
+	self:SetSyncInterval("wowheaddb", 7200)    -- 2 hours (when installed)
+	self:SetSyncInterval("gathererdb", 1800)   -- 30 minutes (when installed)
 end

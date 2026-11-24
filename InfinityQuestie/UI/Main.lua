@@ -60,12 +60,17 @@ function InfinityQuestieUI:Initialize()
 end
 
 function InfinityQuestieUI:SyncFromWoWQuestLog()
-	if not GetNumQuestLogEntries or not GetQuestLogTitle then return end
-	local count = GetNumQuestLogEntries()
+	if _G.InfinityQuestieDBSync and _G.InfinityQuestieDBSync.SyncFromNativeQuestLog then
+		_G.InfinityQuestieDBSync:SyncFromNativeQuestLog()
+		return
+	end
+	if not InfinityUtils or not InfinityUtils.GetQuestLogCount then return end
+	local count = InfinityUtils:GetQuestLogCount()
+	local zone = (GetRealZoneText and GetRealZoneText()) or "Azeroth"
 	for i = 1, count do
-		local title, level, _, isHeader, _, _, _, questID = GetQuestLogTitle(i)
+		local title, level, isHeader, questID = InfinityUtils:GetQuestLogEntry(i)
 		if title and not isHeader and _G.InfinityQuestTracker and _G.InfinityQuestTracker.AcceptQuest then
-			pcall(function() _G.InfinityQuestTracker:AcceptQuest(questID or i, title, level) end)
+			pcall(function() _G.InfinityQuestTracker:AcceptQuest(questID or i, title, level, zone) end)
 		end
 	end
 end
@@ -73,12 +78,16 @@ end
 function InfinityQuestieUI:Toggle()
 	if not self.initialized then self:Initialize() end
 	self.frame:SetShown(not self.frame:IsShown())
-	if self.frame:IsShown() then self:Update() end
+	if self.frame:IsShown() then
+		self:SyncFromWoWQuestLog()
+		self:Update()
+	end
 end
 
 function InfinityQuestieUI:Show()
 	if not self.initialized then self:Initialize() end
 	self.frame:Show()
+	self:SyncFromWoWQuestLog()
 	self:Update()
 end
 

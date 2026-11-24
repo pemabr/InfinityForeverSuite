@@ -44,6 +44,15 @@ local function SafeGetContainerItemCount(bag, slot)
 	return 1
 end
 
+local function SafeGetItemInfo(item)
+	if C_Item and C_Item.GetItemInfo then
+		return C_Item.GetItemInfo(item)
+	elseif GetItemInfo then
+		return GetItemInfo(item)
+	end
+	return nil
+end
+
 function InfinityConsumables:ScanInventory()
 	self.inventory = {}
 	
@@ -52,7 +61,7 @@ function InfinityConsumables:ScanInventory()
 		for slot = 1, numSlots do
 			local itemID = SafeGetContainerItemID(bag, slot)
 			if itemID then
-				local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType, itemSubType = GetItemInfo(itemID)
+				local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType, itemSubType = SafeGetItemInfo(itemID)
 				local itemCount = SafeGetContainerItemCount(bag, slot)
 				
 				if itemType == "Consumable" or itemType == "Food & Drink" then

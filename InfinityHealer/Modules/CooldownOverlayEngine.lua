@@ -87,7 +87,7 @@ function CooldownOverlayEngine:GetSpellCooldown(spellName)
         return nil
     end
     
-    local start, duration, enabled = GetSpellCooldown(spellName)
+    local start, duration, enabled = InfinityUtils:GetSpellCooldown(spellName)
     
     if not start or start == 0 then
         return {

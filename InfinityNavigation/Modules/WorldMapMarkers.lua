@@ -23,9 +23,9 @@ end
 function WorldMapMarkers:RegisterMapEvents()
 	local frame = CreateFrame("Frame")
 	
-	frame:RegisterEvent("WORLD_MAP_UPDATE")
-	frame:RegisterEvent("QUEST_LOG_UPDATE")
-	frame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+	pcall(frame.RegisterEvent, frame, "WORLD_MAP_UPDATE")
+	pcall(frame.RegisterEvent, frame, "QUEST_LOG_UPDATE")
+	pcall(frame.RegisterEvent, frame, "ZONE_CHANGED_NEW_AREA")
 	
 	frame:SetScript("OnEvent", function(f, event, ...)
 		WorldMapMarkers:OnMapEvent(event, ...)
@@ -61,32 +61,50 @@ function WorldMapMarkers:RefreshMarkers()
 	self:AddWaypointMarkers()
 end
 
--- Add quest objective markers
+-- Add quest objective markers (100% standalone via C_QuestLog + optional QuestieDB enrichment)
 function WorldMapMarkers:AddQuestMarkers()
-	-- Get active quests
-	for i = 1, GetNumQuestLogEntries() do
-		local questName, level, suggestedGroup, isHeader, isCollapsed, isComplete, frequency, questId = GetQuestLogTitle(i)
+	if not InfinityUtils or not InfinityUtils.GetQuestLogCount then return end
+	local count = InfinityUtils:GetQuestLogCount()
+	for i = 1, count do
+		local questName, level, isHeader, questId = InfinityUtils:GetQuestLogEntry(i)
 		
 		if not isHeader and questId then
-			-- Get quest objectives
-			local objectives = GetQuestLogQuestText(i)
-			
-			-- Query Questie if available for location data
-			if _G.QuestieDB then
-				local questData = _G.QuestieDB:GetQuestData(questId)
-				if questData and questData.objectives then
+			local added = false
+			-- Optional QuestieDB coordinates if installed
+			if _G.QuestieDB and _G.QuestieDB.GetQuestData then
+				local ok, questData = pcall(function() return _G.QuestieDB:GetQuestData(questId) end)
+				if ok and questData and questData.objectives then
 					for _, objective in ipairs(questData.objectives) do
-						self:AddMarker({
-							type = "quest",
-							questId = questId,
-							questName = questName,
-							objectiveText = objective.text,
-							x = objective.x,
-							y = objective.y,
-							zone = objective.zone,
-							icon = "objective",
-						})
+						if objective.x and objective.y then
+							self:AddMarker({
+								type = "quest",
+								questId = questId,
+								questName = questName,
+								objectiveText = objective.text,
+								x = objective.x,
+								y = objective.y,
+								zone = objective.zone,
+								icon = "objective",
+							})
+							added = true
+						end
 					end
+				end
+			end
+			-- Standalone fallback: use InfinityDataCollector recorded coordinates if present
+			if not added and _G.InfinityDataCollectorCore and _G.InfinityDataCollectorCore.GetQuestData then
+				local ok, localQuest = pcall(function() return _G.InfinityDataCollectorCore:GetQuestData(questId) end)
+				if ok and localQuest and localQuest.x and localQuest.y and (localQuest.x > 0 or localQuest.y > 0) then
+					self:AddMarker({
+						type = "quest",
+						questId = questId,
+						questName = questName,
+						objectiveText = localQuest.objectives or "Quest Objective",
+						x = localQuest.x,
+						y = localQuest.y,
+						zone = localQuest.zone,
+						icon = "objective",
+					})
 				end
 			end
 		end

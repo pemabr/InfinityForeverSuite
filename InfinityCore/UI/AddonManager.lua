@@ -93,6 +93,19 @@ function InfinityAddonManager:CreateManagerWindow()
 	)
 	mainFrame:SetPoint("CENTER")
 
+	-- Persistent HiveMind connectivity & data-sync status indicator in Addon Manager header
+	if mainFrame.header and _G.InfinityHiveUI and _G.InfinityHiveUI.CreateHealthBadge then
+		local badge = _G.InfinityHiveUI:CreateHealthBadge(mainFrame.header, function()
+			if mainFrame:IsVisible() then
+				InfinityAddonManager:RefreshAddonList(mainFrame)
+			end
+		end)
+		if badge and mainFrame.closeBtn then
+			badge:SetPoint("RIGHT", mainFrame.closeBtn, "LEFT", -8, 0)
+			mainFrame.healthBadge = badge
+		end
+	end
+
 	-- Search bar row
 	local searchLabel = InfinityUIFramework:CreateLabel(mainFrame, "Filter Addons:")
 	searchLabel:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 14, -50)
@@ -214,6 +227,16 @@ function InfinityAddonManager:ShowAddonDetails(mainFrame, addonInfo)
 			pcall(opener)
 		end, true)
 		openBtn:SetPoint("LEFT", toggleBtn, "RIGHT", 10, 0)
+	end
+
+	-- Live Guild HiveMind Network & Data-Sync Health Strip inside Addon Manager
+	if _G.InfinityHiveUI and _G.InfinityHiveUI.CreateHealthBanner then
+		local banner = _G.InfinityHiveUI:CreateHealthBanner(parent, 424, function()
+			InfinityAddonManager:RefreshAddonList(mainFrame)
+		end)
+		if banner then
+			banner:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", 16, 16)
+		end
 	end
 end
 

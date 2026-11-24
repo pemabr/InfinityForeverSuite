@@ -9,6 +9,10 @@ InfinityEncounterMgr.encounter_history = {}
 InfinityEncounterMgr.current_boss = nil
 InfinityEncounterMgr.callbacks = {}
 
+local function IsSecret(val)
+    return issecretvalue ~= nil and issecretvalue(val) or false
+end
+
 local function IsRaidBossUnit(unit)
     if not unit or type(unit) ~= "string" or not UnitExists(unit) then
         return false
@@ -17,11 +21,11 @@ local function IsRaidBossUnit(unit)
         return true
     end
     local classification = UnitClassification and UnitClassification(unit)
-    if classification == "worldboss" then
+    if not IsSecret(classification) and classification == "worldboss" then
         return true
     end
     local level = UnitLevel and UnitLevel(unit)
-    return level == -1
+    return (not IsSecret(level)) and level == -1
 end
 
 function InfinityEncounterMgr:GetCurrentBoss()
@@ -29,17 +33,20 @@ function InfinityEncounterMgr:GetCurrentBoss()
     for _, unitID in ipairs({"boss1", "boss2", "boss3", "boss4", "target", "focus"}) do
         if IsRaidBossUnit(unitID) then
             local name = UnitName(unitID)
-            local health = UnitHealth(unitID) or 0
-            local maxHealth = UnitHealthMax(unitID) or 0
-            local healthPercent = maxHealth > 0 and ((health / maxHealth) * 100) or 0
+            local health = UnitHealth(unitID)
+            local maxHealth = UnitHealthMax(unitID)
+            local safeName = (name and not IsSecret(name)) and name or "Boss"
+            local safeHealth = (health and not IsSecret(health)) and health or 0
+            local safeMax = (maxHealth and not IsSecret(maxHealth)) and maxHealth or 0
+            local healthPercent = safeMax > 0 and ((safeHealth / safeMax) * 100) or 0
             
             return {
                 unitID = unitID,
-                name = name,
-                health = health,
-                maxHealth = maxHealth,
+                name = safeName,
+                health = safeHealth,
+                maxHealth = safeMax,
                 healthPercent = healthPercent,
-                isAlive = health > 0,
+                isAlive = safeMax == 0 or safeHealth > 0,
             }
         end
     end

@@ -67,9 +67,9 @@ function MinimapArrow:OnUpdate(elapsed)
 	self.lastUpdate = 0
 	
 	-- Get player position
-	local playerX, playerY = GetPlayerMapPosition("player")
+	local playerX, playerY = InfinityUtils:GetUnitMapPosition("player")
 	
-	if not playerX or not playerY then
+	if not playerX or not playerY or (playerX == 0 and playerY == 0) then
 		return
 	end
 	
@@ -149,8 +149,8 @@ function MinimapArrow:GetDistance()
 		return 0
 	end
 	
-	local playerX, playerY = GetPlayerMapPosition("player")
-	if not playerX or not playerY then
+	local playerX, playerY = InfinityUtils:GetUnitMapPosition("player")
+	if not playerX or not playerY or (playerX == 0 and playerY == 0) then
 		return 0
 	end
 	

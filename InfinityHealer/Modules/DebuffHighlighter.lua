@@ -105,7 +105,7 @@ function DebuffHighlighter:ScanUnitDebuffs(unitToken)
 	
 	-- Scan all auras
 	while true do
-		local name, icon, count, debuffType, duration, expirationTime, caster, isStealable, nameplateShowAll, timeMod, isBossAura, casterIsPlayer, nameplateShowPersonal = UnitAura(unitToken, index, "HARMFUL")
+		local name, icon, count, debuffType, duration, expirationTime, caster, isStealable, nameplateShowAll, timeMod, isBossAura, casterIsPlayer, nameplateShowPersonal = InfinityUtils:GetUnitAura(unitToken, index, "HARMFUL")
 		
 		if not name then
 			break

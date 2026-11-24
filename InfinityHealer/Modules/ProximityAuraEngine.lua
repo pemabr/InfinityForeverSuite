@@ -154,7 +154,7 @@ function ProximityAuraEngine:GetPlayerProximityAuras(unit)
             local hasAura = false
             
             for i = 1, 32 do
-                local name, icon, count, dispelType, duration, expirationTime = UnitBuff(unit, i)
+                local name, icon, count, dispelType, duration, expirationTime = InfinityUtils:GetUnitAura(unit, i, "HELPFUL")
                 
                 if not name then
                     break

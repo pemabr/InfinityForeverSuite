@@ -62,51 +62,51 @@ function DataCollector:HandleEvent(event, ...)
 end
 
 function DataCollector:CollectQuestData(questID)
-	if not self.config.enableQuestCollection then return end
+	if not self.config.enableQuestCollection or not questID then return end
 	
-	local questName = GetQuestLogTitle(questID)
+	local questName = InfinityUtils:GetQuestTitleByID(questID)
 	if not questName then return end
 	
-	-- Check if quest data already exists
-	if InfinityData:GetQuest(questID) then return end
+	if InfinityData and InfinityData.GetQuest and InfinityData:GetQuest(questID) then return end
 	
-	-- Collect quest information
 	local questData = {
 		id = questID,
 		name = questName,
-		level = GetQuestLogQuestLevel(questID),
-		type = GetQuestLogQuestType(questID),
+		level = 0,
+		type = "normal",
 		startTime = time(),
 		objectives = {},
 	}
 	
-	-- Get objectives
-	for i = 1, GetNumQuestLeaderBoards(questID) do
-		local text, type, done = GetQuestLogLeaderBoardInfo(questID, i)
+	for _, obj in ipairs(InfinityUtils:GetQuestObjectives(questID)) do
 		table.insert(questData.objectives, {
-			text = text,
-			type = type,
-			completed = done,
+			text = obj.text or "",
+			type = obj.type or "object",
+			completed = obj.finished or false,
 		})
 	end
 	
-	-- Store in data system
-	InfinityData:StoreQuest(questID, questData)
+	if InfinityData and InfinityData.StoreQuest then
+		InfinityData:StoreQuest(questID, questData)
+	end
 	self.collectionStats.questsCollected = self.collectionStats.questsCollected + 1
 	
-	-- Publish event for other addons
-	InfinityMessaging:Publish("quest_data_collected", questID, questName)
+	if InfinityMessaging then
+		InfinityMessaging:Publish("quest_data_collected", questID, questName)
+	end
 end
 
 function DataCollector:CollectLootData()
 	if not self.config.enableDropCollection then return end
 	
-	local guid = GetLootSourceType()
-	if not guid then return end
+	local guid = UnitGUID and UnitGUID("target")
+	if not guid or InfinityUtils:IsSecret(guid) then return end
 	
-	-- Scan all loot
-	for slot = 1, GetNumLootItems() do
-		local icon, name, quantity, quality, bound, canUse, itemID = GetLootSlotInfo(slot)
+	local numItems = GetNumLootItems and GetNumLootItems() or 0
+	for slot = 1, numItems do
+		local _, name, quantity, quality = GetLootSlotInfo(slot)
+		local link = GetLootSlotLink and GetLootSlotLink(slot)
+		local itemID = link and InfinityUtils:GetItemIDFromHyperlink(link) or nil
 		
 		if itemID then
 			local lootData = {
@@ -118,8 +118,9 @@ function DataCollector:CollectLootData()
 				timestamp = time(),
 			}
 			
-			-- Store drop data
-			InfinityData:StoreDrop(itemID, lootData)
+			if InfinityData and InfinityData.StoreDrop then
+				InfinityData:StoreDrop(itemID, lootData)
+			end
 			self.collectionStats.dropsCollected = self.collectionStats.dropsCollected + 1
 		end
 	end
@@ -128,63 +129,64 @@ end
 function DataCollector:CollectMobData(unit)
 	if not self.config.enableMobCollection then return end
 	
-	local name = UnitName(unit)
-	local guid = UnitGUID(unit)
-	local classification = UnitClassification(unit)
-	local level = UnitLevel(unit)
+	local name = UnitName and UnitName(unit)
+	local guid = UnitGUID and UnitGUID(unit)
+	local classification = UnitClassification and UnitClassification(unit)
+	local level = UnitLevel and UnitLevel(unit)
 	
-	if not name or not guid then return end
+	if not name or not guid or InfinityUtils:IsSecret(name) or InfinityUtils:IsSecret(guid) then return end
+	if InfinityUtils:IsSecret(level) then level = 0 end
 	
-	-- Check if mob already tracked
-	local mobID = tonumber(guid:match("Creature%-.-%-.-%-.-%-.-%-(.-)%-"))
+	local mobID = tonumber(guid:match("Creature%-.-%-.-%-.-%-.-%-(.-)%-")) or tonumber(guid:match("Creature%-(%d+)%-"))
 	if not mobID then return end
 	
-	if InfinityData:GetMob(mobID) then return end
+	if InfinityData and InfinityData.GetMob and InfinityData:GetMob(mobID) then return end
 	
-	-- Collect mob information
 	local mobData = {
 		id = mobID,
 		name = name,
 		level = level,
 		classification = classification,
-		zone = GetZoneText(),
-		subzone = GetSubZoneText(),
+		zone = GetZoneText and GetZoneText() or "Unknown",
+		subzone = GetSubZoneText and GetSubZoneText() or "",
 		firstSeen = time(),
 		kills = 0,
 		lastSeen = time(),
 	}
 	
-	InfinityData:StoreMob(mobID, mobData)
+	if InfinityData and InfinityData.StoreMob then
+		InfinityData:StoreMob(mobID, mobData)
+	end
 	self.collectionStats.mobsCollected = self.collectionStats.mobsCollected + 1
 end
 
 function DataCollector:CollectNodeData(unit)
 	if not self.config.enableNodeCollection then return end
 	
-	local name = UnitName(unit)
-	local guid = UnitGUID(unit)
+	local name = UnitName and UnitName(unit)
+	local guid = UnitGUID and UnitGUID(unit)
 	
-	if not name or not guid then return end
+	if not name or not guid or InfinityUtils:IsSecret(name) or InfinityUtils:IsSecret(guid) then return end
 	
-	-- Check if node already tracked
 	local nodeID = tonumber(guid:match("GameObject%-.-%-.-%-.-%-.-%-(.-)%-"))
 	if not nodeID then return end
 	
-	if InfinityData:GetNode(nodeID) then return end
+	if InfinityData and InfinityData.GetNode and InfinityData:GetNode(nodeID) then return end
 	
-	-- Collect node information
 	local nodeData = {
 		id = nodeID,
 		name = name,
-		zone = GetZoneText(),
-		subzone = GetSubZoneText(),
+		zone = GetZoneText and GetZoneText() or "Unknown",
+		subzone = GetSubZoneText and GetSubZoneText() or "",
 		type = self:DetermineNodeType(name),
 		firstSeen = time(),
 		gatherings = 0,
 		lastSeen = time(),
 	}
 	
-	InfinityData:StoreNode(nodeID, nodeData)
+	if InfinityData and InfinityData.StoreNode then
+		InfinityData:StoreNode(nodeID, nodeData)
+	end
 	self.collectionStats.nodesCollected = self.collectionStats.nodesCollected + 1
 end
 
@@ -197,14 +199,15 @@ function DataCollector:DetermineNodeType(nodeName)
 end
 
 function DataCollector:CompleteQuest(questID)
-	local questName = GetQuestLogTitle(questID)
-	if not questName then return end
+	local questName = InfinityUtils:GetQuestTitleByID(questID) or ("Quest #" .. tostring(questID or "?"))
 	
-	-- Mark quest as complete in data system
-	InfinityData:CompleteQuest(questID)
+	if InfinityData and InfinityData.CompleteQuest then
+		InfinityData:CompleteQuest(questID)
+	end
 	
-	-- Publish completion event
-	InfinityMessaging:Publish("quest_completed", questID, questName)
+	if InfinityMessaging then
+		InfinityMessaging:Publish("quest_completed", questID, questName)
+	end
 end
 
 function DataCollector:OnZoneChange()

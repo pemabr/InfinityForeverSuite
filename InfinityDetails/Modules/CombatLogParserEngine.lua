@@ -83,13 +83,9 @@ function CombatLogParserEngine:StartParsing()
         return
     end
     
-    if InfinityCore and InfinityCore.Events then
-        InfinityCore.Events:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED", function(...)
-            CombatLogParserEngine:OnCombatEvent(...)
-        end)
-    end
-    
-    self:Log("Combat parsing started")
+    -- Note: Raw COMBAT_LOG_EVENT_UNFILTERED is restricted on Warcraft Forever 1.60.1;
+    -- InfinityDetails syncs combat metrics via Blizzard's native C_DamageMeter API instead.
+    self:Log("Combat meter sync ready (C_DamageMeter mode)")
 end
 
 function CombatLogParserEngine:OnCombatEvent(...)

@@ -101,7 +101,7 @@ function CraftingMaterialChecker:ScanMaterials()
 	
 	-- Scan bags for materials
 	for _, material in ipairs(commonMaterials) do
-		local quantity = GetItemCount(material.id)
+		local quantity = InfinityUtils:GetItemCount(material.id)
 		
 		if quantity > 0 then
 			newMaterials[material.id] = {
@@ -175,7 +175,7 @@ function CraftingMaterialChecker:GetMaterialValue()
 	local totalValue = 0
 	
 	for _, material in pairs(self.materials) do
-		local itemValue = select(11, GetItemInfo(material.id)) or 0
+		local itemValue = select(11, InfinityUtils:GetItemInfo(material.id)) or 0
 		totalValue = totalValue + (itemValue * material.quantity)
 	end
 	

@@ -7,16 +7,25 @@ InfinityQuestIntegration.questieAvailable = _G.QuestieDB ~= nil
 
 function InfinityQuestIntegration:Initialize()
 	self.questieAvailable = _G.QuestieDB ~= nil
-	InfinityUtils:Info("Quest integration initialized. Questie: " .. tostring(self.questieAvailable), "Navigation")
+	InfinityUtils:Debug("Navigation quest integration initialized (mode: " .. (self.questieAvailable and "QuestieDB+Native" or "Standalone Native") .. ")", "Navigation")
 end
 
 function InfinityQuestIntegration:GetQuestData(questId)
-	if not self.questieAvailable or not QuestieDB or not QuestieDB.QueryQuestSingle then
-		return nil
+	if self.questieAvailable and _G.QuestieDB and _G.QuestieDB.QueryQuestSingle then
+		local ok, questData = pcall(function() return _G.QuestieDB:QueryQuestSingle(questId) end)
+		if ok and questData then return questData end
 	end
-	
-	local questData = QuestieDB:QueryQuestSingle(questId)
-	return questData
+	-- Standalone fallback via InfinityQuestTracker or native C_QuestLog
+	if _G.InfinityQuestTracker and _G.InfinityQuestTracker.active_quests and _G.InfinityQuestTracker.active_quests[questId] then
+		return _G.InfinityQuestTracker.active_quests[questId]
+	end
+	if InfinityUtils and InfinityUtils.GetQuestTitleByID then
+		local title = InfinityUtils:GetQuestTitleByID(questId)
+		if title then
+			return { id = questId, name = title, objectives = InfinityUtils:GetQuestObjectives(questId) }
+		end
+	end
+	return nil
 end
 
 function InfinityQuestIntegration:GetObjectiveLocations(questId)

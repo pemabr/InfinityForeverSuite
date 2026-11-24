@@ -169,28 +169,25 @@ end
 -- INTEGRATION: DATABASE ADDON SYNCHRONIZATION
 -- ============================================================================
 
--- Sync with QuestieDB for item information
+-- Sync with QuestieDB for item information (optional)
 function InfinityLootAuctionIntegration:SyncWithQuestieDB()
 	if not _G.QuestieDB then
-		InfinityUtils:Warning("QuestieDB not found", "AuctionIntegration")
+		InfinityUtils:Debug("Optional QuestieDB not installed", "AuctionIntegration")
 		return false
 	end
 	
-	-- QuestieDB provides quest data, NPC data, etc.
-	-- This can be used to enrich item drop information
-	InfinityUtils:Info("Synced with QuestieDB", "AuctionIntegration")
+	InfinityUtils:Info("Synced with optional QuestieDB", "AuctionIntegration")
 	return true
 end
 
--- Sync with Pricematically for pricing data
+-- Sync with Pricematically for pricing data (optional)
 function InfinityLootAuctionIntegration:SyncWithPricematically()
 	if not _G.Pricematically then
-		InfinityUtils:Warning("Pricematically not found", "AuctionIntegration")
+		InfinityUtils:Debug("Optional Pricematically not installed", "AuctionIntegration")
 		return false
 	end
 	
-	-- Pricematically provides auction house pricing data
-	InfinityUtils:Info("Synced with Pricematically", "AuctionIntegration")
+	InfinityUtils:Info("Synced with optional Pricematically", "AuctionIntegration")
 	return true
 end
 

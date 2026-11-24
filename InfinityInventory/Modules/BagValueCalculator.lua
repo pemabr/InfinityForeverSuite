@@ -149,7 +149,7 @@ function BagValueCalculator:GetItemValue(itemLink)
 	
 	-- Fallback to vendor price (11th return value of GetItemInfo is sellPrice)
 	if value == 0 then
-		local _, _, _, _, _, _, _, _, _, _, vendorPrice = GetItemInfo(itemLink)
+		local _, _, _, _, _, _, _, _, _, _, vendorPrice = InfinityUtils:GetItemInfo(itemLink)
 		value = vendorPrice or 0
 	end
 	
@@ -201,7 +201,7 @@ function BagValueCalculator:GetValueByQuality()
 		for slot = 1, SafeGetContainerNumSlots(bag) do
 			local texture, count, itemLink = SafeGetSlotInfo(bag, slot)
 			if texture and itemLink then
-				local _, _, quality = GetItemInfo(itemLink)
+				local _, _, quality = InfinityUtils:GetItemInfo(itemLink)
 				if quality then
 					local value = self:GetItemValue(itemLink)
 					breakdown[quality] = (breakdown[quality] or 0) + (value * (count or 1))

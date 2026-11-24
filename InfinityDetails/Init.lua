@@ -72,55 +72,122 @@ local function InitializeDetails()
 		end)
 	end
 	
-	-- Event handling
-	local combatFrame = CreateFrame("Frame")
-	combatFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-	combatFrame:RegisterEvent("ENCOUNTER_START")
-	combatFrame:RegisterEvent("ENCOUNTER_END")
-	
-	combatFrame:SetScript("OnEvent", function(self, event, ...)
-		if event == "COMBAT_LOG_EVENT_UNFILTERED" then
-			-- Parse combat events
-			if Parser:IsParsing() then
-				Parser:OnCombatLogEvent(...)
-				
-				local timestamp, subevent, _, sourceGUID, sourceName, sourceFlags, sourceRaidFlags,
-					  destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool,
-					  amount, overkill = ...
-				
-				-- Update actor model based on event type
-				if subevent:find("DAMAGE") then
-					local sourceActor = Actor:GetOrCreateActor(sourceGUID, sourceName, nil, true)
-					local isCrit = subevent:find("CRIT") ~= nil
-					sourceActor:RecordDamage(amount or 0, overkill, isCrit)
-				elseif subevent:find("HEAL") then
-					local sourceActor = Actor:GetOrCreateActor(sourceGUID, sourceName, nil, true)
-					local isCrit = subevent:find("CRIT") ~= nil
-					sourceActor:RecordHealing(amount or 0, 0, isCrit)
-				elseif subevent == "UNIT_DIED" then
-					Deaths:RecordDeath(destName)
+	local function SyncFromNativeDamageMeter()
+		if not (C_DamageMeter and C_DamageMeter.GetAvailableCombatSessions) then
+			return
+		end
+		if C_DamageMeter.IsDamageMeterAvailable then
+			local okAvail, avail = pcall(C_DamageMeter.IsDamageMeterAvailable)
+			if not okAvail or not avail then return end
+		end
+
+		local okSessions, sessions = pcall(C_DamageMeter.GetAvailableCombatSessions)
+		if not okSessions or type(sessions) ~= "table" or #sessions == 0 then
+			return
+		end
+
+		local latest = sessions[#sessions]
+		local sessionID = latest and latest.sessionID
+		if not sessionID or not C_DamageMeter.GetCombatSessionFromID then
+			return
+		end
+
+		local dmgType = (Enum and Enum.DamageMeterType and Enum.DamageMeterType.DamageDone) or 0
+		local healType = (Enum and Enum.DamageMeterType and Enum.DamageMeterType.HealingDone) or 2
+
+		local okDmg, dmgSession = pcall(C_DamageMeter.GetCombatSessionFromID, sessionID, dmgType)
+		if okDmg and type(dmgSession) == "table" and type(dmgSession.combatSources) == "table" and Actor then
+			for _, src in ipairs(dmgSession.combatSources) do
+				local name = src.name
+				local amount = src.totalAmount
+				if name and not InfinityUtils:IsSecret(name) and amount and not InfinityUtils:IsSecret(amount) then
+					local guid = (src.sourceGUID and not InfinityUtils:IsSecret(src.sourceGUID)) and src.sourceGUID or name
+					local classFile = (src.classFilename and not InfinityUtils:IsSecret(src.classFilename)) and src.classFilename or nil
+					local actorObj = Actor:GetOrCreateActor(guid, name, classFile, true)
+					if actorObj then
+						actorObj.damage_total = tonumber(amount) or actorObj.damage_total or 0
+						if src.amountPerSecond and not InfinityUtils:IsSecret(src.amountPerSecond) then
+							actorObj.dps = tonumber(src.amountPerSecond) or 0
+						end
+					end
 				end
 			end
-		elseif event == "ENCOUNTER_START" then
-			Parser:StartParsing()
-			Meters:Start()
-			Segments:StartSegment(select(2, ...), select(2, ...))
+		end
+
+		local okHeal, healSession = pcall(C_DamageMeter.GetCombatSessionFromID, sessionID, healType)
+		if okHeal and type(healSession) == "table" and type(healSession.combatSources) == "table" and Actor then
+			for _, src in ipairs(healSession.combatSources) do
+				local name = src.name
+				local amount = src.totalAmount
+				if name and not InfinityUtils:IsSecret(name) and amount and not InfinityUtils:IsSecret(amount) then
+					local guid = (src.sourceGUID and not InfinityUtils:IsSecret(src.sourceGUID)) and src.sourceGUID or name
+					local classFile = (src.classFilename and not InfinityUtils:IsSecret(src.classFilename)) and src.classFilename or nil
+					local actorObj = Actor:GetOrCreateActor(guid, name, classFile, true)
+					if actorObj then
+						actorObj.healing_total = tonumber(amount) or actorObj.healing_total or 0
+						if src.amountPerSecond and not InfinityUtils:IsSecret(src.amountPerSecond) then
+							actorObj.hps = tonumber(src.amountPerSecond) or 0
+						end
+					end
+				end
+			end
+		end
+	end
+
+	-- Blizzard-safe event handling (uses permitted C_DamageMeter & encounter events; never registers blocked COMBAT_LOG_EVENT_UNFILTERED)
+	local combatFrame = CreateFrame("Frame")
+	for _, ev in ipairs({
+		"ENCOUNTER_START",
+		"ENCOUNTER_END",
+		"PLAYER_REGEN_DISABLED",
+		"PLAYER_REGEN_ENABLED",
+		"DAMAGE_METER_COMBAT_SESSION_UPDATED",
+		"DAMAGE_METER_CURRENT_SESSION_UPDATED",
+	}) do
+		pcall(combatFrame.RegisterEvent, combatFrame, ev)
+	end
+	
+	combatFrame:SetScript("OnEvent", function(self, event, ...)
+		if event == "ENCOUNTER_START" then
+			local _, encounterName = ...
+			if Parser and Parser.StartParsing then Parser:StartParsing() end
+			if Meters and Meters.Start then Meters:Start() end
+			if Segments and Segments.StartSegment then Segments:StartSegment(encounterName or "Encounter", encounterName or "Encounter") end
 		elseif event == "ENCOUNTER_END" then
-			Parser:StopParsing()
-			Meters:Stop()
-			Segments:EndSegment()
+			SyncFromNativeDamageMeter()
+			if Parser and Parser.StopParsing then Parser:StopParsing() end
+			if Meters and Meters.Stop then Meters:Stop() end
+			if Segments and Segments.EndSegment then Segments:EndSegment() end
+			if UI and UI.Update then UI:Update(true) end
+		elseif event == "PLAYER_REGEN_DISABLED" then
+			if Meters and Meters.Start then Meters:Start() end
+		elseif event == "PLAYER_REGEN_ENABLED" then
+			SyncFromNativeDamageMeter()
+			if Meters and Meters.Stop then Meters:Stop() end
+			if UI and UI.Update then UI:Update(true) end
+		elseif event == "DAMAGE_METER_COMBAT_SESSION_UPDATED" or event == "DAMAGE_METER_CURRENT_SESSION_UPDATED" then
+			SyncFromNativeDamageMeter()
 		end
 	end)
 	
-	-- Update loop
+	-- Throttled update loop (2Hz, only while window is shown)
 	local updateFrame = CreateFrame("Frame")
-	updateFrame:SetScript("OnUpdate", function()
-		Meters:Update()
-		UI:Update()
-		Breakdown:Update()
+	local elapsedAcc = 0
+	updateFrame:SetScript("OnUpdate", function(_, elapsed)
+		elapsedAcc = elapsedAcc + (elapsed or 0)
+		if elapsedAcc < 0.5 then return end
+		elapsedAcc = 0
+		if Meters and Meters.Update then Meters:Update() end
+		if UI and UI.frame and UI.frame:IsShown() then
+			SyncFromNativeDamageMeter()
+			if UI.Update then UI:Update() end
+		end
+		if Breakdown and Breakdown.frame and Breakdown.frame:IsShown() and Breakdown.Update then
+			Breakdown:Update()
+		end
 	end)
 	
-	print("InfinityDetails loaded - Use /details for metrics")
+	print("InfinityDetails loaded (C_DamageMeter mode) - Use /details for metrics")
 end
 
 

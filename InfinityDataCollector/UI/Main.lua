@@ -1,4 +1,5 @@
--- InfinityDataCollector UI - Statistics and Settings
+-- InfinityDataCollector UI - Statistics, Optional Data Sources, Settings & Network
+-- Modern Flat InfinityUIFramework design (100% Warcraft Forever 1.60.1 compatible)
 
 InfinityDataCollectorUI = {
 	mainFrame = nil,
@@ -6,206 +7,279 @@ InfinityDataCollectorUI = {
 	currentTab = "stats",
 }
 
--- Initialize UI
 function InfinityDataCollectorUI:Initialize()
 	if self.mainFrame then
-		return
+		return self.mainFrame
 	end
-	
-	-- Main frame
-	local frame = CreateFrame("Frame", "InfinityDataCollectorFrame", UIParent, "BasicFrameTemplate")
-	frame:SetSize(500, 400)
-	frame:SetPoint("CENTER", UIParent, "CENTER")
-	frame:SetTitle("Infinity Data Collector")
-	
-	-- Close button already in BasicFrameTemplate
-	
-	-- Tab buttons
-	local statsBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-	statsBtn:SetSize(80, 20)
-	statsBtn:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -30)
-	statsBtn:SetText("Statistics")
-	statsBtn:SetScript("OnClick", function()
-		InfinityDataCollectorUI:ShowTab("stats")
-	end)
-	
-	local settingsBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-	settingsBtn:SetSize(80, 20)
-	settingsBtn:SetPoint("LEFT", statsBtn, "RIGHT", 5, 0)
-	settingsBtn:SetText("Settings")
-	settingsBtn:SetScript("OnClick", function()
-		InfinityDataCollectorUI:ShowTab("settings")
-	end)
-	
-	local networkBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-	networkBtn:SetSize(80, 20)
-	networkBtn:SetPoint("LEFT", settingsBtn, "RIGHT", 5, 0)
-	networkBtn:SetText("Network")
-	networkBtn:SetScript("OnClick", function()
-		InfinityDataCollectorUI:ShowTab("network")
-	end)
-	
+
+	local frame = InfinityUIFramework:CreateFrame(
+		"InfinityDataCollectorFrame",
+		UIParent,
+		540,
+		430,
+		"Infinity Data Collector",
+		"Standalone Gathering & Optional External DB Sources"
+	)
+	frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+
+	local tabBar = InfinityUIFramework:CreateTabBar(frame, {
+		{ name = "Statistics", key = "stats" },
+		{ name = "Data Sources", key = "sources" },
+		{ name = "Settings", key = "settings" },
+		{ name = "Network", key = "network" },
+	}, function(tabKey)
+		InfinityDataCollectorUI:ShowTab(tabKey)
+	end, 516)
+	tabBar:SetPoint("TOP", frame, "TOP", 0, -44)
+	frame.tabBar = tabBar
+
+	local bodyCard = InfinityUIFramework:CreateCard(frame, 516, 336)
+	bodyCard:SetPoint("TOP", tabBar, "BOTTOM", 0, -8)
+
 	-- Statistics tab
-	local statsTab = CreateFrame("Frame", nil, frame)
-	statsTab:SetSize(480, 320)
-	statsTab:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -60)
-	
-	local statsText = statsTab:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-	statsText:SetPoint("TOPLEFT", statsTab, "TOPLEFT", 0, 0)
-	statsText:SetText("Data Gathering Statistics\n\n")
-	
+	local statsTab = CreateFrame("Frame", nil, bodyCard)
+	statsTab:SetAllPoints(bodyCard)
+	local statsText = InfinityUIFramework:CreateLabel(statsTab, "Loading statistics...")
+	statsText:SetPoint("TOPLEFT", statsTab, "TOPLEFT", 14, -14)
+	statsText:SetWidth(488)
+	statsText:SetJustifyH("LEFT")
+	statsText:SetWordWrap(true)
+
 	self.tabs["stats"] = {
 		frame = statsTab,
 		text = statsText,
 		refreshFunc = function()
 			InfinityDataCollectorUI:RefreshStatistics()
+		end,
+	}
+
+	-- Data Sources tab (Native + optional QuestieDB, WoWHeadDB, GathererDB)
+	local sourcesTab = CreateFrame("Frame", nil, bodyCard)
+	sourcesTab:SetAllPoints(bodyCard)
+	sourcesTab:Hide()
+
+	local sourcesHeader = InfinityUIFramework:CreateLabel(
+		sourcesTab,
+		"|cff94a3b8Native live data runs standalone. Optional databases (QuestieDB, WoWHeadDB, GathererDB) activate automatically when installed.|r"
+	)
+	sourcesHeader:SetPoint("TOPLEFT", sourcesTab, "TOPLEFT", 14, -12)
+	sourcesHeader:SetWidth(488)
+	sourcesHeader:SetJustifyH("LEFT")
+	sourcesHeader:SetWordWrap(true)
+
+	local sourcesList = CreateFrame("Frame", nil, sourcesTab)
+	sourcesList:SetPoint("TOPLEFT", sourcesHeader, "BOTTOMLEFT", 0, -10)
+	sourcesList:SetSize(488, 210)
+
+	local syncBtn = InfinityUIFramework:CreateButton(sourcesTab, "Sync Active Sources", 160, 26, function()
+		local results = InfinityDataCollectorDBIntegration:SyncAll()
+		local count = 0
+		for _, r in ipairs(results) do
+			if r.success then count = count + 1 end
 		end
+		InfinityDataCollectorUI:RefreshDataSources()
+		InfinityDataCollectorUI:RefreshStatistics()
+		InfinityUIFramework:ShowNotification("Synced " .. count .. " active data source(s).", 2)
+	end, true)
+	syncBtn:SetPoint("BOTTOMLEFT", sourcesTab, "BOTTOMLEFT", 14, 14)
+
+	local rescanBtn = InfinityUIFramework:CreateButton(sourcesTab, "Re-Detect Optional DBs", 170, 26, function()
+		InfinityDataCollectorDBIntegration:RefreshAvailability()
+		InfinityDataCollectorUI:RefreshDataSources()
+		InfinityUIFramework:ShowNotification("Re-scanned optional databases.", 2)
+	end, false)
+	rescanBtn:SetPoint("LEFT", syncBtn, "RIGHT", 10, 0)
+
+	self.tabs["sources"] = {
+		frame = sourcesTab,
+		list = sourcesList,
+		refreshFunc = function()
+			InfinityDataCollectorUI:RefreshDataSources()
+		end,
 	}
-	
+
 	-- Settings tab
-	local settingsTab = CreateFrame("Frame", nil, frame)
-	settingsTab:SetSize(480, 320)
-	settingsTab:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -60)
+	local settingsTab = CreateFrame("Frame", nil, bodyCard)
+	settingsTab:SetAllPoints(bodyCard)
 	settingsTab:Hide()
-	
-	-- Gathering toggle
-	local gatheringToggle = CreateFrame("CheckButton", nil, settingsTab, "UICheckButtonTemplate")
-	gatheringToggle:SetSize(20, 20)
-	gatheringToggle:SetPoint("TOPLEFT", settingsTab, "TOPLEFT", 0, -10)
-	gatheringToggle:SetChecked(InfinityDataCollectorCore:IsGatheringEnabled())
-	gatheringToggle:SetScript("OnClick", function(self)
-		InfinityDataCollectorCore:SetGatheringEnabled(self:GetChecked())
-	end)
-	
-	local gatheringLabel = settingsTab:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-	gatheringLabel:SetPoint("LEFT", gatheringToggle, "RIGHT", 5, 0)
-	gatheringLabel:SetText("Enable Data Gathering")
-	
-	-- Sharing toggle
-	local sharingToggle = CreateFrame("CheckButton", nil, settingsTab, "UICheckButtonTemplate")
-	sharingToggle:SetSize(20, 20)
-	sharingToggle:SetPoint("TOPLEFT", gatheringToggle, "BOTTOMLEFT", 0, -20)
-	sharingToggle:SetChecked(InfinityDataCollectorNetwork.shareEnabled)
-	sharingToggle:SetScript("OnClick", function(self)
-		InfinityDataCollectorNetwork:SetSharingEnabled(self:GetChecked())
-	end)
-	
-	local sharingLabel = settingsTab:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-	sharingLabel:SetPoint("LEFT", sharingToggle, "RIGHT", 5, 0)
-	sharingLabel:SetText("Enable Network Sharing")
-	
-	-- Sanitization level
-	local sanitizationLabel = settingsTab:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-	sanitizationLabel:SetPoint("TOPLEFT", sharingToggle, "BOTTOMLEFT", 0, -20)
-	sanitizationLabel:SetText("Sanitization Level:")
-	
-	local sanitizationDropdown = CreateFrame("Frame", "InfinityDataCollectorSanitization", settingsTab, "UIDropDownMenuTemplate")
-	sanitizationDropdown:SetPoint("TOPLEFT", sanitizationLabel, "BOTTOMLEFT", 0, -5)
-	
-	local sanitizationOptions = {
-		{text = "None (Full Data)", value = "none"},
-		{text = "Guild (Guild Members Only)", value = "guild"},
-		{text = "Anonymous (Basic Data)", value = "anonymous"},
+
+	local gatheringToggle = InfinityUIFramework:CreateCheckbox(
+		settingsTab,
+		"Enable Autonomous Live Data Gathering",
+		InfinityDataCollectorCore:IsGatheringEnabled(),
+		function(checked)
+			InfinityDataCollectorCore:SetGatheringEnabled(checked)
+		end
+	)
+	gatheringToggle:SetPoint("TOPLEFT", settingsTab, "TOPLEFT", 14, -18)
+
+	local sharingToggle = InfinityUIFramework:CreateCheckbox(
+		settingsTab,
+		"Enable Guild/Peer Network Sharing",
+		InfinityDataCollectorNetwork.shareEnabled,
+		function(checked)
+			InfinityDataCollectorNetwork:SetSharingEnabled(checked)
+		end
+	)
+	sharingToggle:SetPoint("TOPLEFT", gatheringToggle, "BOTTOMLEFT", 0, -14)
+
+	local privacyTitle = InfinityUIFramework:CreateLabel(settingsTab, "|cfffbbf24Privacy Sanitization Level:|r")
+	privacyTitle:SetPoint("TOPLEFT", sharingToggle, "BOTTOMLEFT", 0, -20)
+
+	local levels = {
+		{ label = "None (Full)", value = "none" },
+		{ label = "Guild Only", value = "guild" },
+		{ label = "Anonymous", value = "anonymous" },
 	}
-	
-	sanitizationDropdown:SetScript("OnShow", function()
-		UIDropDownMenu_Initialize(sanitizationDropdown, function()
-			for _, option in ipairs(sanitizationOptions) do
-				local info = UIDropDownMenu_CreateInfo()
-				info.text = option.text
-				info.value = option.value
-				info.checked = option.value == InfinityDataCollectorPrivacy:GetSanitizationLevel()
-				info.func = function()
-					InfinityDataCollectorPrivacy:SetSanitizationLevel(option.value)
-					UIDropDownMenu_SetSelectedValue(sanitizationDropdown, option.value)
-				end
-				UIDropDownMenu_AddButton(info, nil)
-			end
-		end)
-	end)
-	
+	local prevBtn = nil
+	local privacyButtons = {}
+	for _, opt in ipairs(levels) do
+		local btn = InfinityUIFramework:CreateButton(settingsTab, opt.label, 120, 26, function()
+			InfinityDataCollectorPrivacy:SetSanitizationLevel(opt.value)
+			InfinityDataCollectorUI:RefreshSettings()
+			InfinityUIFramework:ShowNotification("Privacy level set to: " .. opt.label, 2)
+		end, false)
+		if prevBtn then
+			btn:SetPoint("LEFT", prevBtn, "RIGHT", 8, 0)
+		else
+			btn:SetPoint("TOPLEFT", privacyTitle, "BOTTOMLEFT", 0, -10)
+		end
+		btn._optValue = opt.value
+		table.insert(privacyButtons, btn)
+		prevBtn = btn
+	end
+
+	local privacyStatus = InfinityUIFramework:CreateLabel(settingsTab, "")
+	privacyStatus:SetPoint("TOPLEFT", privacyTitle, "BOTTOMLEFT", 0, -46)
+
 	self.tabs["settings"] = {
 		frame = settingsTab,
 		gatheringToggle = gatheringToggle,
 		sharingToggle = sharingToggle,
-		sanitizationDropdown = sanitizationDropdown,
+		privacyButtons = privacyButtons,
+		privacyStatus = privacyStatus,
+		refreshFunc = function()
+			InfinityDataCollectorUI:RefreshSettings()
+		end,
 	}
-	
+
 	-- Network tab
-	local networkTab = CreateFrame("Frame", nil, frame)
-	networkTab:SetSize(480, 320)
-	networkTab:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -60)
+	local networkTab = CreateFrame("Frame", nil, bodyCard)
+	networkTab:SetAllPoints(bodyCard)
 	networkTab:Hide()
-	
-	local networkText = networkTab:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-	networkText:SetPoint("TOPLEFT", networkTab, "TOPLEFT", 0, 0)
-	networkText:SetText("Network Status\n\n")
-	
+
+	local networkText = InfinityUIFramework:CreateLabel(networkTab, "Loading network status...")
+	networkText:SetPoint("TOPLEFT", networkTab, "TOPLEFT", 14, -14)
+	networkText:SetWidth(488)
+	networkText:SetJustifyH("LEFT")
+	networkText:SetWordWrap(true)
+
 	self.tabs["network"] = {
 		frame = networkTab,
 		text = networkText,
 		refreshFunc = function()
 			InfinityDataCollectorUI:RefreshNetworkStatus()
-		end
+		end,
 	}
-	
+
+	frame:Hide()
 	self.mainFrame = frame
-	
-	-- Refresh initial tab
-	self:ShowTab("stats")
-	
+	tabBar:SelectTab("stats")
 	return frame
 end
 
--- Show a specific tab
 function InfinityDataCollectorUI:ShowTab(tabName)
 	if not self.tabs[tabName] then
 		return
 	end
-	
-	-- Hide all tabs
-	for name, tabData in pairs(self.tabs) do
+	for _, tabData in pairs(self.tabs) do
 		if tabData.frame then
 			tabData.frame:Hide()
 		end
 	end
-	
-	-- Show selected tab
 	self.tabs[tabName].frame:Show()
 	self.currentTab = tabName
-	
-	-- Refresh if function exists
 	if self.tabs[tabName].refreshFunc then
 		self.tabs[tabName].refreshFunc()
 	end
 end
 
--- Refresh statistics display
+function InfinityDataCollectorUI:RefreshDataSources()
+	local tab = self.tabs["sources"]
+	if not tab or not tab.list then return end
+	InfinityUIFramework:ClearContainer(tab.list)
+
+	local statuses = InfinityDataCollectorDBIntegration:GetAllIntegrationStatuses()
+	local y = 0
+	for idx, info in ipairs(statuses) do
+		local row = InfinityUIFramework:CreateListRow(tab.list, 488, 38, idx)
+		row:SetPoint("TOPLEFT", tab.list, "TOPLEFT", 0, y)
+
+		local stateBadge
+		if info.name == "native" then
+			stateBadge = "|cff4ade80ACTIVE (STANDALONE)|r"
+		elseif info.available and info.enabled then
+			stateBadge = "|cff4ade80INSTALLED & ACTIVE|r"
+		elseif info.available and not info.enabled then
+			stateBadge = "|cfffbbf24INSTALLED (PAUSED)|r"
+		else
+			stateBadge = "|cff94a3b8OPTIONAL · NOT INSTALLED|r"
+		end
+
+		local title = InfinityUIFramework:CreateLabel(row, "|cffffffff" .. tostring(info.source or info.name) .. "|r")
+		title:SetPoint("LEFT", row, "LEFT", 10, 6)
+
+		local sub = InfinityUIFramework:CreateLabel(row, "|cff94a3b8Last sync: " .. self:FormatTime(info.lastSync) .. "|r")
+		sub:SetPoint("LEFT", row, "LEFT", 10, -8)
+
+		local badge = InfinityUIFramework:CreateLabel(row, stateBadge)
+		badge:SetPoint("RIGHT", row, "RIGHT", info.available and info.name ~= "native" and -92 or -10, 0)
+
+		if info.available and info.name ~= "native" then
+			local toggleBtn = InfinityUIFramework:CreateButton(row, info.enabled and "Disable" or "Enable", 74, 22, function()
+				InfinityDataCollectorDBIntegration:SetIntegrationEnabled(info.name, not info.enabled)
+				InfinityDataCollectorUI:RefreshDataSources()
+			end, not info.enabled)
+			toggleBtn:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+		end
+
+		y = y - 42
+	end
+end
+
+function InfinityDataCollectorUI:RefreshSettings()
+	local tab = self.tabs["settings"]
+	if not tab then return end
+	if tab.privacyStatus then
+		tab.privacyStatus:SetText("|cff94a3b8Active Privacy Level: |cff38bdf8" .. tostring(InfinityDataCollectorPrivacy:GetSanitizationLevel()) .. "|r")
+	end
+end
+
 function InfinityDataCollectorUI:RefreshStatistics()
 	if not self.tabs["stats"] or not self.tabs["stats"].text then
 		return
 	end
-	
+
 	local stats = InfinityDataCollectorCore:GetStatistics()
-	local gatheringStats = InfinityDataCollectorHooks:GetGatheringStats()
 	local networkStats = InfinityDataCollectorNetwork:GetNetworkStats()
-	
+	local sources = InfinityDataCollectorDBIntegration:GetAllIntegrationStatuses()
+	local activeSources = {}
+	for _, s in ipairs(sources) do
+		if s.available and s.enabled then
+			table.insert(activeSources, s.source or s.name)
+		end
+	end
+
 	local text = string.format(
-		"Data Gathering Statistics\n\n" ..
-		"Collected Data:\n" ..
-		"  Quests: %d\n" ..
-		"  Mobs: %d\n" ..
-		"  Drops: %d\n" ..
-		"  Nodes: %d\n" ..
-		"  NPCs: %d\n\n" ..
-		"Last Updates:\n" ..
-		"  Quests: %s\n" ..
-		"  Mobs: %s\n" ..
-		"  Nodes: %s\n\n" ..
-		"Network:\n" ..
-		"  Connected Peers: %d\n" ..
-		"  Pending Requests: %d\n" ..
-		"  Sharing: %s\n",
+		"|cfffbbf24Collected Local Data|r\n" ..
+		"  Quests: %d   ·   Mobs: %d   ·   Drops: %d\n" ..
+		"  Nodes: %d   ·   NPCs: %d\n\n" ..
+		"|cfffbbf24Last Updates|r\n" ..
+		"  Quests: %s   ·   Mobs: %s   ·   Nodes: %s\n\n" ..
+		"|cfffbbf24Active Data Sources|r\n" ..
+		"  %s\n\n" ..
+		"|cfffbbf24Peer Network|r\n" ..
+		"  Connected Peers: %d   ·   Pending Requests: %d   ·   Sharing: %s",
 		stats.questCount or 0,
 		stats.mobCount or 0,
 		stats.dropCount or 0,
@@ -214,53 +288,56 @@ function InfinityDataCollectorUI:RefreshStatistics()
 		self:FormatTime(stats.lastQuestUpdate),
 		self:FormatTime(stats.lastMobUpdate),
 		self:FormatTime(stats.lastNodeUpdate),
-		networkStats.peerCount,
-		networkStats.pendingRequests,
+		#activeSources > 0 and table.concat(activeSources, ", ") or "Native WoW Live Data",
+		networkStats.peerCount or 0,
+		networkStats.pendingRequests or 0,
 		networkStats.shareEnabled and "Enabled" or "Disabled"
 	)
-	
+
 	self.tabs["stats"].text:SetText(text)
 end
 
--- Refresh network status display
 function InfinityDataCollectorUI:RefreshNetworkStatus()
 	if not self.tabs["network"] or not self.tabs["network"].text then
 		return
 	end
-	
+
 	local networkStats = InfinityDataCollectorNetwork:GetNetworkStats()
 	local peers = InfinityDataCollectorNetwork:GetPeers()
-	
+
 	local peerList = "Connected Peers:\n"
-	for i, peer in ipairs(peers) do
-		peerList = peerList .. string.format("  %d. %s (%s)\n", i, peer.name, peer.realm)
+	if #peers == 0 then
+		peerList = peerList .. "  (None connected yet)"
+	else
+		for i, peer in ipairs(peers) do
+			peerList = peerList .. string.format("  %d. %s (%s)\n", i, peer.name, peer.realm)
+		end
 	end
-	
+
 	local text = string.format(
-		"Network Status\n\n" ..
+		"|cfffbbf24Network Status|r\n\n" ..
 		"Total Connected: %d\n" ..
 		"Sharing Enabled: %s\n" ..
 		"Share Frequency: %d seconds\n" ..
 		"Last Share: %s\n" ..
 		"Pending Requests: %d\n\n" ..
 		"%s",
-		networkStats.peerCount,
+		networkStats.peerCount or 0,
 		networkStats.shareEnabled and "Yes" or "No",
-		networkStats.shareFrequency,
+		networkStats.shareFrequency or 0,
 		self:FormatTime(networkStats.lastShare),
-		networkStats.pendingRequests,
+		networkStats.pendingRequests or 0,
 		peerList
 	)
-	
+
 	self.tabs["network"].text:SetText(text)
 end
 
--- Format timestamp for display
 function InfinityDataCollectorUI:FormatTime(timestamp)
 	if not timestamp or timestamp == 0 then
 		return "Never"
 	end
-	
+
 	local secondsAgo = time() - timestamp
 	if secondsAgo < 60 then
 		return "Just now"
@@ -273,25 +350,24 @@ function InfinityDataCollectorUI:FormatTime(timestamp)
 	end
 end
 
--- Toggle UI visibility
 function InfinityDataCollectorUI:Toggle()
 	if not self.mainFrame then
 		self:Initialize()
 	end
-	
 	self.mainFrame:SetShown(not self.mainFrame:IsShown())
+	if self.mainFrame:IsShown() then
+		self:ShowTab(self.currentTab or "stats")
+	end
 end
 
--- Show UI
 function InfinityDataCollectorUI:Show()
 	if not self.mainFrame then
 		self:Initialize()
 	end
-	
 	self.mainFrame:Show()
+	self:ShowTab(self.currentTab or "stats")
 end
 
--- Hide UI
 function InfinityDataCollectorUI:Hide()
 	if self.mainFrame then
 		self.mainFrame:Hide()

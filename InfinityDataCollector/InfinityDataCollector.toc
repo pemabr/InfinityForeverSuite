@@ -4,6 +4,7 @@
 ## Author: Infinity Forever
 ## Version: 1.0.0
 ## Dependencies: InfinityCore, InfinityData
+## OptionalDeps: Questie, QuestieDB, WowHeadDB, WoWHeadDB, GathererDB, GatherMate2
 
 Core\DataCollectorCore.lua
 Modules\AutomaticHooks.lua

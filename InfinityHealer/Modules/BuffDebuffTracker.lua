@@ -83,7 +83,7 @@ function BuffDebuffTracker:UpdateUnitBuffs(unit)
 	local buffData = {}
 	
 	while true do
-		local name, icon, count, debuffType, duration, expireTime = UnitBuff(unit, index)
+		local name, icon, count, debuffType, duration, expireTime = InfinityUtils:GetUnitAura(unit, index, "HELPFUL")
 		if not name then
 			break
 		end
@@ -127,7 +127,7 @@ function BuffDebuffTracker:UpdateUnitDebuffs(unit)
 	local debuffData = {}
 	
 	while true do
-		local name, icon, count, debuffType, duration, expireTime = UnitDebuff(unit, index)
+		local name, icon, count, debuffType, duration, expireTime = InfinityUtils:GetUnitAura(unit, index, "HARMFUL")
 		if not name then
 			break
 		end

@@ -72,25 +72,34 @@ local function InitializeAnalytics()
 		end)
 	end
 	
-	-- Hook into combat log events (safely)
+	-- Sync combat metrics via permitted C_DamageMeter API (no blocked COMBAT_LOG_EVENT_UNFILTERED)
 	pcall(function()
 		local eventFrame = CreateFrame("Frame")
-		eventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+		for _, ev in ipairs({
+			"DAMAGE_METER_COMBAT_SESSION_UPDATED",
+			"PLAYER_REGEN_DISABLED",
+			"PLAYER_REGEN_ENABLED",
+		}) do
+			pcall(eventFrame.RegisterEvent, eventFrame, ev)
+		end
 		eventFrame:SetScript("OnEvent", function(self, event)
-			if event == "COMBAT_LOG_EVENT_UNFILTERED" then
-				if not _G.InfinityPerformanceAnalyticsMeter or not _G.InfinityPerformanceAnalyticsMeter.currentSession then
-					return
-				end
-				
-				local timestamp, subevent, _, sourceGUID, sourceName, sourceFlags, targetGUID, targetName, targetFlags, spellID, spellName, school, amount, overkill = CombatLogGetCurrentEventInfo()
-				
-				if subevent == "SPELL_DAMAGE" or subevent == "RANGE_DAMAGE" or subevent == "SWING_DAMAGE" then
-					if _G.InfinityPerformanceAnalyticsMeter.RecordDamage then
-						_G.InfinityPerformanceAnalyticsMeter:RecordDamage(sourceName, targetName, spellName or "Auto Attack", amount or 0, school or 1)
-					end
-				elseif subevent == "SPELL_HEAL" or subevent == "SPELL_ABSORBED" then
-					if _G.InfinityPerformanceAnalyticsMeter.RecordHealing then
-						_G.InfinityPerformanceAnalyticsMeter:RecordHealing(sourceName, targetName, spellName or "Unknown", amount or 0)
+			if not _G.InfinityPerformanceAnalyticsMeter or not _G.InfinityPerformanceAnalyticsMeter.currentSession then
+				return
+			end
+			if C_DamageMeter and C_DamageMeter.GetAvailableCombatSessions and C_DamageMeter.GetCombatSessionFromID then
+				local okS, sessions = pcall(C_DamageMeter.GetAvailableCombatSessions)
+				if okS and type(sessions) == "table" and #sessions > 0 then
+					local sid = sessions[#sessions].sessionID
+					local dmgType = (Enum and Enum.DamageMeterType and Enum.DamageMeterType.DamageDone) or 0
+					local okD, dSession = pcall(C_DamageMeter.GetCombatSessionFromID, sid, dmgType)
+					if okD and type(dSession) == "table" and type(dSession.combatSources) == "table" then
+						for _, src in ipairs(dSession.combatSources) do
+							if src.name and not _G.InfinityUtils:IsSecret(src.name) and src.totalAmount and not _G.InfinityUtils:IsSecret(src.totalAmount) then
+								if _G.InfinityPerformanceAnalyticsMeter.RecordDamage then
+									_G.InfinityPerformanceAnalyticsMeter:RecordDamage(src.name, "Encounter", "Total", tonumber(src.totalAmount) or 0, 1)
+								end
+							end
+						end
 					end
 				end
 			end

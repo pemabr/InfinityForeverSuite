@@ -38,12 +38,16 @@ function DataCollector:Initialize()
 	InfinityUtils:Info("Data collector initialized", "Core")
 	
 	local frame = CreateFrame("Frame")
-	frame:RegisterEvent("QUEST_ACCEPTED")
-	frame:RegisterEvent("QUEST_COMPLETE")
-	frame:RegisterEvent("QUEST_TURN_IN")
-	frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-	frame:RegisterEvent("LOOT_OPENED")
-	frame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+	for _, ev in ipairs({
+		"QUEST_ACCEPTED",
+		"QUEST_COMPLETE",
+		"QUEST_TURN_IN",
+		"PLAYER_TARGET_CHANGED",
+		"LOOT_OPENED",
+		"ZONE_CHANGED_NEW_AREA",
+	}) do
+		pcall(frame.RegisterEvent, frame, ev)
+	end
 	
 	frame:SetScript("OnEvent", function(f, event, ...)
 		if not DataCollector.collectingEnabled then
@@ -56,8 +60,22 @@ function DataCollector:Initialize()
 			DataCollector:OnQuestComplete(...)
 		elseif event == "QUEST_TURN_IN" then
 			DataCollector:OnQuestTurnIn(...)
-		elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
-			DataCollector:OnCombatLogEvent(...)
+		elseif event == "PLAYER_TARGET_CHANGED" then
+			if UnitExists("target") and not UnitIsPlayer("target") then
+				local guid = UnitGUID("target")
+				local name = UnitName("target")
+				local level = UnitLevel("target")
+				if guid and name and not InfinityUtils:IsSecret(guid) and not InfinityUtils:IsSecret(name) then
+					local npcId = tonumber(select(6, strsplit("-", guid)))
+					if npcId and not DataCollector.database.seenMobs[npcId] then
+						DataCollector.database.seenMobs[npcId] = {
+							name = name,
+							level = (not InfinityUtils:IsSecret(level)) and level or 0,
+							timestamp = GetServerTime and GetServerTime() or time(),
+						}
+					end
+				end
+			end
 		elseif event == "LOOT_OPENED" then
 			DataCollector:OnLootOpened(...)
 		elseif event == "ZONE_CHANGED_NEW_AREA" then
@@ -239,9 +257,10 @@ function DataCollector:OnLootOpened()
 			
 			if itemId then
 				if not self.database.seenDrops[itemId] then
+					local itemName, _, itemRarity = InfinityUtils:GetItemInfo(itemId)
 					self.database.seenDrops[itemId] = {
-						name = GetItemInfo(itemId),
-						rarity = select(3, GetItemInfo(itemId)),
+						name = itemName,
+						rarity = itemRarity,
 						timestamp = GetServerTime(),
 					}
 					

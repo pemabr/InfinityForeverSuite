@@ -26,7 +26,7 @@ end
 
 function InfinityPathFinding:GetDirectionTo(targetX, targetY, currentX, currentY)
 	if not currentX or not currentY then
-		currentX, currentY = GetPlayerMapPosition("player")
+		currentX, currentY = InfinityUtils:GetUnitMapPosition("player")
 	end
 	
 	if not currentX or not currentY then
@@ -46,11 +46,18 @@ function InfinityPathFinding:GetDirectionTo(targetX, targetY, currentX, currentY
 end
 
 function InfinityPathFinding:SetWaypoint(x, y, zone, description)
-	if self.tomtomAvailable and TomTom then
-		TomTom:AddWaypoint(zone, x, y, description)
+	if self.tomtomAvailable and _G.TomTom and _G.TomTom.AddWaypoint then
+		_G.TomTom:AddWaypoint(zone, x, y, description)
 		return true
 	end
-	return false
+	-- Standalone fallback using built-in Infinity arrows
+	if _G.InfinityScreenArrow and _G.InfinityScreenArrow.SetTarget then
+		_G.InfinityScreenArrow:SetTarget(x, y, 0, description or "Waypoint")
+	end
+	if _G.InfinityMinimapArrow and _G.InfinityMinimapArrow.SetTarget then
+		_G.InfinityMinimapArrow:SetTarget(x, y, 0)
+	end
+	return true
 end
 
 return InfinityPathFinding

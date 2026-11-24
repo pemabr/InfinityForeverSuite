@@ -55,6 +55,10 @@ local function InitializeEncounter()
 		end)
 	end
 	
+	local function IsSecret(val)
+		return issecretvalue ~= nil and issecretvalue(val) or false
+	end
+
 	local function IsRaidBossUnit(unit)
 		if not unit or type(unit) ~= "string" or not UnitExists(unit) then
 			return false
@@ -63,53 +67,75 @@ local function InitializeEncounter()
 			return true
 		end
 		local classification = UnitClassification and UnitClassification(unit)
-		if classification == "worldboss" then
+		if not IsSecret(classification) and classification == "worldboss" then
 			return true
 		end
 		local level = UnitLevel and UnitLevel(unit)
-		if level == -1 then
+		if not IsSecret(level) and level == -1 then
 			return true
 		end
 		return false
 	end
 
-	-- Event handling
+	-- Blizzard-safe event handling (no restricted COMBAT_LOG_EVENT_UNFILTERED)
 	local combatFrame = CreateFrame("Frame")
-	for _, ev in ipairs({ "COMBAT_LOG_EVENT_UNFILTERED", "UNIT_HEALTH", "ENCOUNTER_START", "ENCOUNTER_END" }) do
+	for _, ev in ipairs({
+		"UNIT_HEALTH",
+		"PLAYER_TARGET_CHANGED",
+		"PLAYER_REGEN_DISABLED",
+		"PLAYER_REGEN_ENABLED",
+		"ENCOUNTER_START",
+		"ENCOUNTER_END",
+		"START_PLAYER_COUNTDOWN",
+		"CANCEL_PLAYER_COUNTDOWN",
+	}) do
 		pcall(combatFrame.RegisterEvent, combatFrame, ev)
 	end
 	
 	combatFrame:SetScript("OnEvent", function(self, event, ...)
-		if event == "COMBAT_LOG_EVENT_UNFILTERED" then
-			local timestamp, subevent, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName
-			if CombatLogGetCurrentEventInfo then
-				timestamp, subevent, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName = CombatLogGetCurrentEventInfo()
-			else
-				timestamp, subevent, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName = ...
-			end
-			if CD and CD.OnCombatLogEvent then
-				CD:OnCombatLogEvent(timestamp, subevent, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName)
-			end
-			if subevent == "SPELL_CAST_SUCCESS" and Abilities and Abilities.OnAbilityCast then
-				Abilities:OnAbilityCast(spellID, spellName, 0, 30)
-			end
-		elseif event == "UNIT_HEALTH" then
-			local unit = ...
+		if event == "UNIT_HEALTH" or event == "PLAYER_TARGET_CHANGED" then
+			local unit = event == "UNIT_HEALTH" and (...) or "target"
 			if IsRaidBossUnit(unit) then
 				local name = UnitName(unit)
 				local health = UnitHealth(unit)
 				local maxHealth = UnitHealthMax(unit)
-				if StatusBars and StatusBars.UpdateBar then
-					StatusBars:UpdateBar(name or "Boss", health, maxHealth)
+				if not IsSecret(name) and not IsSecret(health) and not IsSecret(maxHealth) then
+					if StatusBars and StatusBars.UpdateBar then
+						StatusBars:UpdateBar(name or "Boss", health, maxHealth)
+					end
 				end
 			end
+		elseif event == "START_PLAYER_COUNTDOWN" then
+			local _, timeRemaining = ...
+			local secs = tonumber(timeRemaining) or 10
+			if Timer and Timer.CreateTimer then
+				Timer:CreateTimer("Pull Countdown", secs)
+			end
+			if Alerts and Alerts.SendAlert then
+				Alerts:SendAlert(string.format("Pull in %d seconds!", secs), Alerts.LEVEL_WARNING)
+			end
+		elseif event == "CANCEL_PLAYER_COUNTDOWN" then
+			if Timer and Timer.timers then
+				Timer.timers = {}
+			end
 		elseif event == "ENCOUNTER_START" then
-			local encounterID, encounterName, difficultyID = ...
+			local encounterID, encounterName = ...
 			if Encounters and Encounters.StartEncounter then
 				Encounters:StartEncounter(encounterName)
 			end
 			if Alerts and Alerts.SendAlert then
 				Alerts:SendAlert("Encounter: " .. tostring(encounterName or "Unknown"), Alerts.LEVEL_INFO)
+			end
+			-- Load known encounter ability timers from built-in EncounterDB (no combat log needed)
+			if EncDB and EncDB.GetEncounter and Timer and Timer.CreateTimer then
+				local data = EncDB:GetEncounter(encounterName)
+				if data and type(data.abilities) == "table" then
+					for _, ab in ipairs(data.abilities) do
+						if ab.name and (ab.cooldown or ab.timer) then
+							Timer:CreateTimer(ab.name, ab.cooldown or ab.timer)
+						end
+					end
+				end
 			end
 		elseif event == "ENCOUNTER_END" then
 			local encounterID, encounterName, difficultyID, groupSize, success = ...
@@ -127,11 +153,11 @@ local function InitializeEncounter()
 		if elapsedAcc < 0.1 then return end
 		elapsedAcc = 0
 		if Timer and Timer.Update then Timer:Update() end
-		if UI and UI.Update then UI:Update() end
+		if UI and UI.frame and UI.frame:IsShown() and UI.Update then UI:Update() end
 		if CD and CD.UpdateCombatState then CD:UpdateCombatState() end
 	end)
 	
-	print("InfinityEncounter loaded - Use /encounter to toggle window")
+	print("InfinityEncounter loaded (1.60.1 safe mode) - Use /encounter to toggle window")
 end
 
 

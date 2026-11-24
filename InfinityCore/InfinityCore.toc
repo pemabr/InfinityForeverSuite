@@ -4,7 +4,7 @@
 ## Author: Infinity Suite Team
 ## Version: 1.1.0
 ## SavedVariables: InfinityCoreDB
-## OptionalDeps: Questie, QuestieDB
+## OptionalDeps: Questie, QuestieDB, WowHeadDB, WoWHeadDB, GathererDB, GatherMate2
 ## X-Category: Utility
 ## X-License: MIT
 
@@ -32,6 +32,18 @@ SuiteValidator.lua
 OfficerDashboard.lua
 
 UI\UIFramework.lua
+
+Hive\HiveComms.lua
+Hive\HiveNetworkDB.lua
+Hive\HiveInventory.lua
+Hive\HiveProfessions.lua
+Hive\HiveDistress.lua
+Hive\HiveCooldowns.lua
+Hive\HiveLFG.lua
+Hive\HiveAuction.lua
+Hive\HiveTooltips.lua
+Hive\HiveUI.lua
+
 UI\MainFrame.lua
 UI\SettingsPanel.lua
 UI\AddonManager.lua

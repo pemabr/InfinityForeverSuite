@@ -9,17 +9,38 @@ InfinityQuestTracker.completed_quests = {}
 InfinityQuestTracker.abandoned_quests = {}
 InfinityQuestTracker.callbacks = {}
 
-function InfinityQuestTracker:AcceptQuest(questID, questName)
-    if self.active_quests[questID] then return false end
+function InfinityQuestTracker:AcceptQuest(questID, questName, questLevel, zone, objectives)
+    if not questID then return false end
+    local existing = self.active_quests[questID]
+    if existing then
+        if questName and questName ~= "" then existing.name = questName end
+        if questLevel and questLevel > 0 then existing.level = questLevel end
+        if zone and zone ~= "" then existing.zone = zone end
+        if objectives then existing.objectives = objectives end
+        return false
+    end
     
     self.active_quests[questID] = {
         id = questID,
-        name = questName or "Unknown",
+        name = questName or ("Quest #" .. tostring(questID)),
+        level = questLevel or 0,
+        zone = zone or (GetRealZoneText and GetRealZoneText()) or "Azeroth",
+        objectives = objectives or {},
         accepted_time = GetTime(),
         progress = 0,
     }
     
     self:TriggerCallback("quest_accepted", questID, questName)
+    return true
+end
+
+function InfinityQuestTracker:RegisterQuest(questID, data)
+    if not questID or type(data) ~= "table" then return false end
+    self.registered_quests = self.registered_quests or {}
+    self.registered_quests[questID] = data
+    if _G.InfinityQuestDB and _G.InfinityQuestDB.AddQuest then
+        pcall(function() _G.InfinityQuestDB:AddQuest(questID, data) end)
+    end
     return true
 end
 

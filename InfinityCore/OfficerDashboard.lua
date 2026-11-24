@@ -21,6 +21,7 @@ InfinityCore.OfficerDashboard = {
 }
 
 local Dashboard = InfinityCore.OfficerDashboard
+_G.InfinityOfficerDashboard = Dashboard
 
 local function EnsureUI()
 	return _G.InfinityUIFramework
@@ -50,6 +51,17 @@ function Dashboard:CreateFrame()
 	frame:SetScript("OnHide", function()
 		Dashboard.visible = false
 	end)
+
+	-- Persistent visual HiveMind connectivity & data-sync health indicator in Officer Dashboard header
+	if frame.header and _G.InfinityHiveUI and _G.InfinityHiveUI.CreateHealthBadge then
+		local badge = _G.InfinityHiveUI:CreateHealthBadge(frame.header, function()
+			if Dashboard.visible then Dashboard:RefreshContent() end
+		end)
+		if badge and frame.closeBtn then
+			badge:SetPoint("RIGHT", frame.closeBtn, "LEFT", -8, 0)
+			frame.healthBadge = badge
+		end
+	end
 
 	-- Tab bar container
 	local tabBar = CreateFrame("Frame", nil, frame, BackdropTemplateMixin and "BackdropTemplate" or nil)
@@ -157,6 +169,55 @@ function Dashboard:ShowOverview(parent)
 		end
 	end)
 	openDkpBtn:SetPoint("LEFT", openAuctionsBtn, "RIGHT", 10, 0)
+
+	-- HiveMind Network Connectivity & Data-Sync Health Panel
+	local health = (_G.InfinityHive and _G.InfinityHive.GetNetworkHealth)
+		and _G.InfinityHive:GetNetworkHealth()
+		or { state = "OFFLINE", label = "Offline", shortLabel = "Offline", color = { 0.97, 0.44, 0.44 }, hex = "|cfff87171", score = 0, isInGuild = false, onlinePeers = 0, queuedMessages = 0, messagesSent = 0, messagesReceived = 0, syncFreshness = "Never", dbRevision = 1, dbItems = 0 }
+
+	if self.frame and self.frame.healthBadge and self.frame.healthBadge.Refresh then
+		self.frame.healthBadge:Refresh()
+	end
+
+	local hiveCard = UI:CreateCard(parent, 758, 128, "Guild HiveMind Network Connectivity & Data-Sync Health")
+	hiveCard:SetPoint("TOPLEFT", parent, "TOPLEFT", 16, -222)
+
+	local hc = health.color or { 0.29, 0.87, 0.50 }
+	local healthBar = UI:CreateStatusBar(hiveCard, 734, 22, hc[1], hc[2], hc[3])
+	healthBar:SetPoint("TOPLEFT", hiveCard, "TOPLEFT", 12, -32)
+	healthBar:SetBarData(
+		health.score or 0,
+		string.format("%s%s|r  ·  Protocol: INFHIVE (%s)", health.hex, health.label, health.isInGuild and "Guild Connected" or "No Guild"),
+		string.format("%d%% Health", health.score or 0),
+		hc[1], hc[2], hc[3]
+	)
+
+	local metricsStr = string.format(
+		"Online Hive Peers: |cff38bdf8%d|r   ·   Last Sync: |cffffffff%s|r   ·   Queue: %d   ·   Packets: %d tx / %d rx   ·   Hive DB: |cfffbbf24Rev v%d (%d items)|r",
+		health.onlinePeers or 0,
+		health.syncFreshness or "Never",
+		health.queuedMessages or 0,
+		health.messagesSent or 0,
+		health.messagesReceived or 0,
+		health.dbRevision or 1,
+		health.dbItems or 0
+	)
+	local mLbl = UI:CreateLabel(hiveCard, metricsStr, 0.82, 0.88, 0.95)
+	mLbl:SetPoint("TOPLEFT", hiveCard, "TOPLEFT", 12, -64)
+
+	local forceSyncBtn = UI:CreateButton(hiveCard, "Force Guild Hive Sync", 160, 24, function()
+		if _G.InfinityHive then _G.InfinityHive:RequestFullGuildSync() end
+		if _G.InfinityHiveNetworkDB then _G.InfinityHiveNetworkDB:CheckForNetworkUpdates() end
+		Dashboard:RefreshContent()
+	end, true)
+	forceSyncBtn:SetPoint("BOTTOMLEFT", hiveCard, "BOTTOMLEFT", 12, 12)
+
+	local openHiveBtn = UI:CreateButton(hiveCard, "Open Hive Hub", 130, 24, function()
+		if _G.InfinityMainFrame and _G.InfinityMainFrame.OpenToTab then
+			_G.InfinityMainFrame:OpenToTab("Hive Live")
+		end
+	end)
+	openHiveBtn:SetPoint("LEFT", forceSyncBtn, "RIGHT", 10, 0)
 end
 
 function Dashboard:ShowDKPManagement(parent)

@@ -19,8 +19,13 @@ local function scanEquippedGear()
 	for _, slot in ipairs(SLOTS) do
 		local link = GetInventoryItemLink and GetInventoryItemLink("player", slot.id) or nil
 		local name, rarity, ilvl = "Empty Slot", 0, 0
-		if link and GetItemInfo then
-			local n, _, q, lvl = GetItemInfo(link)
+		if link then
+			local n, _, q, lvl
+			if C_Item and C_Item.GetItemInfo then
+				n, _, q, lvl = C_Item.GetItemInfo(link)
+			elseif GetItemInfo then
+				n, _, q, lvl = GetItemInfo(link)
+			end
 			name = n or link
 			rarity = q or 1
 			ilvl = lvl or 0

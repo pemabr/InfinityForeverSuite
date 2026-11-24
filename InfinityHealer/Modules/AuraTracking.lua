@@ -16,10 +16,9 @@ function InfinityAuraTracking:UpdateAuras(unitToken)
 	
 	local auras = {}
 	for i = 1, 32 do
-		local name, icon, count, dispelType, duration, expirationTime = UnitAura(unitToken, i, "HELPFUL")
-		if name then
-			table.insert(auras, {name = name, icon = icon, duration = duration, dispel = dispelType})
-		end
+		local name, icon, count, dispelType, duration, expirationTime = InfinityUtils:GetUnitAura(unitToken, i, "HELPFUL")
+		if not name then break end
+		table.insert(auras, {name = name, icon = icon, duration = duration, dispel = dispelType})
 	end
 	
 	self.auraCache[unitToken] = auras

@@ -38,18 +38,18 @@ local function InitializeGatherPath()
 		end)
 		
 		_G.InfinityCore:RegisterCommand("/gatherpath record", "Record current node", function()
-			local zone = GetRealZoneText()
-			if zone then
-				local x, y = GetPlayerMapPosition("player")
-				if x and y then
-					NodeDB:RecordNode("herb", x * 100, y * 100, zone, 300)
-					print("Node recorded in " .. zone)
-				end
+			local zone = GetRealZoneText and GetRealZoneText() or "Unknown"
+			local x, y = InfinityUtils:GetUnitMapPosition("player")
+			if x and y and (x > 0 or y > 0) then
+				NodeDB:RecordNode("herb", x * 100, y * 100, zone, 300)
+				print("|cff4ade80[InfinityGatherPath]|r Node recorded in " .. zone .. string.format(" (%.1f, %.1f)", x * 100, y * 100))
+			else
+				print("|cfffbbf24[InfinityGatherPath]|r Unable to read map coordinates in current zone.")
 			end
 		end)
 		
 		_G.InfinityCore:RegisterCommand("/gatherpath optimize", "Optimize current route", function()
-			local zone = GetRealZoneText()
+			local zone = GetRealZoneText and GetRealZoneText()
 			if zone then
 				local nodes = NodeDB:GetNodesByZone(zone)
 				if #nodes > 0 then
@@ -65,19 +65,30 @@ local function InitializeGatherPath()
 		end)
 	end
 	
-	-- Event handling for gathering
+	-- Standalone event handling for automatic gathering node recording (no GathererDB required)
 	local gatherFrame = CreateFrame("Frame")
-	gatherFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
-	gatherFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
+	pcall(gatherFrame.RegisterEvent, gatherFrame, "PLAYER_REGEN_ENABLED")
+	pcall(gatherFrame.RegisterEvent, gatherFrame, "PLAYER_REGEN_DISABLED")
+	pcall(gatherFrame.RegisterEvent, gatherFrame, "UNIT_SPELLCAST_SUCCEEDED")
 	
-	gatherFrame:SetScript("OnEvent", function(self, event, ...)
+	local GATHER_SPELLS = { [2366] = "herb", [2575] = "mining", [8613] = "skinning", [7620] = "fishing" }
+	gatherFrame:SetScript("OnEvent", function(self, event, unit, _, spellID)
 		if event == "PLAYER_REGEN_ENABLED" then
-			-- Out of combat - safe to record nodes
-			UI:Update()
+			if UI and UI.Update then UI:Update() end
+		elseif event == "UNIT_SPELLCAST_SUCCEEDED" and unit == "player" and spellID and not InfinityUtils:IsSecret(spellID) then
+			local nodeType = GATHER_SPELLS[spellID]
+			if nodeType and NodeDB and NodeDB.RecordNode then
+				local x, y = InfinityUtils:GetUnitMapPosition("player")
+				local zone = GetRealZoneText and GetRealZoneText() or "Unknown"
+				if x and y and (x > 0 or y > 0) then
+					NodeDB:RecordNode(nodeType, x * 100, y * 100, zone, 300)
+					if UI and UI.Update then UI:Update() end
+				end
+			end
 		end
 	end)
 	
-	print("InfinityGatherPath loaded - Use /gatherpath for route management")
+	InfinityUtils:Info("InfinityGatherPath loaded (Standalone Node Recorder) - /gatherpath", "GatherPath")
 end
 
 

@@ -508,6 +508,39 @@ function InfinityUIFramework:CreateMinimapButton()
 	txt:SetPoint("CENTER", 0, 0)
 	txt:SetText("|cff38bdf8INF|r")
 
+	-- Compact live HiveMind connectivity beacon dot on bottom-right corner of minimap button
+	local statusDot = btn:CreateTexture(nil, "OVERLAY")
+	statusDot:SetSize(7, 7)
+	statusDot:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", -2, 2)
+	if statusDot.SetColorTexture then
+		statusDot:SetColorTexture(0.29, 0.87, 0.50, 1)
+	else
+		statusDot:SetTexture("Interface\\Buttons\\WHITE8X8")
+		statusDot:SetVertexColor(0.29, 0.87, 0.50, 1)
+	end
+	btn.statusDot = statusDot
+
+	local function RefreshOrbDot()
+		local h = (_G.InfinityHive and _G.InfinityHive.GetNetworkHealth) and _G.InfinityHive:GetNetworkHealth() or nil
+		if h and h.color then
+			if btn.statusDot.SetColorTexture then
+				btn.statusDot:SetColorTexture(h.color[1], h.color[2], h.color[3], 1)
+			else
+				btn.statusDot:SetVertexColor(h.color[1], h.color[2], h.color[3], 1)
+			end
+		end
+		return h
+	end
+
+	local orbTick = 0
+	btn:SetScript("OnUpdate", function(_, elapsed)
+		orbTick = orbTick + (elapsed or 0)
+		if orbTick >= 3 then
+			orbTick = 0
+			RefreshOrbDot()
+		end
+	end)
+
 	btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 	btn:SetMovable(true)
 	btn:RegisterForDrag("LeftButton")
@@ -527,10 +560,16 @@ function InfinityUIFramework:CreateMinimapButton()
 	end)
 
 	btn:SetScript("OnEnter", function(selfBtn)
+		local h = RefreshOrbDot()
 		if GameTooltip then
 			GameTooltip:SetOwner(selfBtn, "ANCHOR_LEFT")
 			GameTooltip:AddLine("|cff38bdf8Infinity Forever Suite|r", 1, 1, 1)
-			GameTooltip:AddLine("Left-Click: Open Suite Hub (/infinity)", 0.8, 0.9, 1)
+			if h then
+				GameTooltip:AddDoubleLine("HiveMind Network:", h.hex .. h.label .. " (" .. tostring(h.score or 0) .. "%)|r", 0.72, 0.80, 0.90, 1, 1, 1)
+				GameTooltip:AddDoubleLine("Data Sync:", string.format("%d peers · %s · DB v%d", h.onlinePeers or 0, h.syncFreshness or "Never", h.dbRevision or 1), 0.72, 0.80, 0.90, 0.90, 0.95, 1)
+				GameTooltip:AddLine(" ")
+			end
+			GameTooltip:AddLine("Left-Click: Open Guild Hive Hub (/infinity)", 0.8, 0.9, 1)
 			GameTooltip:AddLine("Right-Click: Officer Dashboard (/officer)", 0.8, 0.9, 1)
 			GameTooltip:AddLine("Drag: Reposition button", 0.6, 0.7, 0.8)
 			GameTooltip:Show()

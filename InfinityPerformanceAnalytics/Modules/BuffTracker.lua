@@ -110,7 +110,7 @@ function BuffTracker:ScanPlayerBuffs(unit)
     -- Scan buffs
     local buff_index = 1
     while true do
-        local buff_name, buff_icon, buff_count, buff_type, buff_duration, buff_expiration = UnitBuff(unit, buff_index)
+        local buff_name, buff_icon, buff_count, buff_type, buff_duration, buff_expiration = InfinityUtils:GetUnitAura(unit, buff_index, "HELPFUL")
         
         if not buff_name then
             break
@@ -132,7 +132,7 @@ function BuffTracker:ScanPlayerBuffs(unit)
     -- Scan debuffs
     local debuff_index = 1
     while true do
-        local debuff_name, debuff_icon, debuff_count, debuff_type = UnitDebuff(unit, debuff_index)
+        local debuff_name, debuff_icon, debuff_count, debuff_type = InfinityUtils:GetUnitAura(unit, debuff_index, "HARMFUL")
         
         if not debuff_name then
             break

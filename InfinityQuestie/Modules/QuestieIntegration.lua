@@ -24,28 +24,27 @@ _G.InfinityQuestieIntegration = QuestieIntegration
 function QuestieIntegration:Initialize()
 	InfinityUtils:Info("QuestieDB Integration initialized", "Questie")
 	
-	-- Check if Questie is available
+	-- Check if optional Questie is available
 	if _G.Questie then
 		self.questieAvailable = true
-		InfinityUtils:Info("Questie addon detected and loaded", "Questie")
+		InfinityUtils:Info("Optional Questie addon detected and linked", "Questie")
 		
-		-- If enabled, start auto-sync
 		if self.config.syncOnLoad then
 			C_Timer.After(2, function()
 				self:StartSync()
 			end)
 		end
 	else
-		InfinityUtils:Info("Questie addon not found - manual quest data population required", "Questie")
+		InfinityUtils:Debug("Running in standalone quest mode (Questie optional)", "Questie")
 	end
 	
-	-- Register for Questie load event
+	-- Register for optional Questie load event
 	local frame = CreateFrame("Frame")
-	frame:RegisterEvent("ADDON_LOADED")
+	pcall(frame.RegisterEvent, frame, "ADDON_LOADED")
 	frame:SetScript("OnEvent", function(f, event, addon)
 		if event == "ADDON_LOADED" and addon == "Questie" then
 			QuestieIntegration.questieAvailable = true
-			InfinityUtils:Info("Questie addon loaded - starting sync", "Questie")
+			InfinityUtils:Info("Optional Questie addon loaded - starting sync", "Questie")
 			if QuestieIntegration.config.autoSync then
 				QuestieIntegration:StartSync()
 			end
@@ -58,7 +57,10 @@ function QuestieIntegration:StartSync()
 	if self.syncState.syncing then return end
 	
 	if not self.questieAvailable then
-		InfinityUtils:Warning("Questie not available - cannot sync", "Questie")
+		if _G.InfinityQuestieDBSync and _G.InfinityQuestieDBSync.SyncFromNativeQuestLog then
+			_G.InfinityQuestieDBSync:SyncFromNativeQuestLog()
+		end
+		InfinityUtils:Debug("Questie optional - synced live WoW quest log instead", "Questie")
 		return
 	end
 	

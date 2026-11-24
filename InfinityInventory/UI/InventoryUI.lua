@@ -39,7 +39,12 @@ local function scanBags()
 			local link, count, quality = getBagItem(bag, slot)
 			if link then
 				usedSlots = usedSlots + 1
-				local name, _, q, _, _, _, _, _, _, _, sellPrice = GetItemInfo and GetItemInfo(link) or nil
+				local name, _, q, _, _, _, _, _, _, _, sellPrice
+				if C_Item and C_Item.GetItemInfo then
+					name, _, q, _, _, _, _, _, _, _, sellPrice = C_Item.GetItemInfo(link)
+				elseif GetItemInfo then
+					name, _, q, _, _, _, _, _, _, _, sellPrice = GetItemInfo(link)
+				end
 				q = q or quality or 1
 				sellPrice = sellPrice or 0
 				totalValue = totalValue + (sellPrice * count)

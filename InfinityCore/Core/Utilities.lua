@@ -162,4 +162,163 @@ function InfinityUtils:GetQualityColor(quality)
 	return colors[quality] or "|cffffffff"
 end
 
+-- ============================================================================
+-- Warcraft Forever 1.60.1 / Modern WoW API Compatibility Wrappers (Taint-Free)
+-- ============================================================================
+
+function InfinityUtils:GetItemInfo(item)
+	if not item then return nil end
+	if C_Item and C_Item.GetItemInfo then
+		return C_Item.GetItemInfo(item)
+	elseif GetItemInfo then
+		return GetItemInfo(item)
+	end
+	return nil
+end
+
+function InfinityUtils:GetItemCount(item, includeBank, includeUses, includeReagentBank)
+	if not item then return 0 end
+	if C_Item and C_Item.GetItemCount then
+		return C_Item.GetItemCount(item, includeBank, includeUses, includeReagentBank) or 0
+	elseif GetItemCount then
+		return GetItemCount(item, includeBank, includeUses, includeReagentBank) or 0
+	end
+	return 0
+end
+
+function InfinityUtils:GetItemStats(itemLink)
+	if not itemLink then return {} end
+	if C_Item and C_Item.GetItemStats then
+		return C_Item.GetItemStats(itemLink) or {}
+	elseif GetItemStats then
+		return GetItemStats(itemLink) or {}
+	end
+	return {}
+end
+
+function InfinityUtils:GetItemIDFromHyperlink(link)
+	if not link then return nil end
+	if GetItemInfoFromHyperlink then
+		return GetItemInfoFromHyperlink(link)
+	end
+	if type(link) == "number" then return link end
+	if type(link) == "string" then
+		return tonumber(link:match("item:(%d+)"))
+	end
+	return nil
+end
+
+function InfinityUtils:GetUnitAura(unit, index, filter)
+	if not unit or not index then return nil end
+	if C_UnitAuras and C_UnitAuras.GetAuraDataByIndex then
+		local aura = C_UnitAuras.GetAuraDataByIndex(unit, index, filter)
+		if aura then
+			return aura.name, aura.icon, aura.applications, aura.dispelName, aura.duration, aura.expirationTime, aura.sourceUnit, aura.isStealable, aura.nameplateShowPersonal, aura.spellId, aura.canApplyAura, aura.isBossAura, aura.isFromPlayerOrPlayerPet, aura.nameplateShowAll
+		end
+		return nil
+	elseif UnitAura then
+		return UnitAura(unit, index, filter)
+	elseif filter == "HARMFUL" and UnitDebuff then
+		return UnitDebuff(unit, index)
+	elseif UnitBuff then
+		return UnitBuff(unit, index)
+	end
+	return nil
+end
+
+function InfinityUtils:GetSpellCooldown(spell)
+	if not spell then return 0, 0, 1 end
+	if C_Spell and C_Spell.GetSpellCooldown then
+		local cd = C_Spell.GetSpellCooldown(spell)
+		if cd then
+			return cd.startTime or 0, cd.duration or 0, cd.isEnabled and 1 or 0
+		end
+		return 0, 0, 1
+	elseif GetSpellCooldown then
+		return GetSpellCooldown(spell)
+	end
+	return 0, 0, 1
+end
+
+function InfinityUtils:IsSecret(val)
+	return issecretvalue ~= nil and issecretvalue(val) or false
+end
+
+function InfinityUtils:GetQuestLogCount()
+	if C_QuestLog and C_QuestLog.GetNumQuestLogEntries then
+		local ok, count = pcall(C_QuestLog.GetNumQuestLogEntries)
+		if ok and type(count) == "number" then return count end
+	elseif GetNumQuestLogEntries then
+		local ok, count = pcall(GetNumQuestLogEntries)
+		if ok and type(count) == "number" then return count end
+	end
+	return 0
+end
+
+function InfinityUtils:GetQuestLogEntry(index)
+	if C_QuestLog and C_QuestLog.GetInfo then
+		local ok, info = pcall(C_QuestLog.GetInfo, index)
+		if ok and type(info) == "table" then
+			return info.title, info.level or 0, info.isHeader, info.questID, info.isComplete
+		end
+		return nil
+	elseif GetQuestLogTitle then
+		local ok, title, level, _, isHeader, _, isComplete, _, questID = pcall(GetQuestLogTitle, index)
+		if ok then
+			return title, level or 0, isHeader, questID, isComplete
+		end
+	end
+	return nil
+end
+
+function InfinityUtils:GetQuestTitleByID(questID)
+	if not questID then return nil end
+	if C_QuestLog and C_QuestLog.GetTitleForQuestID then
+		local ok, title = pcall(C_QuestLog.GetTitleForQuestID, questID)
+		if ok and title and title ~= "" then return title end
+	end
+	local count = self:GetQuestLogCount()
+	for i = 1, count do
+		local title, _, isHeader, qid = self:GetQuestLogEntry(i)
+		if not isHeader and qid == questID and title then
+			return title
+		end
+	end
+	return nil
+end
+
+function InfinityUtils:GetQuestObjectives(questID)
+	if not questID then return {} end
+	if C_QuestLog and C_QuestLog.GetQuestObjectives then
+		local ok, objs = pcall(C_QuestLog.GetQuestObjectives, questID)
+		if ok and type(objs) == "table" then
+			return objs
+		end
+	end
+	return {}
+end
+
+function InfinityUtils:GetUnitMapPosition(unit)
+	unit = unit or "player"
+	if C_Map and C_Map.GetBestMapForUnit and C_Map.GetPlayerMapPosition then
+		local okMap, mapID = pcall(C_Map.GetBestMapForUnit, unit)
+		if okMap and mapID then
+			local okPos, pos = pcall(C_Map.GetPlayerMapPosition, mapID, unit)
+			if okPos and pos and pos.GetXY then
+				local x, y = pos:GetXY()
+				if x and y then
+					return x, y, mapID
+				end
+			end
+		end
+	end
+	if GetPlayerMapPosition then
+		local ok, x, y = pcall(GetPlayerMapPosition, unit)
+		if ok and x and y then
+			return x, y, nil
+		end
+	end
+	return 0, 0, nil
+end
+
 return InfinityUtils

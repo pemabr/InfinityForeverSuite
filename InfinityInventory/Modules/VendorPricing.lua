@@ -14,7 +14,7 @@ function InfinityVendorPricing:Initialize()
 end
 
 function InfinityVendorPricing:GetVendorPrice(itemId)
-	local name, link, quality, ilvl, _, _, _, _, _, _, sellPrice = GetItemInfo(itemId)
+	local name, link, quality, ilvl, _, _, _, _, _, _, sellPrice = InfinityUtils:GetItemInfo(itemId)
 	return sellPrice or 0
 end
 

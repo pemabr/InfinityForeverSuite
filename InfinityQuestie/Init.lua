@@ -4,10 +4,13 @@
 local addonName = "InfinityQuestie"
 local addonVersion = "1.0.0"
 
+local initialized = false
+
 local function InitializeQuestie()
-	if not _G.InfinityCore then
+	if initialized or not _G.InfinityCore then
 		return
 	end
+	initialized = true
 	
 	-- Modules are loaded via .toc file, so globals are already created
 	local QuestDB = InfinityQuestDB or _G.InfinityQuestDB
@@ -18,21 +21,21 @@ local function InitializeQuestie()
 	local QuestieDBSync = InfinityQuestieDBSync or _G.InfinityQuestieDBSync
 	local UI = InfinityQuestieUI or _G.InfinityQuestieUI
 	
-	-- Initialize quest database sync from QuestieDB (if available)
+	-- Initialize standalone native quest log sync (+ optional QuestieDB bonus if installed)
 	if QuestieDBSync and QuestieDBSync.Initialize then
-		if QuestieDBSync then pcall(function() QuestieDBSync:Initialize() end) end
+		pcall(function() QuestieDBSync:Initialize() end)
 	end
 	
 	-- Initialize UI
 	if UI and UI.Initialize then
-		if UI then pcall(function() UI:Initialize() end) end
+		pcall(function() UI:Initialize() end)
 	end
 	
 	-- Register with InfinityCore
 	_G.InfinityCore:RegisterAddon(addonName, {
 		version = addonVersion,
 		author = "Infinity Forever",
-		description = "Quest database, chains, and routing (Questie replacement)",
+		description = "Standalone quest tracking, chains, and routing (QuestieDB optional)",
 		enabled = true,
 	})
 	
@@ -43,7 +46,7 @@ local function InitializeQuestie()
 		end)
 		
 		_G.InfinityCore:RegisterCommand("/questie search", "Search quests", function(args)
-			if args and args ~= "" then
+			if args and args ~= "" and QuestDB and QuestDB.SearchQuests then
 				local results = QuestDB:SearchQuests(args)
 				print("Found " .. #results .. " quests")
 				for _, quest in ipairs(results) do
@@ -59,7 +62,7 @@ local function InitializeQuestie()
 				table.insert(questIDs, questID)
 			end
 			
-			if #questIDs > 0 then
+			if #questIDs > 0 and Router and Router.CalculateRoute then
 				local route = Router:CalculateRoute(questIDs)
 				print("Quest Route:")
 				for i, waypoint in ipairs(route.waypoints) do
@@ -69,31 +72,30 @@ local function InitializeQuestie()
 		end)
 	end
 	
-	-- Event handling for quest events
+	-- Event handling for quest events (100% standalone C_QuestLog)
 	local questFrame = CreateFrame("Frame")
-	questFrame:RegisterEvent("QUEST_ACCEPTED")
-	questFrame:RegisterEvent("QUEST_COMPLETE")
-	questFrame:RegisterEvent("QUEST_FINISHED")
-	questFrame:RegisterEvent("QUEST_REMOVED")
-	questFrame:RegisterEvent("QUEST_LOG_UPDATE")
+	for _, ev in ipairs({ "QUEST_ACCEPTED", "QUEST_COMPLETE", "QUEST_FINISHED", "QUEST_REMOVED", "QUEST_LOG_UPDATE" }) do
+		pcall(questFrame.RegisterEvent, questFrame, ev)
+	end
 	
 	questFrame:SetScript("OnEvent", function(self, event, ...)
 		if event == "QUEST_ACCEPTED" then
-			local questID = ...
-			local questTitle = GetQuestLogTitle(questID)
-			Tracker:AcceptQuest(questID, questTitle)
-		elseif event == "QUEST_COMPLETE" then
-			UI:Update()
-		elseif event == "QUEST_FINISHED" then
-			UI:Update()
-		elseif event == "QUEST_REMOVED" then
-			UI:Update()
-		elseif event == "QUEST_LOG_UPDATE" then
-			UI:Update()
+			local arg1, arg2 = ...
+			local questID = type(arg1) == "number" and arg1 or arg2
+			local questTitle = InfinityUtils:GetQuestTitleByID(questID) or ("Quest #" .. tostring(questID or "?"))
+			if Tracker and Tracker.AcceptQuest and questID then
+				Tracker:AcceptQuest(questID, questTitle)
+			end
+			if UI then UI:Update() end
+		elseif event == "QUEST_COMPLETE" or event == "QUEST_FINISHED" or event == "QUEST_REMOVED" or event == "QUEST_LOG_UPDATE" then
+			if QuestieDBSync and QuestieDBSync.SyncFromNativeQuestLog then
+				pcall(function() QuestieDBSync:SyncFromNativeQuestLog() end)
+			end
+			if UI then UI:Update() end
 		end
 	end)
 	
-	print("InfinityQuestie loaded - Use /questie for quest tracking")
+	InfinityUtils:Info("InfinityQuestie loaded (Standalone Native Mode) - /questie", "Questie")
 end
 
 

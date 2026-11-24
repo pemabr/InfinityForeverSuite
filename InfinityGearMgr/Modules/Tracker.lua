@@ -29,8 +29,8 @@ function InfinityGearTracker:ScanEquipment()
 		if slotID then
 			local itemLink = GetInventoryItemLink("player", slotID)
 			if itemLink then
-				local itemID = GetItemInfoFromHyperlink(itemLink)
-				local itemName, _, itemRarity, itemLevel = GetItemInfo(itemID)
+				local itemID = InfinityUtils:GetItemIDFromHyperlink(itemLink)
+				local itemName, _, itemRarity, itemLevel = InfinityUtils:GetItemInfo(itemID or itemLink)
 				
 				if itemName then
 					self.equipment[slotName] = {
@@ -102,26 +102,26 @@ function InfinityGearTracker:GetEquipmentByRarity(rarity)
 end
 
 function InfinityGearTracker:CompareItems(item1Link, item2Link)
-	local id1 = GetItemInfoFromHyperlink(item1Link)
-	local id2 = GetItemInfoFromHyperlink(item2Link)
+	local id1 = InfinityUtils:GetItemIDFromHyperlink(item1Link)
+	local id2 = InfinityUtils:GetItemIDFromHyperlink(item2Link)
 	
-	local name1, _, rarity1, level1 = GetItemInfo(id1)
-	local name2, _, rarity2, level2 = GetItemInfo(id2)
+	local name1, _, rarity1, level1 = InfinityUtils:GetItemInfo(id1 or item1Link)
+	local name2, _, rarity2, level2 = InfinityUtils:GetItemInfo(id2 or item2Link)
 	
 	local comparison = {
 		item1 = {
 			name = name1,
 			id = id1,
 			rarity = rarity1,
-			level = level1,
+			level = level1 or 0,
 		},
 		item2 = {
 			name = name2,
 			id = id2,
 			rarity = rarity2,
-			level = level2,
+			level = level2 or 0,
 		},
-		upgrade = level2 > level1,
+		upgrade = (level2 or 0) > (level1 or 0),
 		ilevelDiff = (level2 or 0) - (level1 or 0),
 	}
 	

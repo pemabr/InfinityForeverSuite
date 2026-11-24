@@ -34,29 +34,28 @@ function QuestieDBIntegration:Initialize()
 	end)
 end
 
--- Check if Questie addon is available
+-- Check if optional Questie addon is available
 function QuestieDBIntegration:CheckQuestieAvailability()
-	if QuestieDB then
+	if _G.QuestieDB then
 		self.questieAvailable = true
-		InfinityUtils:Info("QuestieDB found and loaded", "Core")
+		InfinityUtils:Info("Optional QuestieDB found and linked", "Core")
 	else
 		self.questieAvailable = false
-		InfinityUtils:Warning("QuestieDB not available, using limited data", "Core")
+		InfinityUtils:Debug("Running in standalone quest mode (QuestieDB optional)", "Core")
 	end
 end
 
--- Get quest data from QuestieDB
+-- Get quest data (optional QuestieDB, then native WoW quest log & local collector)
 function QuestieDBIntegration:GetQuestData(questId)
 	-- Check cache first
 	if self.cachedData.quests[questId] then
 		return self.cachedData.quests[questId]
 	end
 	
-	-- Try QuestieDB
-	if self.questieAvailable and QuestieDB.Quest[questId] then
-		local questData = QuestieDB.Quest[questId]
+	-- Try optional QuestieDB
+	if self.questieAvailable and _G.QuestieDB and _G.QuestieDB.Quest and _G.QuestieDB.Quest[questId] then
+		local questData = _G.QuestieDB.Quest[questId]
 		
-		-- Parse QuestieDB quest data
 		local data = {
 			id = questId,
 			name = questData[1] or "Unknown",
@@ -69,20 +68,19 @@ function QuestieDBIntegration:GetQuestData(questId)
 			description = questData[9] or "",
 		}
 		
-		-- Cache result
 		self.cachedData.quests[questId] = data
 		return data
 	end
 	
-	-- Fallback to game API
-	local questName, questLevel = GetQuestLogTitle(questId)
+	-- Standalone fallback to live WoW C_QuestLog API
+	local questName = InfinityUtils:GetQuestTitleByID(questId)
 	if questName then
 		local data = {
 			id = questId,
 			name = questName,
-			level = questLevel or 0,
+			level = 0,
 			minLevel = 0,
-			objectives = {},
+			objectives = InfinityUtils:GetQuestObjectives(questId),
 			rewards = {},
 			startNPC = 0,
 			endNPC = 0,
@@ -154,7 +152,7 @@ function QuestieDBIntegration:GetItemData(itemId)
 	end
 	
 	-- Fallback to game API
-	local itemName, itemLink, rarity, itemLevel = GetItemInfo(itemId)
+	local itemName, itemLink, rarity, itemLevel = InfinityUtils:GetItemInfo(itemId)
 	if itemName then
 		local data = {
 			id = itemId,

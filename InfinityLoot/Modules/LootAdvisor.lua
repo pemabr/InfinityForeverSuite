@@ -40,16 +40,17 @@ function LootAdvisor:OnLootOpened(itemLink, quantity)
 		return
 	end
 	
-	local itemId, itemName, itemRarity, itemLevel = GetItemInfo(itemLink)
+	local itemName, _, itemRarity, itemLevel = InfinityUtils:GetItemInfo(itemLink)
+	local itemId = InfinityUtils:GetItemIDFromHyperlink(itemLink)
 	
-	if itemId then
+	if itemId or itemName then
 		table.insert(self.pendingLoot, {
 			itemId = itemId,
-			name = itemName,
+			name = itemName or itemLink,
 			link = itemLink,
 			quantity = quantity or 1,
-			rarity = itemRarity,
-			level = itemLevel,
+			rarity = itemRarity or 1,
+			level = itemLevel or 0,
 		})
 	end
 end
@@ -166,8 +167,8 @@ end
 function LootAdvisor:GetNeedScore(class, loot)
 	local cls = string.upper(tostring(class or ""))
 	local itemSubType = loot and loot.itemSubType or nil
-	if not itemSubType and loot and loot.itemLink and GetItemInfo then
-		local _, _, _, _, _, _, subType = GetItemInfo(loot.itemLink)
+	if not itemSubType and loot and loot.itemLink then
+		local _, _, _, _, _, _, subType = InfinityUtils:GetItemInfo(loot.itemLink)
 		itemSubType = subType
 	end
 

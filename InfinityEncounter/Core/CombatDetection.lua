@@ -12,6 +12,10 @@ InfinityEncounterCD.combat_start_time = nil
 InfinityEncounterCD.boss_deaths = {}
 InfinityEncounterCD.callbacks = {}
 
+local function IsSecret(val)
+    return issecretvalue ~= nil and issecretvalue(val) or false
+end
+
 local function IsRaidBossUnit(unit)
     if not unit or type(unit) ~= "string" or not UnitExists(unit) then
         return false
@@ -20,20 +24,23 @@ local function IsRaidBossUnit(unit)
         return true
     end
     local classification = UnitClassification and UnitClassification(unit)
-    if classification == "worldboss" then
+    if not IsSecret(classification) and classification == "worldboss" then
         return true
     end
     local level = UnitLevel and UnitLevel(unit)
-    return level == -1
+    return (not IsSecret(level)) and level == -1
 end
 
 local function IsRaidBossGUID(guid)
-    if not guid or type(guid) ~= "string" or not UnitGUID then
+    if not guid or IsSecret(guid) or type(guid) ~= "string" or not UnitGUID then
         return false
     end
     for _, unitID in ipairs({"boss1", "boss2", "boss3", "boss4", "boss5", "target", "focus"}) do
-        if IsRaidBossUnit(unitID) and UnitGUID(unitID) == guid then
-            return true
+        if IsRaidBossUnit(unitID) then
+            local ug = UnitGUID(unitID)
+            if ug and not IsSecret(ug) and ug == guid then
+                return true
+            end
         end
     end
     return false
@@ -64,33 +71,12 @@ function InfinityEncounterCD:TriggerCallback(event, ...)
 end
 
 function InfinityEncounterCD:DetectBoss()
-    local maxPlayers = GetNumGroupMembers()
-    local bossCount = 0
-    
-    for i = 1, maxPlayers do
-        local unitID = string.format("raid%d", i)
-        if UnitExists(unitID) and UnitIsPlayer(unitID) then
-            -- Detect if someone in raid is fighting a boss
-            if UnitCanAttack("player", unitID) and UnitLevel(unitID) > 0 then
-                bossCount = bossCount + 1
-                self.boss_units[unitID] = true
-            end
-        end
-    end
-    
-    -- Check if in raid combat
-    if UnitAffectingCombat("player") and bossCount > 0 then
-        return true
-    end
-    
-    -- Also check bosses in target/focus
-    for _, unitID in ipairs({"target", "focus", "boss1", "boss2", "boss3", "boss4"}) do
+    for _, unitID in ipairs({"boss1", "boss2", "boss3", "boss4", "target", "focus"}) do
         if IsRaidBossUnit(unitID) then
             self.boss_units[unitID] = true
             return true
         end
     end
-    
     return false
 end
 

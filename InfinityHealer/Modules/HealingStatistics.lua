@@ -29,15 +29,38 @@ _G.InfinityHealingStats = HealingStats
 function HealingStats:Initialize()
 	InfinityUtils:Info("Healing stats tracker initialized", "Healer")
 	
-	-- Register for combat log events
+	-- Register Blizzard-safe events (uses C_DamageMeter on Warcraft Forever 1.60.1)
 	local frame = CreateFrame("Frame")
-	frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-	frame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
-	frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+	for _, ev in ipairs({
+		"DAMAGE_METER_COMBAT_SESSION_UPDATED",
+		"PLAYER_REGEN_ENABLED",
+		"ZONE_CHANGED_NEW_AREA",
+		"PLAYER_ENTERING_WORLD",
+	}) do
+		pcall(frame.RegisterEvent, frame, ev)
+	end
 	
 	frame:SetScript("OnEvent", function(f, event, ...)
-		if event == "COMBAT_LOG_EVENT_UNFILTERED" then
-			HealingStats:OnCombatLogEvent(...)
+		if event == "DAMAGE_METER_COMBAT_SESSION_UPDATED" or event == "PLAYER_REGEN_ENABLED" then
+			if C_DamageMeter and C_DamageMeter.GetAvailableCombatSessions and C_DamageMeter.GetCombatSessionFromID then
+				local okS, sessions = pcall(C_DamageMeter.GetAvailableCombatSessions)
+				if okS and type(sessions) == "table" and #sessions > 0 then
+					local sid = sessions[#sessions].sessionID
+					local healType = (Enum and Enum.DamageMeterType and Enum.DamageMeterType.HealingDone) or 2
+					local okH, hSession = pcall(C_DamageMeter.GetCombatSessionFromID, sid, healType)
+					if okH and type(hSession) == "table" and type(hSession.combatSources) == "table" then
+						local myName = UnitName("player")
+						for _, src in ipairs(hSession.combatSources) do
+							if src.name and not InfinityUtils:IsSecret(src.name) and src.totalAmount and not InfinityUtils:IsSecret(src.totalAmount) then
+								if src.name == myName then
+									HealingStats.sessionStats.totalHealing = tonumber(src.totalAmount) or HealingStats.sessionStats.totalHealing
+								end
+								HealingStats.sessionStats.playerHealing[src.name] = tonumber(src.totalAmount) or 0
+							end
+						end
+					end
+				end
+			end
 		elseif event == "ZONE_CHANGED_NEW_AREA" or event == "PLAYER_ENTERING_WORLD" then
 			HealingStats:ResetSession()
 		end
