@@ -546,9 +546,33 @@ function renderHtml() {
       background: var(--panel);
       border-bottom: 1px solid var(--border);
     }
-    .brand { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+    .brand { display: flex; align-items: center; gap: 11px; min-width: 0; }
+    .brand-crest { width: 32px; height: 32px; flex-shrink: 0; filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.35)); }
+    .brand-copy { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
     .brand h1 { margin: 0; font-size: 15.5px; font-weight: 700; color: var(--gold); letter-spacing: 0.3px; white-space: nowrap; }
     .brand span { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .suite-strip {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 7px 20px;
+      background: linear-gradient(90deg, #0f1422 0%, #131b2c 50%, #0f1422 100%);
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .suite-strip::-webkit-scrollbar { display: none; }
+    .strip-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11.5px;
+      color: #cbd5e1;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .strip-item svg { width: 14px; height: 14px; flex-shrink: 0; }
+    .strip-sep { width: 1px; height: 14px; background: var(--border); flex-shrink: 0; }
     .search {
       width: 210px;
       max-width: 30vw;
@@ -831,8 +855,22 @@ function renderHtml() {
 <body>
   <header>
     <div class="brand">
-      <h1>Pluribus WoW Addon Suite</h1>
-      <span id="summary">Loading addons...</span>
+      <svg class="brand-crest" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="plbCrestG" x1="4" y1="4" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#38bdf8"/>
+            <stop offset="55%" stop-color="#818cf8"/>
+            <stop offset="100%" stop-color="#eab308"/>
+          </linearGradient>
+        </defs>
+        <circle cx="20" cy="20" r="17.5" fill="#0d1322" stroke="url(#plbCrestG)" stroke-width="2"/>
+        <circle cx="20" cy="20" r="13.5" stroke="#38bdf8" stroke-opacity="0.22" stroke-width="1" stroke-dasharray="2.5 2.5"/>
+        <path d="M12.5 20c0-2.6 2-4.6 4.4-4.6 2.8 0 4.4 2.7 6.2 4.6 1.8 1.9 3.4 4.6 6.2 4.6 2.4 0 4.4-2 4.4-4.6s-2-4.6-4.4-4.6c-2.8 0-4.4 2.7-6.2 4.6-1.8 1.9-3.4 4.6-6.2 4.6-2.4 0-4.4-2-4.4-4.6Z" transform="translate(-3.1 0)" stroke="url(#plbCrestG)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="brand-copy">
+        <h1>Pluribus WoW Addon Suite</h1>
+        <span id="summary">Loading addons...</span>
+      </div>
     </div>
     <div class="actions">
       <div class="hive-status-wrap">
@@ -879,6 +917,17 @@ function renderHtml() {
       <button id="downloadBtn" class="btn-download" type="button">Download AddOns (.zip)</button>
     </div>
   </header>
+  <nav class="suite-strip" aria-label="Included HiveMind Capabilities">
+    <span class="strip-item"><svg viewBox="0 0 16 16" fill="none"><path d="M8 1.5l5.5 3.2v6.6L8 14.5l-5.5-3.2V4.7L8 1.5z" stroke="#38bdf8" stroke-width="1.4"/><circle cx="8" cy="8" r="2" fill="#38bdf8"/></svg>Distributed Zero-Lag Compute</span>
+    <span class="strip-sep" aria-hidden="true"></span>
+    <span class="strip-item"><svg viewBox="0 0 16 16" fill="none"><path d="M8 2a4.5 4.5 0 014.5 4.5v2.7l1.2 1.8H2.3l1.2-1.8V6.5A4.5 4.5 0 018 2z" stroke="#facc15" stroke-width="1.4"/><path d="M6.3 12.8a1.9 1.9 0 003.4 0" stroke="#facc15" stroke-width="1.4" stroke-linecap="round"/></svg>Smart Guild @Mentions</span>
+    <span class="strip-sep" aria-hidden="true"></span>
+    <span class="strip-item"><svg viewBox="0 0 16 16" fill="none"><path d="M8 1.8l5 2.1v4.2c0 3.2-2.2 5.4-5 6.3-2.8-.9-5-3.1-5-6.3V3.9l5-2.1z" stroke="#4ade80" stroke-width="1.4"/><path d="M5.7 8.1l1.6 1.6 3.2-3.4" stroke="#4ade80" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Sharpie's Gear Judge + /xpbar</span>
+    <span class="strip-sep" aria-hidden="true"></span>
+    <span class="strip-item"><svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#eab308" stroke-width="1.4"/><path d="M8 4.8v6.4M6.2 6.8c0-.8.8-1.3 1.8-1.3s1.8.5 1.8 1.2c0 1.6-3.6.9-3.6 2.6 0 .8.8 1.3 1.8 1.3s1.8-.5 1.8-1.3" stroke="#eab308" stroke-width="1.3" stroke-linecap="round"/></svg>AH &amp; Top-3 Tooltips + Auto-Sell Trash</span>
+    <span class="strip-sep" aria-hidden="true"></span>
+    <span class="strip-item"><svg viewBox="0 0 16 16" fill="none"><rect x="2.2" y="3" width="11.6" height="10" rx="2" stroke="#c084fc" stroke-width="1.4"/><path d="M5.5 8h5M8 5.5v5" stroke="#c084fc" stroke-width="1.4" stroke-linecap="round"/></svg>Dungeon Finder LFG &amp; Guild Side Tabs</span>
+  </nav>
   <div id="syncModal" class="modal-backdrop">
     <div class="modal">
       <h2>On-Demand Wowhead Classic Data Sync</h2>

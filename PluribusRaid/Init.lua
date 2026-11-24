@@ -23,8 +23,8 @@ local function InitializeRaid()
 	PluribusDataManager:RegisterSource("PluribusRaid", { encounters = {}, assignments = {} })
 	
 	PluribusCommandRegistry:RegisterCommand({
-		name = "raid",
-		aliases = { "r" },
+		name = "plbraid",
+		aliases = { "praid" },
 		description = "Open raid manager",
 		func = function()
 			PluribusRaidUI:Toggle()

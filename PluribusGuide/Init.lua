@@ -24,7 +24,7 @@ local function InitializeGuide()
 	
 	PluribusCommandRegistry:RegisterCommand({
 		name = "guide",
-		aliases = { "quest", "q" },
+		aliases = { "plbguide" },
 		description = "Open quest guide",
 		func = function() PluribusGuideUI:Toggle() end,
 	})

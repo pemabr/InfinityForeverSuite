@@ -550,14 +550,35 @@ function PluribusHiveUI:RenderItemList(container, items, rowWidth, showOwner)
 end
 
 function PluribusHiveUI:ToggleInventoryViewer(charName, filterMode)
+	-- Unified single Bags & Bank viewer inside PluribusMainFrame (eliminates duplicate standalone bag windows)
+	if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
+		if charName then
+			_G.PluribusMainFrame.bagChar = charName
+			_G.PluribusMainFrame.bagSearchAll = false
+		end
+		if filterMode then
+			_G.PluribusMainFrame.bagFilter = filterMode
+		end
+		if _G.PluribusHiveInventory and _G.PluribusHiveInventory.ScanBags then
+			_G.PluribusHiveInventory:ScanBags()
+		end
+		local alreadyOpen = _G.PluribusMainFrame.frame
+			and _G.PluribusMainFrame.frame:IsVisible()
+			and _G.PluribusMainFrame.currentTab == "Bags & Bank"
+			and not charName and not filterMode
+		if alreadyOpen then
+			_G.PluribusMainFrame.frame:Hide()
+		else
+			_G.PluribusMainFrame:OpenToTab("Bags & Bank")
+		end
+		return
+	end
+
+	-- Fallback only if MainFrame is not yet initialized
 	local frame = self:CreateInventoryViewer()
 	if charName then
 		self.selectedChar = charName
 		self.invSearchAll = false
-		if frame.scopeBtn then
-			frame.scopeBtn.label:SetText("Selected Char")
-			frame.scopeBtn:SetActiveState(false)
-		end
 	end
 	if filterMode and frame.setFilterFn then
 		frame.setFilterFn(filterMode)
@@ -587,10 +608,17 @@ function PluribusHiveUI:CreateCooldownOverlay()
 	f:SetMovable(true)
 	f:EnableMouse(true)
 	f:RegisterForDrag("LeftButton")
-	f:SetScript("OnDragStart", function(selfF) selfF:StartMoving() end)
-	f:SetScript("OnDragStop", function(selfF) selfF:StopMovingOrSizing() end)
+	f:SetScript("OnDragStart", function(selfF)
+		UI:BringToFront(selfF)
+		selfF:StartMoving()
+	end)
+	f:SetScript("OnDragStop", function(selfF)
+		selfF:StopMovingOrSizing()
+		UI:BringToFront(selfF)
+	end)
 	f:SetClampedToScreen(true)
 	UI:ApplyBackdrop(f, 0.05, 0.07, 0.11, 0.86, 0.20, 0.30, 0.44, 0.85)
+	UI:RegisterWindow(f, f)
 
 	local hdr = UI:CreateLabel(f, "|cff38bdf8Hive Cooldowns|r", 1, 1, 1, "GameFontHighlightSmall")
 	hdr:SetPoint("TOPLEFT", f, "TOPLEFT", 8, -6)

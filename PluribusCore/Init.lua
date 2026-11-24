@@ -151,12 +151,33 @@ local function InitializePluribusCore()
 					_G.PluribusSettingsPanel:Open(sub == "privacy" and "HiveMind Sharing" or nil)
 				end
 			elseif sub == "bags" or sub == "bank" then
-				if _G.PluribusHiveUI and _G.PluribusHiveUI.ToggleInventoryViewer then
-					_G.PluribusHiveUI:ToggleInventoryViewer()
-				end
-			elseif sub == "profs" or sub == "professions" then
 				if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
+					_G.PluribusMainFrame:OpenToTab("Bags & Bank")
+				end
+			elseif sub == "profs" or sub == "professions" or sub == "shop" then
+				if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
+					if sub == "shop" then _G.PluribusMainFrame.profSubTab = "wishlist" end
 					_G.PluribusMainFrame:OpenToTab("Professions")
+				end
+			elseif sub == "tax" then
+				if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
+					_G.PluribusMainFrame:OpenToTab("Guild Tax")
+				end
+			elseif sub == "mail" then
+				if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
+					_G.PluribusMainFrame:OpenToTab("Guild Mail")
+				end
+			elseif sub == "nav" then
+				if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
+					_G.PluribusMainFrame:OpenToTab("Navigation")
+				end
+			elseif sub == "guides" or sub == "compute" then
+				if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
+					_G.PluribusMainFrame:OpenToTab("Guides")
+				end
+			elseif sub == "gear" or sub == "gearjudge" or sub == "sgj" then
+				if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
+					_G.PluribusMainFrame:OpenToTab("Gear Judge")
 				end
 			elseif sub == "cd" or sub == "cooldowns" then
 				if _G.PluribusHiveUI and _G.PluribusHiveUI.ToggleCooldownOverlay then
@@ -172,7 +193,7 @@ local function InitializePluribusCore()
 		PluribusCommandRegistry:RegisterCommand("hive", function(args)
 			local sub = args and args[1] and string.lower(args[1]) or ""
 			if sub == "bags" or sub == "bank" then
-				if _G.PluribusHiveUI then _G.PluribusHiveUI:ToggleInventoryViewer() end
+				if _G.PluribusMainFrame then _G.PluribusMainFrame:OpenToTab("Bags & Bank") end
 			elseif sub == "cd" or sub == "cooldowns" then
 				if _G.PluribusHiveUI then _G.PluribusHiveUI:ToggleCooldownOverlay() end
 			elseif sub == "sos" then
@@ -181,12 +202,25 @@ local function InitializePluribusCore()
 				if _G.PluribusHive then _G.PluribusHive:RequestFullGuildSync() end
 				if _G.PluribusHiveNetworkDB then _G.PluribusHiveNetworkDB:CheckForNetworkUpdates() end
 				if _G.PluribusUtils then _G.PluribusUtils:Info("Requested full Guild Hive sync + DB update check.", "Hive") end
-			elseif sub == "profs" or sub == "professions" then
-				if _G.PluribusMainFrame then _G.PluribusMainFrame:OpenToTab("Professions") end
+			elseif sub == "profs" or sub == "professions" or sub == "shop" then
+				if _G.PluribusMainFrame then
+					if sub == "shop" then _G.PluribusMainFrame.profSubTab = "wishlist" end
+					_G.PluribusMainFrame:OpenToTab("Professions")
+				end
+			elseif sub == "tax" then
+				if _G.PluribusMainFrame then _G.PluribusMainFrame:OpenToTab("Guild Tax") end
+			elseif sub == "mail" then
+				if _G.PluribusMainFrame then _G.PluribusMainFrame:OpenToTab("Guild Mail") end
+			elseif sub == "nav" then
+				if _G.PluribusMainFrame then _G.PluribusMainFrame:OpenToTab("Navigation") end
+			elseif sub == "guides" or sub == "compute" then
+				if _G.PluribusMainFrame then _G.PluribusMainFrame:OpenToTab("Guides") end
+			elseif sub == "gear" or sub == "gearjudge" or sub == "sgj" then
+				if _G.PluribusMainFrame then _G.PluribusMainFrame:OpenToTab("Gear Judge") end
 			elseif sub == "market" or sub == "db" then
 				if _G.PluribusMainFrame then _G.PluribusMainFrame:OpenToTab("Market & DB") end
 			elseif sub == "lfg" then
-				if _G.PluribusMainFrame then _G.PluribusMainFrame:OpenToTab("Hive Live") end
+				if _G.PluribusMainFrame then _G.PluribusMainFrame:OpenToTab("Guild Hub") end
 			elseif sub == "settings" or sub == "options" or sub == "privacy" then
 				if _G.PluribusSettingsPanel and _G.PluribusSettingsPanel.Open then
 					_G.PluribusSettingsPanel:Open(sub == "privacy" and "HiveMind Sharing" or nil)
@@ -211,11 +245,53 @@ local function InitializePluribusCore()
 			end
 		end, { "hivebags", "altbags" })
 
+		PluribusCommandRegistry:RegisterCommand("tax", function()
+			if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
+				_G.PluribusMainFrame:OpenToTab("Guild Tax")
+			end
+		end, { "guildtax" })
+
+		PluribusCommandRegistry:RegisterCommand("mail", function()
+			if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
+				_G.PluribusMainFrame:OpenToTab("Guild Mail")
+			end
+		end, { "guildmail" })
+
+		PluribusCommandRegistry:RegisterCommand("guides", function()
+			if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
+				_G.PluribusMainFrame:OpenToTab("Guides")
+			end
+		end, { "hiveguides", "farmguide" })
+
+		PluribusCommandRegistry:RegisterCommand("gearjudge", function()
+			if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
+				_G.PluribusMainFrame:OpenToTab("Gear Judge")
+			end
+		end, { "sgj" })
+
+		PluribusCommandRegistry:RegisterCommand("xpbar", function()
+			if _G.PluribusHiveGearJudge and _G.PluribusHiveGearJudge.ToggleXPBar then
+				_G.PluribusHiveGearJudge:ToggleXPBar()
+			end
+		end, { "lootbar" })
+
 		PluribusCommandRegistry:RegisterCommand("officer", function()
 			if _G.PluribusOfficerDashboard and _G.PluribusOfficerDashboard.Toggle then
 				_G.PluribusOfficerDashboard:Toggle()
 			end
 		end, { "plbdash" })
+
+		PluribusCommandRegistry:RegisterCommand("audit", function(args)
+			if _G.PluribusOfficerDashboard and _G.PluribusOfficerDashboard.OpenTransactionHistory then
+				local filter = type(args) == "string" and args or ""
+				_G.PluribusOfficerDashboard:OpenTransactionHistory(filter, "ALL")
+			end
+		end, { "txlog", "officerlog" })
+	end
+
+	-- Attach Officer Dashboard DKP/Loot/Audit hooks immediately on login so nothing is missed
+	if _G.PluribusOfficerDashboard and _G.PluribusOfficerDashboard.AttachAuditHooks then
+		pcall(function() _G.PluribusOfficerDashboard:AttachAuditHooks() end)
 	end
 
 	-- Create minimap launcher button
@@ -225,7 +301,7 @@ local function InitializePluribusCore()
 
 	pcall(function()
 		if _G.PluribusUtils then
-			_G.PluribusUtils:Info("Pluribus Suite v2.0 (1.60.1) active! Use /pluribus, /plb settings, /bags, or ESC -> Options -> AddOns -> Pluribus Suite.", "Core")
+			_G.PluribusUtils:Info("Pluribus Suite v2.1 (1.60.1) active! Use /pluribus, /bags, /guides, /gearjudge, /xpbar, /tax, /mail, /audit, or @Name in /g.", "Core")
 		end
 	end)
 

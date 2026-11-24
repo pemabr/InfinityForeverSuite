@@ -98,6 +98,11 @@ function PluribusInventoryUI:SellGrayJunk()
 end
 
 function PluribusInventoryUI:Toggle()
+	-- Unified with Pluribus MainFrame Bags & Bank tab (zero duplicate bag windows!)
+	if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
+		_G.PluribusMainFrame:OpenToTab("Bags & Bank")
+		return
+	end
 	if not self.mainWindow then
 		self:CreateMainWindow()
 	end

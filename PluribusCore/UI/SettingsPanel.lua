@@ -231,6 +231,9 @@ function PluribusSettingsPanel:ShowCategory(shell, category)
 		y = AddCheckboxRow(c, rowW, y, "Class Colored Names", "Color guild and alt character names by WoW class", cfg.classColoredNames ~= false, function(v)
 			SetCfg("classColoredNames", v)
 		end)
+		y = AddCheckboxRow(c, rowW, y, "Auto-Sell Gray Trash at Vendors", "Automatically sell Poor (gray) junk items when opening any merchant (hold Shift to skip)", cfg.autoSellJunk ~= false, function(v)
+			SetCfg("autoSellJunk", v)
+		end)
 		y = AddCheckboxRow(c, rowW, y, "Compact Mode", "Use denser row spacing in raid tables and lists", cfg.compactMode == true, function(v)
 			SetCfg("compactMode", v)
 		end)
@@ -308,6 +311,14 @@ function PluribusSettingsPanel:ShowCategory(shell, category)
 			PluribusSettingsPanel:ShowCategory(shell, category)
 		end)
 
+		y = AddCheckboxRow(c, rowW, y, "Enable Guild Chat @Mention Pings", "Highlight & chime when someone @mentions you, your class, race, or profession in /g", cfg.mentionsEnabled ~= false, function(v)
+			SetCfg("mentionsEnabled", v)
+		end)
+
+		y = AddCheckboxRow(c, rowW, y, "Play Smart @Mention Notification Sound", "Mutes during combat/dungeons/raids & replays after only if you haven't chatted in /g", cfg.mentionSoundEnabled ~= false, function(v)
+			SetCfg("mentionSoundEnabled", v)
+		end)
+
 		y = AddCheckboxRow(c, rowW, y, "Show Draggable Guild Cooldown Strip", "Display a compact live bar overlay when guild cooldowns are active", cfg.showCooldownOverlay ~= false, function(v)
 			SetCfg("showCooldownOverlay", v)
 		end)
@@ -320,23 +331,52 @@ function PluribusSettingsPanel:ShowCategory(shell, category)
 		y = AddCheckboxRow(c, rowW, y, "Enable Enhanced Item Tooltips", "Master switch for all Pluribus tooltip information", cfg.showTooltips ~= false, function(v)
 			SetCfg("showTooltips", v)
 		end)
+		y = AddCheckboxRow(c, rowW, y, "Show Sharpie's Gear Judge & Cap Guardian", "Display % Upgrade/Downgrade, Hit/Defense cap drop warnings, and Alt BoE upgrades", cfg.showGearJudgeTooltips ~= false, function(v)
+			SetCfg("showGearJudgeTooltips", v)
+		end)
 		y = AddCheckboxRow(c, rowW, y, "Show You / Alt / Guild Bag Counts", "Display how many of an item you, your alts, and guildmates hold", cfg.showTooltipCounts ~= false, function(v)
 			SetCfg("showTooltipCounts", v)
 		end)
 		y = AddCheckboxRow(c, rowW, y, "Show Guild Profession Needs (Surplus)", "Highlight in emerald green when YOU don't need an item a guildmate needs", cfg.showTooltipProfNeeds ~= false, function(v)
 			SetCfg("showTooltipProfNeeds", v)
 		end)
-		y = AddCheckboxRow(c, rowW, y, "Show Guild AH Market Prices", "Display recent guild-synced Auction House buyout prices on items", cfg.showTooltipPrices ~= false, function(v)
+		y = AddCheckboxRow(c, rowW, y, "Show Guild AH Market Prices & Vendor Value", "Display recent guild-synced AH buyout prices (unit & stack) + vendor sell price", cfg.showTooltipPrices ~= false, function(v)
 			SetCfg("showTooltipPrices", v)
 		end)
 		y = AddCheckboxRow(c, rowW, y, "Show Hive / Wowhead Game DB Source", "Display cached drop/craft source and trigger silent P2P lookup on miss", cfg.showTooltipGameDB ~= false, function(v)
 			SetCfg("showTooltipGameDB", v)
 		end)
-		y = AddCheckboxRow(c, rowW, y, "Auto-Scan Auction House Listings", "Automatically capture & share visible buyout prices as you browse the AH", cfg.autoScanAH ~= false, function(v)
+		y = AddCheckboxRow(c, rowW, y, "Auto-Full-Scan Auction House on Open (20m CD)", "Runs a full AH scan automatically when opening the AH (max once per 20 minutes)", cfg.autoScanAH ~= false, function(v)
 			SetCfg("autoScanAH", v)
 		end)
 
 	elseif category == "Modules & Data" then
+		y = AddCheckboxRow(c, rowW, y, "Enable Distributed Hive Compute Mesh", "Split leveling & farming guide math across idle guildmates with strict zero-lag caps", cfg.computeEnabled ~= false, function(v)
+			SetCfg("computeEnabled", v)
+		end)
+
+		y = AddChoiceRow(c, rowW, y, "Hive Compute CPU Slice Cap (Zero-Lag)", "Maximum milliseconds per 10Hz frame slice when computing guild guides", {
+			{ label = "0.8ms", value = 0.8 },
+			{ label = "1.5ms", value = 1.5 },
+			{ label = "3.0ms", value = 3.0 },
+		}, tonumber(cfg.computeBudgetMs) or 1.5, function(v)
+			SetCfg("computeBudgetMs", v)
+			PluribusSettingsPanel:ShowCategory(shell, category)
+		end)
+
+		y = AddChoiceRow(c, rowW, y, "Minimum FPS Guard", "Automatically pause distributed compute whenever client FPS drops below:", {
+			{ label = "30 FPS", value = 30 },
+			{ label = "45 FPS", value = 45 },
+			{ label = "60 FPS", value = 60 },
+		}, tonumber(cfg.computeMinFps) or 45, function(v)
+			SetCfg("computeMinFps", v)
+			PluribusSettingsPanel:ShowCategory(shell, category)
+		end)
+
+		y = AddCheckboxRow(c, rowW, y, "Pause Compute Inside Dungeons & Raids", "Always suspend background guide math during combat and inside instances", cfg.computePauseInInstances ~= false, function(v)
+			SetCfg("computePauseInInstances", v)
+		end)
+
 		y = AddCheckboxRow(c, rowW, y, "Enable Combat Analytics", "Track real-time DPS/HPS/encounter segments (taint-safe, zero CLEU)", cfg.enableAnalytics ~= false, function(v)
 			SetCfg("enableAnalytics", v)
 		end)
@@ -344,51 +384,26 @@ function PluribusSettingsPanel:ShowCategory(shell, category)
 			SetCfg("enableDataCollector", v)
 		end)
 
-		local modHdr = UI:CreateLabel(c, "|cfffbbf24Installed Pluribus Suite Modules (Enable / Open):|r")
-		modHdr:SetPoint("TOPLEFT", c, "TOPLEFT", 4, y - 4)
-		y = y - 24
-
-		local addons = (_G.PluribusAddonManager and _G.PluribusAddonManager.GetAllAddons)
-			and _G.PluribusAddonManager:GetAllAddons() or {}
-		for idx, addon in ipairs(addons) do
-			local isEnabled = addon.enabled == true
-			local row = UI:CreateListRow(c, rowW, 26, idx)
-			row:SetPoint("TOPLEFT", c, "TOPLEFT", 2, y)
-
-			local badge = isEnabled and "|cff4ade80ON|r " or "|cfff87171OFF|r"
-			local lbl = UI:CreateLabel(row, badge .. " " .. addon.name)
-			lbl:SetPoint("LEFT", row, "LEFT", 8, 0)
-
-			local tBtn = UI:CreateButton(row, isEnabled and "Disable" or "Enable", 64, 20, function()
-				if _G.PluribusAddonManager then
-					_G.PluribusAddonManager:SetAddonEnabled(addon.name, not isEnabled)
-					PluribusSettingsPanel:ShowCategory(shell, category)
-				end
-			end)
-			tBtn:SetPoint("RIGHT", row, "RIGHT", -6, 0)
-
-			local oBtn = UI:CreateButton(row, "Open", 54, 20, function()
-				if _G.PluribusMainFrame and _G.PluribusMainFrame.LaunchAddon then
-					_G.PluribusMainFrame:LaunchAddon(addon.name)
-				end
-			end, true)
-			oBtn:SetPoint("RIGHT", tBtn, "LEFT", -6, 0)
-
-			y = y - 28
-		end
+		local openModsBtn = UI:CreateButton(c, "Manage All 27 Suite Addons (in Hub -> Market & Tools)", rowW - 8, 28, function()
+			if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
+				_G.PluribusMainFrame:OpenToTab("Modules")
+			end
+		end, true)
+		openModsBtn:SetPoint("TOPLEFT", c, "TOPLEFT", 2, y - 4)
+		y = y - 40
 
 	elseif category == "Shortcuts & Guide" then
 		local tips = {
-			{ "Bags & Bank", "Open your Bags (B) or Bank -> click the side tab to view Alts & Guildmates' bags with icons & tooltips." },
-			{ "Professions & Skills", "Open any Profession or Skill window -> use the 3 right-edge side tabs (Surplus Mats, Guild Crafters, Wishlist)." },
-			{ "Auction House", "Open the Auction House -> use the 2 right-edge side tabs (Guild Needs & Guild AH Prices)." },
-			{ "Guild Window", "Open Guild / Social -> use the side tabs for Hive Live & LFG, Guild Bags, Cooldowns, and Settings." },
-			{ "Quest Log", "Open your Quest Log -> click the side tab to see guildmates on your same quests & spotted rares." },
-			{ "/pluribus  (or /plb)", "Toggle the Pluribus Guild Hive Hub (Minimap Left-Click)." },
-			{ "/pluribus settings", "Open this unified Settings Menu (also in ESC -> Options -> AddOns -> Pluribus Suite)." },
-			{ "/bags", "Open the visual Bagnon-style Alt & Guild Bags/Bank Viewer directly." },
-			{ "/sos", "Broadcast a manual open-world distress ping to nearby guildmates." },
-			{ "/officer", "Open the Officer EPGP / DKP / Raid Audit Dashboard (Shift + Minimap Right-Click)." },
+			{ "Circular Infinity Minimap Orb", "Left-Click: Guild Hub (/pluribus) · Right-Click: Settings · Shift+Right-Click: Officer Console." },
+			{ "Guild Chat @Mentions", "Type @Player, @Mage, @Dwarf, @Alchemy, @Healer, or @guild in /g! Sound queues during combat/instances & skips if they already replied." },
+			{ "Dungeon Finder Smart LFG Tab", "Open WoW's Dungeon Finder (I) -> click the Smart Guild LFG side tab to post & join guild groups." },
+			{ "Unified Bags & Bank (/bags)", "One unified Bags & Bank viewer for You, Alts & Guildmates with Sell Gray Junk & AH Valuation." },
+			{ "Sharpie's Gear Judge (/gearjudge, /xpbar)", "Tooltip % upgrades, Cap Guardian warnings, Alt BoE checks, The Laboratory, Roadmap, Talents & XP/Loot Bar." },
+			{ "Hive Compute Guides (/guides)", "Distributed zero-lag guild compute calculates optimal Azeroth leveling & material farming guides." },
+			{ "Navigation Compass (/nav, /way x y)", "Rotating floating Compass Arrow HUD + World Map side tab + live Guildmate GPS." },
+			{ "Guild Mail & Guild Tax (/mail, /tax)", "Offline-capable Guild Mail inbox/composer + automatic loot/quest Guild Tax vault & banker payments." },
+			{ "Officer Dashboard & Audit Log (/officer, /audit)", "Manage DKP/EPGP awards, view unified DKP/Loot/Tax transaction history & audit trails, filter by member, or export CSV." },
+			{ "Auction House & Professions", "Open AH for 20m-CD full auto-scan; open any Profession for Craft Profits, Guild Recipes & Shopping List." },
 		}
 		for idx, t in ipairs(tips) do
 			local row = UI:CreateCard(c, rowW, 44)

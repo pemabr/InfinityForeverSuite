@@ -30,10 +30,10 @@ local function InitializeGuild()
 	-- Register data sources
 	PluribusDataManager:RegisterSource("PluribusGuild", { roster = {}, dkp = {}, events = {} })
 	
-	-- Register slash commands
+	-- Register slash commands (never shadow WoW's /g or /guild chat commands)
 	PluribusCommandRegistry:RegisterCommand({
-		name = "guild",
-		aliases = { "g", "gm" },
+		name = "plbguild",
+		aliases = { "pguild" },
 		description = "Open guild manager",
 		func = function()
 			PluribusGuildUI:Toggle()

@@ -22,10 +22,14 @@ local function InitializeInventory()
 	_G.PluribusVendorPricing = PluribusVendorPricing
 	_G.PluribusInventoryUI = PluribusInventoryUI
 	
-	-- Slash commands
-	PluribusCommandRegistry:RegisterCommand("inv", function(args)
+	-- Slash commands (never shadow WoW's /inv party invite command)
+	PluribusCommandRegistry:RegisterCommand("plbbags", function(args)
 		if not args or #args == 0 then
-			PluribusInventoryUI:Toggle()
+			if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
+				_G.PluribusMainFrame:OpenToTab("Bags & Bank")
+			elseif PluribusInventoryUI then
+				PluribusInventoryUI:Toggle()
+			end
 		elseif args[1] == "scan" then
 			PluribusBagTracker:ScanBags()
 			PluribusUtils:Info("Bags scanned", "Inventory")
@@ -39,7 +43,7 @@ local function InitializeInventory()
 			local count = PluribusBagTracker:GetItemCount(tonumber(args[2]))
 			PluribusUtils:Info("Item count: " .. count, "Inventory")
 		end
-	end, {"inventory"})
+	end, { "inventory" })
 	
 	PluribusUtils:Info("PluribusInventory initialized successfully", "Inventory")
 	PluribusMessaging:Publish(PLURIBUS_EVENTS.FEATURE_ENABLED, "inventory", true)

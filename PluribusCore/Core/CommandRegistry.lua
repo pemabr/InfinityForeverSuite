@@ -44,9 +44,25 @@ local function ensureSlashHook(rootCmd)
 	end
 end
 
+-- Built-in WoW chat & system slash commands that NO addon may ever overwrite
+local RESERVED_WOW_COMMANDS = {
+	s = true, say = true, y = true, yell = true,
+	p = true, party = true, g = true, guild = true, o = true, officer = true,
+	r = true, reply = true, w = true, whisper = true, t = true, tell = true,
+	raid = true, ra = true, rw = true, bg = true, i = true, instance = true,
+	e = true, em = true, emote = true, me = true, c = true, csay = true,
+	["1"] = true, ["2"] = true, ["3"] = true, ["4"] = true, ["5"] = true,
+	["6"] = true, ["7"] = true, ["8"] = true, ["9"] = true,
+	inv = true, invite = true, who = true, join = true, leave = true,
+	cast = true, use = true, target = true, assist = true, focus = true, follow = true,
+	trade = true, kick = true, afk = true, dnd = true, roll = true, random = true,
+	reload = true, rl = true, logout = true, camp = true, quit = true,
+	macro = true, m = true, help = true, gm = true, q = true,
+}
+
 -- Register a slash command (supports 3 signatures:
 -- 1) RegisterCommand("pluribus", callback, aliases)
--- 2) RegisterCommand({ name = "guild", aliases = {"g"}, description = "...", func = cb })
+-- 2) RegisterCommand({ name = "plbguild", aliases = {"pguild"}, description = "...", func = cb })
 -- 3) RegisterCommand("/details breakdown", "Description", callback)
 function PluribusCommandRegistry:RegisterCommand(command, callbackOrDesc, aliasesOrCallback)
 	local cmdStr, callback, aliases, description
@@ -75,11 +91,18 @@ function PluribusCommandRegistry:RegisterCommand(command, callbackOrDesc, aliase
 
 	local rootCmd, subCmd = cmdStr:match("^(%S+)%s+(%S+)$")
 	if rootCmd and subCmd then
+		if RESERVED_WOW_COMMANDS[rootCmd] then
+			rootCmd = "plb" .. rootCmd
+		end
 		self.subcommands[rootCmd] = self.subcommands[rootCmd] or {}
 		self.subcommands[rootCmd][subCmd] = callback
 		self.descriptions[rootCmd .. " " .. subCmd] = description or ""
 		ensureSlashHook(rootCmd)
 	else
+		-- Never overwrite native WoW chat or system commands (/g, /guild, /r, /raid, /inv, etc.)
+		if RESERVED_WOW_COMMANDS[cmdStr] then
+			cmdStr = "plb" .. cmdStr
+		end
 		self.commands[cmdStr] = callback
 		self.descriptions[cmdStr] = description or ""
 		ensureSlashHook(cmdStr)
@@ -89,7 +112,7 @@ function PluribusCommandRegistry:RegisterCommand(command, callbackOrDesc, aliase
 			local idx = 2
 			for _, alias in ipairs(aliases) do
 				alias = string.lower((tostring(alias):gsub("^/", "")))
-				if alias ~= "" and alias ~= cmdStr then
+				if alias ~= "" and alias ~= cmdStr and not RESERVED_WOW_COMMANDS[alias] then
 					self.commandAliases[alias] = cmdStr
 					_G["SLASH_" .. key .. tostring(idx)] = "/" .. alias
 					idx = idx + 1

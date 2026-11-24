@@ -6,6 +6,9 @@ PluribusUIFramework = {
 	fonts = {},
 	colors = {},
 	windows = {},
+	windowStack = {},
+	WINDOW_BASE_LEVEL = 20,
+	WINDOW_LEVEL_STRIDE = 40,
 }
 
 PluribusUIFramework.CLASS_COLORS = {
@@ -29,6 +32,309 @@ local FLAT_BACKDROP = {
 	edgeSize = 1,
 	insets = { left = 1, right = 1, top = 1, bottom = 1 },
 }
+
+PluribusUIFramework.PROFESSION_ICONS = {
+	Alchemy = "Interface\\Icons\\Trade_Alchemy",
+	Blacksmithing = "Interface\\Icons\\Trade_BlackSmithing",
+	Enchanting = "Interface\\Icons\\Trade_Engraving",
+	Engineering = "Interface\\Icons\\Trade_Engineering",
+	Herbalism = "Interface\\Icons\\Trade_Herbalism",
+	Leatherworking = "Interface\\Icons\\INV_Misc_ArmorKit_17",
+	Mining = "Interface\\Icons\\Trade_Mining",
+	Skinning = "Interface\\Icons\\INV_Misc_Pelt_Wolf_01",
+	Tailoring = "Interface\\Icons\\Trade_Tailoring",
+	Cooking = "Interface\\Icons\\INV_Misc_Food_15",
+	["First Aid"] = "Interface\\Icons\\Spell_Holy_SealOfSacrifice",
+	Fishing = "Interface\\Icons\\Trade_Fishing",
+	Jewelcrafting = "Interface\\Icons\\INV_Misc_Gem_01",
+}
+
+PluribusUIFramework.CLASS_ICON_COORDS = {
+	WARRIOR = { 0, 0.25, 0, 0.25 },
+	MAGE    = { 0.25, 0.49609375, 0, 0.25 },
+	ROGUE   = { 0.49609375, 0.7421875, 0, 0.25 },
+	DRUID   = { 0.7421875, 0.98828125, 0, 0.25 },
+	HUNTER  = { 0, 0.25, 0.25, 0.5 },
+	SHAMAN  = { 0.25, 0.49609375, 0.25, 0.5 },
+	PRIEST  = { 0.49609375, 0.7421875, 0.25, 0.5 },
+	WARLOCK = { 0.7421875, 0.98828125, 0.25, 0.5 },
+	PALADIN = { 0, 0.25, 0.5, 0.75 },
+}
+
+function PluribusUIFramework:GetProfessionIcon(profName)
+	return self.PROFESSION_ICONS[profName or ""] or "Interface\\Icons\\Trade_BlackSmithing"
+end
+
+function PluribusUIFramework:CreateIconBadge(parent, iconPath, size, borderR, borderG, borderB)
+	size = size or 24
+	local holder = CreateFrame("Frame", nil, parent, BACKDROP_TEMPLATE)
+	holder:SetSize(size, size)
+	self:ApplyBackdrop(holder, 0.04, 0.06, 0.10, 0.96, borderR or 0.32, borderG or 0.56, borderB or 0.84, 0.92)
+	local tex = holder:CreateTexture(nil, "ARTWORK")
+	tex:SetPoint("TOPLEFT", holder, "TOPLEFT", 2, -2)
+	tex:SetPoint("BOTTOMRIGHT", holder, "BOTTOMRIGHT", -2, 2)
+	tex:SetTexture(iconPath or "Interface\\Icons\\INV_Misc_QuestionMark")
+	tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+	holder.icon = tex
+	return holder
+end
+
+function PluribusUIFramework:CreateClassIcon(parent, className, size)
+	size = size or 20
+	local key = string.upper(tostring(className or "WARRIOR"):gsub("%s+", ""))
+	local coords = self.CLASS_ICON_COORDS[key] or self.CLASS_ICON_COORDS.WARRIOR
+	local r, g, b = self:GetClassColor(key)
+	local holder = CreateFrame("Frame", nil, parent, BACKDROP_TEMPLATE)
+	holder:SetSize(size, size)
+	self:ApplyBackdrop(holder, 0.04, 0.06, 0.10, 0.95, r, g, b, 0.85)
+	local tex = holder:CreateTexture(nil, "ARTWORK")
+	tex:SetPoint("TOPLEFT", holder, "TOPLEFT", 1, -1)
+	tex:SetPoint("BOTTOMRIGHT", holder, "BOTTOMRIGHT", -1, 1)
+	tex:SetTexture("Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES")
+	tex:SetTexCoord(coords[1] + 0.015, coords[2] - 0.015, coords[3] + 0.015, coords[4] - 0.015)
+	holder.icon = tex
+	return holder
+end
+
+function PluribusUIFramework:CreateProfessionIcon(parent, profName, size)
+	return self:CreateIconBadge(parent, self:GetProfessionIcon(profName), size or 22, 0.85, 0.68, 0.22)
+end
+
+-- Rich graphical banner header card with framed WoW icon emblem, colored left accent stripe, title & subtitle
+function PluribusUIFramework:CreateBannerCard(parent, width, height, iconPath, titleText, subtitleText, accentR, accentG, accentB, rightReserve)
+	local ar, ag, ab = accentR or 0.22, accentG or 0.74, accentB or 0.97
+	local reserve = rightReserve ~= nil and rightReserve or 16
+	local card = CreateFrame("Frame", nil, parent, BACKDROP_TEMPLATE)
+	card:SetSize(width or 700, height or 58)
+	self:ApplyBackdrop(card, 0.07, 0.10, 0.16, 0.96, ar * 0.65, ag * 0.65, ab * 0.65, 0.88)
+
+	-- Subtle decorative highlight wash
+	local wash = card:CreateTexture(nil, "BACKGROUND")
+	wash:SetPoint("TOPLEFT", card, "TOPLEFT", 1, -1)
+	wash:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -1, 1)
+	wash:SetTexture("Interface\\QuestFrame\\UI-QuestLogTitleHighlight")
+	wash:SetBlendMode("ADD")
+	wash:SetVertexColor(ar, ag, ab, 0.14)
+	wash._plbPreserve = true
+
+	-- Left accent bar
+	local stripe = card:CreateTexture(nil, "OVERLAY")
+	stripe:SetWidth(4)
+	stripe:SetPoint("TOPLEFT", card, "TOPLEFT", 1, -1)
+	stripe:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 1, 1)
+	if stripe.SetColorTexture then
+		stripe:SetColorTexture(ar, ag, ab, 0.95)
+	else
+		stripe:SetTexture("Interface\\Buttons\\WHITE8X8")
+		stripe:SetVertexColor(ar, ag, ab, 0.95)
+	end
+	stripe._plbPreserve = true
+
+	local iconSize = math.min(40, (height or 58) - 16)
+	local badge = self:CreateIconBadge(card, iconPath or "Interface\\Icons\\Spell_Nature_AstralRecalGroup", iconSize, ar, ag, ab)
+	badge:SetPoint("LEFT", card, "LEFT", 12, 0)
+	card.badge = badge
+
+	local title = card:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+	title:SetPoint("TOPLEFT", badge, "TOPRIGHT", 10, -2)
+	title:SetPoint("RIGHT", card, "RIGHT", -reserve, 0)
+	title:SetJustifyH("LEFT")
+	if title.SetWordWrap then title:SetWordWrap(false) end
+	title:SetText(titleText or "")
+	title._plbPreserve = true
+	card.titleLabel = title
+
+	local sub = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -3)
+	sub:SetPoint("RIGHT", card, "RIGHT", -reserve, 0)
+	sub:SetJustifyH("LEFT")
+	if sub.SetWordWrap then sub:SetWordWrap(false) end
+	sub:SetTextColor(0.76, 0.84, 0.92, 1)
+	sub:SetText(subtitleText or "")
+	sub._plbPreserve = true
+	card.subLabel = sub
+
+	function card:SetRightReserve(px)
+		local r = math.max(12, tonumber(px) or 16)
+		self.titleLabel:ClearAllPoints()
+		self.titleLabel:SetPoint("TOPLEFT", self.badge, "TOPRIGHT", 10, -2)
+		self.titleLabel:SetPoint("RIGHT", self, "RIGHT", -r, 0)
+		self.subLabel:ClearAllPoints()
+		self.subLabel:SetPoint("TOPLEFT", self.titleLabel, "BOTTOMLEFT", 0, -3)
+		self.subLabel:SetPoint("RIGHT", self, "RIGHT", -r, 0)
+	end
+
+	return card
+end
+
+-- Taint-free flat themed dropdown menu (no Blizzard UIDropDownMenu taint!)
+-- options = { { key/value = "k", label = "Label", icon = "Interface\\Icons\\..." }, ... }
+function PluribusUIFramework:CreateFlatDropdown(parent, width, height, options, selectedKey, onSelect, placeholder)
+	width = width or 190
+	height = height or 26
+	options = options or {}
+
+	local function OptKey(opt)
+		if not opt then return nil end
+		if opt.key ~= nil then return opt.key end
+		return opt.value
+	end
+
+	local btn = CreateFrame("Button", nil, parent, BACKDROP_TEMPLATE)
+	btn:SetSize(width, height)
+	self:ApplyBackdrop(btn, 0.08, 0.12, 0.19, 0.98, 0.26, 0.46, 0.72, 0.95)
+
+	local iconTex = btn:CreateTexture(nil, "ARTWORK")
+	iconTex:SetSize(height - 8, height - 8)
+	iconTex:SetPoint("LEFT", btn, "LEFT", 5, 0)
+	iconTex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+	iconTex:Hide()
+	btn.iconTex = iconTex
+
+	local lbl = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	lbl:SetPoint("LEFT", btn, "LEFT", 8, 0)
+	lbl:SetPoint("RIGHT", btn, "RIGHT", -20, 0)
+	lbl:SetJustifyH("LEFT")
+	if lbl.SetWordWrap then lbl:SetWordWrap(false) end
+	btn.label = lbl
+
+	local arrow = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	arrow:SetPoint("RIGHT", btn, "RIGHT", -7, 0)
+	arrow:SetText("|cff38bdf8v|r")
+	btn.arrow = arrow
+
+	btn._options = options
+	btn._selectedKey = selectedKey
+
+	local function FindOpt(k)
+		if k == nil then return nil end
+		for _, opt in ipairs(btn._options) do
+			if OptKey(opt) == k then return opt end
+		end
+		return nil
+	end
+
+	local function UpdateDisplay(k)
+		local opt = FindOpt(k)
+		if not opt and not placeholder then
+			opt = btn._options[1]
+		end
+		btn._selectedKey = opt and OptKey(opt) or k
+		if opt and opt.icon then
+			iconTex:SetTexture(opt.icon)
+			iconTex:Show()
+			lbl:ClearAllPoints()
+			lbl:SetPoint("LEFT", iconTex, "RIGHT", 6, 0)
+			lbl:SetPoint("RIGHT", btn, "RIGHT", -20, 0)
+		else
+			iconTex:Hide()
+			lbl:ClearAllPoints()
+			lbl:SetPoint("LEFT", btn, "LEFT", 8, 0)
+			lbl:SetPoint("RIGHT", btn, "RIGHT", -20, 0)
+		end
+		lbl:SetText(opt and opt.label or tostring(placeholder or k or "Select..."))
+	end
+	UpdateDisplay(selectedKey)
+
+	function btn:SetSelected(k)
+		UpdateDisplay(k)
+	end
+
+	local function CloseMenu()
+		if PluribusUIFramework._activeDropdownMenu then
+			PluribusUIFramework._activeDropdownMenu:Hide()
+			PluribusUIFramework._activeDropdownMenu = nil
+		end
+	end
+
+	btn:SetScript("OnMouseDown", function(selfBtn)
+		PluribusUIFramework:BringOwnerToFront(selfBtn)
+	end)
+
+	btn:SetScript("OnClick", function(selfBtn)
+		PluribusUIFramework:BringOwnerToFront(selfBtn)
+		if selfBtn._menu and selfBtn._menu:IsShown() then
+			CloseMenu()
+			return
+		end
+		CloseMenu()
+
+		local rowH = 24
+		local maxVis = math.min(#selfBtn._options, 12)
+		if maxVis == 0 then return end
+		local menuH = maxVis * rowH + 8
+		local menu = CreateFrame("Frame", nil, UIParent, BACKDROP_TEMPLATE)
+		menu:SetSize(math.max(width, 210), menuH)
+		menu:SetPoint("TOPLEFT", selfBtn, "BOTTOMLEFT", 0, -2)
+		menu:SetFrameStrata("TOOLTIP")
+		menu:SetFrameLevel(200)
+		menu:SetClampedToScreen(true)
+		menu:EnableMouse(true)
+		PluribusUIFramework:ApplyBackdrop(menu, 0.06, 0.09, 0.14, 0.99, 0.22, 0.74, 0.97, 1)
+
+		for idx, opt in ipairs(selfBtn._options) do
+			if idx > maxVis then break end
+			local oKey = OptKey(opt)
+			local itemBtn = CreateFrame("Button", nil, menu, BACKDROP_TEMPLATE)
+			itemBtn:SetSize(math.max(width, 210) - 6, rowH - 2)
+			itemBtn:SetPoint("TOPLEFT", menu, "TOPLEFT", 3, -4 - (idx - 1) * rowH)
+			local isSel = (oKey == selfBtn._selectedKey)
+			if isSel then
+				PluribusUIFramework:ApplyBackdrop(itemBtn, 0.14, 0.34, 0.58, 0.96, 0.22, 0.74, 0.97, 0.9)
+			else
+				PluribusUIFramework:ApplyBackdrop(itemBtn, 0.08, 0.11, 0.17, 0.85, 0.18, 0.24, 0.34, 0.4)
+			end
+
+			local textOffset = 8
+			if opt.icon then
+				local ic = itemBtn:CreateTexture(nil, "ARTWORK")
+				ic:SetSize(16, 16)
+				ic:SetPoint("LEFT", itemBtn, "LEFT", 6, 0)
+				ic:SetTexture(opt.icon)
+				ic:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+				textOffset = 27
+			end
+
+			local txt = itemBtn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+			txt:SetPoint("LEFT", itemBtn, "LEFT", textOffset, 0)
+			txt:SetPoint("RIGHT", itemBtn, "RIGHT", -6, 0)
+			txt:SetJustifyH("LEFT")
+			if txt.SetWordWrap then txt:SetWordWrap(false) end
+			txt:SetText(isSel and ("|cff38bdf8" .. tostring(opt.label or oKey) .. "|r") or tostring(opt.label or oKey))
+
+			itemBtn:SetScript("OnEnter", function(sb)
+				PluribusUIFramework:ApplyBackdrop(sb, 0.16, 0.26, 0.42, 0.98, 0.22, 0.74, 0.97, 1)
+			end)
+			itemBtn:SetScript("OnLeave", function(sb)
+				if oKey == selfBtn._selectedKey then
+					PluribusUIFramework:ApplyBackdrop(sb, 0.14, 0.34, 0.58, 0.96, 0.22, 0.74, 0.97, 0.9)
+				else
+					PluribusUIFramework:ApplyBackdrop(sb, 0.08, 0.11, 0.17, 0.85, 0.18, 0.24, 0.34, 0.4)
+				end
+			end)
+			itemBtn:SetScript("OnClick", function()
+				UpdateDisplay(oKey)
+				CloseMenu()
+				if onSelect then onSelect(oKey, opt) end
+			end)
+		end
+
+		menu:SetScript("OnHide", function()
+			if PluribusUIFramework._activeDropdownMenu == menu then
+				PluribusUIFramework._activeDropdownMenu = nil
+			end
+		end)
+		selfBtn:HookScript("OnHide", function()
+			if menu:IsShown() then menu:Hide() end
+		end)
+
+		selfBtn._menu = menu
+		PluribusUIFramework._activeDropdownMenu = menu
+		menu:Show()
+	end)
+
+	return btn
+end
 
 function PluribusUIFramework:GetClassColor(className)
 	local key = string.upper(tostring(className or "WARRIOR"):gsub("%s+", ""))
@@ -69,18 +375,23 @@ function PluribusUIFramework:ApplyBackdrop(frame, bgR, bgG, bgB, bgA, borderR, b
 	end
 end
 
--- Cleanly clear child frames and non-preserved regions inside a container
+-- Cleanly clear child frames and non-preserved regions inside a container (preserves NineSlice & backdrops!)
 function PluribusUIFramework:ClearContainer(container)
 	if not container then return end
 	local children = { container:GetChildren() }
 	for _, child in ipairs(children) do
-		child:Hide()
-		child:SetParent(nil)
+		if child and child ~= container.NineSlice and not child._plbPreserve then
+			child:Hide()
+			child:SetParent(nil)
+		end
 	end
 	local regions = { container:GetRegions() }
 	for _, region in ipairs(regions) do
 		if region and not region._plbPreserve then
-			region:Hide()
+			local layer = region.GetDrawLayer and region:GetDrawLayer() or nil
+			if layer ~= "BACKGROUND" then
+				region:Hide()
+			end
 		end
 	end
 end
@@ -176,20 +487,121 @@ end
 
 PluribusUIFramework:ApplyDefaultTheme()
 
--- Create a top-tier flat bordered window frame with accent hairline, draggable title bar & Escape close
+-- Recursive subtree frame-level propagation so overlapping Pluribus windows never mush together
+local function ApplySubtreeLevels(frame, level, depth)
+	if not frame or depth > 12 then return end
+	if frame.SetFrameLevel then
+		pcall(frame.SetFrameLevel, frame, level)
+	end
+	if not frame.GetChildren then return end
+	local parentStrata = frame.GetFrameStrata and frame:GetFrameStrata() or nil
+	local children = { frame:GetChildren() }
+	for _, child in ipairs(children) do
+		if child and not child._plbIgnoreStackLevel then
+			local cStrata = child.GetFrameStrata and child:GetFrameStrata() or parentStrata
+			if not parentStrata or cStrata == parentStrata then
+				local offset = child._plbLevelOffset or 1
+				ApplySubtreeLevels(child, level + offset, depth + 1)
+			end
+		end
+	end
+end
+
+-- Raise a managed Pluribus window cleanly on top of all other open Pluribus windows
+function PluribusUIFramework:BringToFront(frame)
+	if not frame then return end
+	local stack = self.windowStack
+	for i = #stack, 1, -1 do
+		if stack[i] == frame or stack[i] == nil then
+			table.remove(stack, i)
+		end
+	end
+	table.insert(stack, frame)
+
+	local slot = 0
+	for _, win in ipairs(stack) do
+		if win and win.IsShown and win:IsShown() then
+			slot = slot + 1
+			local baseLevel = self.WINDOW_BASE_LEVEL + (slot - 1) * self.WINDOW_LEVEL_STRIDE
+			ApplySubtreeLevels(win, baseLevel, 0)
+		end
+	end
+	-- Also ensure the target window gets the top band if it is in the middle of showing
+	if frame.IsShown and not frame:IsShown() then
+		local topLevel = self.WINDOW_BASE_LEVEL + slot * self.WINDOW_LEVEL_STRIDE
+		ApplySubtreeLevels(frame, topLevel, 0)
+	end
+end
+
+-- Walk up the parent chain from any clicked child widget and raise its owning Pluribus window
+function PluribusUIFramework:BringOwnerToFront(widget)
+	local cur = widget
+	local hops = 0
+	while cur and hops < 16 do
+		if cur._plbManagedWindow then
+			self:BringToFront(cur)
+			return cur
+		end
+		cur = cur.GetParent and cur:GetParent() or nil
+		hops = hops + 1
+	end
+	return nil
+end
+
+-- Register any top-level Pluribus window for automatic Z-order layering on show, click, and drag
+function PluribusUIFramework:RegisterWindow(frame, dragHandle)
+	if not frame or frame._plbManagedWindow then return frame end
+	frame._plbManagedWindow = true
+	if frame.SetFrameStrata then
+		pcall(frame.SetFrameStrata, frame, "HIGH")
+	end
+	-- Disable Blizzard's naive +1 SetToplevel so our 40-level bands never collapse into colliding levels
+	if frame.SetToplevel then
+		pcall(frame.SetToplevel, frame, false)
+	end
+
+	local foundWin = false
+	for _, w in ipairs(self.windows) do
+		if w == frame then foundWin = true break end
+	end
+	if not foundWin then
+		table.insert(self.windows, frame)
+	end
+	table.insert(self.windowStack, frame)
+
+	if frame.HookScript then
+		pcall(frame.HookScript, frame, "OnShow", function(selfFrame)
+			PluribusUIFramework:BringToFront(selfFrame)
+		end)
+		pcall(frame.HookScript, frame, "OnMouseDown", function(selfFrame)
+			PluribusUIFramework:BringToFront(selfFrame)
+		end)
+	end
+
+	if dragHandle and dragHandle ~= frame and dragHandle.HookScript then
+		pcall(dragHandle.HookScript, dragHandle, "OnMouseDown", function()
+			PluribusUIFramework:BringToFront(frame)
+		end)
+	end
+
+	self:BringToFront(frame)
+	return frame
+end
+
+-- Create a top-tier flat bordered window frame with accent hairline, draggable title bar, Z-order stacking & Escape close
 function PluribusUIFramework:CreateFrame(name, parent, width, height, titleText, subtitleText)
 	local p = self.palette
 	local frame = CreateFrame("Frame", name, parent or UIParent, BACKDROP_TEMPLATE)
 	frame:SetSize(width or 680, height or 480)
-	frame:SetFrameStrata("DIALOG")
+	frame:SetFrameStrata("HIGH")
 	frame:SetClampedToScreen(true)
+	frame:EnableMouse(true)
 	self:ApplyBackdrop(frame, p.bg[1], p.bg[2], p.bg[3], p.bg[4], p.border[1], p.border[2], p.border[3], p.border[4])
 
 	local scale = self:GetUIScale()
 	if scale and scale ~= 1.0 then
 		pcall(frame.SetScale, frame, scale)
 	end
-	table.insert(self.windows, frame)
 
 	if name then
 		self:RegisterEscClose(name)
@@ -207,15 +619,30 @@ function PluribusUIFramework:CreateFrame(name, parent, width, height, titleText,
 	end
 	accentLine._plbPreserve = true
 
+	local header = nil
 	if titleText then
-		local header = CreateFrame("Frame", nil, frame, BACKDROP_TEMPLATE)
-		header:SetHeight(36)
+		header = CreateFrame("Frame", nil, frame, BACKDROP_TEMPLATE)
+		header:SetHeight(38)
 		header:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -3)
 		header:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -1, -3)
-		self:ApplyBackdrop(header, p.header[1], p.header[2], p.header[3], p.header[4], p.border[1], p.border[2], p.border[3], 0.45)
+		header._plbLevelOffset = 2
+		self:ApplyBackdrop(header, p.header[1], p.header[2], p.header[3], p.header[4], p.border[1], p.border[2], p.border[3], 0.55)
+
+		-- Subtle arcane crest icon + glow wash in window header
+		local hWash = header:CreateTexture(nil, "BACKGROUND")
+		hWash:SetAllPoints(header)
+		hWash:SetTexture("Interface\\QuestFrame\\UI-QuestLogTitleHighlight")
+		hWash:SetBlendMode("ADD")
+		hWash:SetVertexColor(0.22, 0.62, 0.95, 0.16)
+
+		local crest = header:CreateTexture(nil, "ARTWORK")
+		crest:SetSize(24, 24)
+		crest:SetPoint("LEFT", header, "LEFT", 8, 0)
+		crest:SetTexture("Interface\\AddOns\\PluribusCore\\Media\\InfinityOrb")
+		frame.headerCrest = crest
 
 		local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-		title:SetPoint("LEFT", header, "LEFT", 12, 0)
+		title:SetPoint("LEFT", crest, "RIGHT", 8, 0)
 		title:SetText(self.colors.primary .. titleText .. "|r")
 		frame.titleText = title
 		frame.header = header
@@ -223,22 +650,40 @@ function PluribusUIFramework:CreateFrame(name, parent, width, height, titleText,
 		if subtitleText then
 			local sub = header:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 			sub:SetPoint("LEFT", title, "RIGHT", 10, -1)
+			sub:SetWidth(math.max(90, (width or 680) - 440))
+			sub:SetJustifyH("LEFT")
+			if sub.SetWordWrap then sub:SetWordWrap(false) end
 			sub:SetText(self.colors.text_muted .. subtitleText .. "|r")
 			frame.subtitleText = sub
 		end
 
 		frame:SetMovable(true)
-		frame:EnableMouse(true)
 		header:EnableMouse(true)
 		header:RegisterForDrag("LeftButton")
-		header:SetScript("OnDragStart", function() frame:StartMoving() end)
-		header:SetScript("OnDragStop", function() frame:StopMovingOrSizing() end)
+		header:SetScript("OnMouseDown", function()
+			PluribusUIFramework:BringToFront(frame)
+		end)
+		header:SetScript("OnDragStart", function()
+			PluribusUIFramework:BringToFront(frame)
+			frame:StartMoving()
+		end)
+		header:SetScript("OnDragStop", function()
+			frame:StopMovingOrSizing()
+			PluribusUIFramework:BringToFront(frame)
+		end)
 
 		local closeBtn = self:CreateButton(header, "X", 24, 22, function()
 			frame:Hide()
 		end)
 		closeBtn:SetPoint("RIGHT", header, "RIGHT", -6, 0)
 		frame.closeBtn = closeBtn
+	end
+
+	-- Register top-level UIParent windows in the Z-order manager so moving/clicking brings them cleanly on top
+	if not parent or parent == UIParent then
+		self:RegisterWindow(frame, header)
+	else
+		table.insert(self.windows, frame)
 	end
 
 	return frame
@@ -298,13 +743,16 @@ function PluribusUIFramework:CreateStatusBar(parent, width, height, r, g, b)
 	bar:SetValue(0)
 	bar:SetStatusBarColor(r or p.accent[1], g or p.accent[2], b or p.accent[3], 0.92)
 
-	local leftText = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	leftText:SetPoint("LEFT", bar, "LEFT", 7, 0)
-	leftText:SetJustifyH("LEFT")
-
 	local rightText = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	rightText:SetPoint("RIGHT", bar, "RIGHT", -7, 0)
 	rightText:SetJustifyH("RIGHT")
+	if rightText.SetWordWrap then rightText:SetWordWrap(false) end
+
+	local leftText = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	leftText:SetPoint("LEFT", bar, "LEFT", 7, 0)
+	leftText:SetPoint("RIGHT", rightText, "LEFT", -8, 0)
+	leftText:SetJustifyH("LEFT")
+	if leftText.SetWordWrap then leftText:SetWordWrap(false) end
 
 	holder.bar = bar
 	holder.leftText = leftText
@@ -374,6 +822,123 @@ function PluribusUIFramework:SetUIScale(scale)
 	end
 end
 
+-- Inspect a native WoW window (and its parent if nested, e.g. SkillFrame inside CharacterFrame)
+-- to find the lowest visible native right-edge tab so Pluribus side tabs NEVER overlap native tabs
+function PluribusUIFramework:FindSafeSideTabStartY(hostFrame, tabCount, spacing, preferredY, minYOffset)
+	local startY = preferredY or -46
+	if minYOffset and minYOffset < startY then
+		startY = minYOffset
+	end
+	if not hostFrame or not hostFrame.GetTop or not hostFrame.GetRight then
+		return startY
+	end
+
+	local hostTop = hostFrame:GetTop()
+	local hostRight = hostFrame:GetRight()
+	if not hostTop or not hostRight then
+		return startY
+	end
+
+	local lowestRelBottom = nil
+	local function scanChildrenOf(container)
+		if not container or not container.GetChildren then return end
+		local children = { container:GetChildren() }
+		for _, child in ipairs(children) do
+			if child and not child._plbSideTab and not child._plbDrawer and child.IsShown and child:IsShown() then
+				local cLeft = child.GetLeft and child:GetLeft()
+				local cRight = child.GetRight and child:GetRight()
+				local cTop = child.GetTop and child:GetTop()
+				local cBottom = child.GetBottom and child:GetBottom()
+				local cH = (cTop and cBottom) and (cTop - cBottom) or 0
+				local cW = (cLeft and cRight) and (cRight - cLeft) or 0
+				-- Detect native side tabs / right-edge bookmarks protruding near or past hostRight
+				if cLeft and cRight and cTop and cBottom and cH >= 18 and cH <= 90 and cW <= 90 then
+					if cRight >= (hostRight - 14) and cLeft >= (hostRight - 58) then
+						local relBottom = cBottom - hostTop
+						if relBottom < -10 and (not lowestRelBottom or relBottom < lowestRelBottom) then
+							lowestRelBottom = relBottom
+						end
+					end
+				end
+			end
+		end
+	end
+
+	scanChildrenOf(hostFrame)
+	local parent = hostFrame.GetParent and hostFrame:GetParent()
+	if parent and parent ~= UIParent and parent ~= WorldFrame then
+		scanChildrenOf(parent)
+	end
+
+	-- Also check known Blizzard SpellBook / TradeSkill / Guild / Communities / Dungeon Finder native side tabs
+	local function checkNativeTab(tabObj)
+		if not tabObj or not tabObj.IsShown or not tabObj:IsShown() then return end
+		local cRight = tabObj.GetRight and tabObj:GetRight()
+		local cBottom = tabObj.GetBottom and tabObj:GetBottom()
+		if cRight and cBottom and cRight >= (hostRight - 28) then
+			local relBottom = cBottom - hostTop
+			if relBottom < -10 and (not lowestRelBottom or relBottom < lowestRelBottom) then
+				lowestRelBottom = relBottom
+			end
+		end
+	end
+
+	for _, fieldName in ipairs({ "ChatTab", "RosterTab", "GuildBenefitsTab", "GuildInfoTab", "GuildPerksTab", "RecruitmentTab", "GuildNewsTab" }) do
+		if hostFrame[fieldName] then checkNativeTab(hostFrame[fieldName]) end
+		if parent and parent[fieldName] then checkNativeTab(parent[fieldName]) end
+	end
+
+	for i = 1, 12 do
+		for _, prefix in ipairs({ "SpellBookSkillLineTab", "TradeSkillFrameTab", "ProfessionsFrameTab", "GuildFrameTab", "CommunitiesFrameTab", "PVEFrameTab", "LFGParentFrameTab" }) do
+			local gTab = _G[prefix .. i]
+			if gTab and gTab.IsShown and gTab:IsShown() then
+				local p = gTab.GetParent and gTab:GetParent()
+				if p == hostFrame or p == parent then
+					checkNativeTab(gTab)
+				end
+			end
+		end
+	end
+
+	if lowestRelBottom then
+		local belowNative = math.floor(lowestRelBottom - 14)
+		if belowNative < startY then
+			startY = belowNative
+		end
+	end
+
+	return startY
+end
+
+-- Position a vertical list of Pluribus side tabs cleanly below any native right-edge tabs on hostFrame
+function PluribusUIFramework:LayoutSideTabs(hostFrame, tabList, opts)
+	if not hostFrame or not tabList or #tabList == 0 then return end
+	opts = opts or {}
+	local spacing = opts.spacing or 44
+	local xOff = opts.xOffset ~= nil and opts.xOffset or 0
+	local startY = self:FindSafeSideTabStartY(hostFrame, #tabList, spacing, opts.preferredY or -46, opts.minYOffset)
+
+	for i, tab in ipairs(tabList) do
+		if tab then
+			local yPos = startY - (i - 1) * spacing
+			tab._baseX = xOff
+			tab._baseY = yPos
+			tab:ClearAllPoints()
+			tab:SetPoint("TOPLEFT", hostFrame, "TOPRIGHT", xOff + (tab._isActive and 3 or 0), yPos)
+		end
+	end
+
+	-- Keep an associated drawer cleanly aligned to the right of the tab column without overlapping it
+	if opts.drawer and tabList[1] then
+		local drawerGap = opts.drawerGap or ((opts.size or 38) + 10)
+		local drawerY = opts.drawerYOffset ~= nil and opts.drawerYOffset or math.max(-14, startY + 6)
+		opts.drawer:ClearAllPoints()
+		opts.drawer:SetPoint("TOPLEFT", hostFrame, "TOPRIGHT", xOff + drawerGap, drawerY)
+	end
+
+	return startY
+end
+
 -- Authentic Adventure-Guide / SpellBook-style right-edge vertical side bookmark tab
 -- opts = { icon, title, tooltip, onClick, xOffset, yOffset, spacing, size }
 function PluribusUIFramework:CreateSideTab(hostFrame, index, opts)
@@ -381,13 +946,14 @@ function PluribusUIFramework:CreateSideTab(hostFrame, index, opts)
 	opts = opts or {}
 	local p = self.palette
 	local size = opts.size or 38
-	local spacing = opts.spacing or 46
-	local xOff = opts.xOffset ~= nil and opts.xOffset or -1
-	local yOff = opts.yOffset ~= nil and opts.yOffset or (-42 - ((index or 1) - 1) * spacing)
+	local spacing = opts.spacing or 44
+	local xOff = opts.xOffset ~= nil and opts.xOffset or 0
+	local yOff = opts.yOffset ~= nil and opts.yOffset or (-44 - ((index or 1) - 1) * spacing)
 
 	local tab = CreateFrame("Button", nil, hostFrame, BACKDROP_TEMPLATE)
 	tab:SetSize(size, size)
-	tab:SetFrameLevel((hostFrame:GetFrameLevel() or 5) + 4)
+	tab._plbLevelOffset = 14
+	tab:SetFrameLevel((hostFrame:GetFrameLevel() or 5) + 14)
 	tab:SetPoint("TOPLEFT", hostFrame, "TOPRIGHT", xOff, yOff)
 	tab._baseX = xOff
 	tab._baseY = yOff
@@ -395,12 +961,12 @@ function PluribusUIFramework:CreateSideTab(hostFrame, index, opts)
 	tab._isActive = false
 	tab._plbSideTab = true
 
-	-- Subtle WoW SpellBook side-tab bookmark silhouette backing + flat dark border
+	-- Clean, non-bleeding bookmark backing (no oversized overflow into sibling tabs or docked drawers)
 	local bgTab = tab:CreateTexture(nil, "BACKGROUND")
 	bgTab:SetTexture("Interface\\SpellBook\\SpellBook-SkillLineTab")
-	bgTab:SetSize(size + 24, size + 24)
-	bgTab:SetPoint("TOPLEFT", tab, "TOPLEFT", -3, 10)
-	bgTab:SetVertexColor(0.24, 0.30, 0.42, 0.92)
+	bgTab:SetSize(size + 8, size + 6)
+	bgTab:SetPoint("TOPLEFT", tab, "TOPLEFT", -2, 3)
+	bgTab:SetVertexColor(0.24, 0.30, 0.42, 0.82)
 	tab.bgTab = bgTab
 
 	self:ApplyBackdrop(tab, 0.08, 0.11, 0.17, 0.96, p.border[1], p.border[2], p.border[3], 0.95)
@@ -509,8 +1075,13 @@ function PluribusUIFramework:CreateSideTab(hostFrame, index, opts)
 		if GameTooltip then GameTooltip:Hide() end
 	end)
 
+	tab:SetScript("OnMouseDown", function(selfTab)
+		PluribusUIFramework:BringOwnerToFront(selfTab)
+	end)
+
 	if opts.onClick then
 		tab:SetScript("OnClick", function(selfTab, mouseBtn)
+			PluribusUIFramework:BringOwnerToFront(selfTab)
 			opts.onClick(selfTab, mouseBtn)
 		end)
 	end
@@ -608,7 +1179,12 @@ function PluribusUIFramework:CreateItemSlot(parent, size, itemData, onClick)
 		if GameTooltip then GameTooltip:Hide() end
 	end)
 
+	slot:SetScript("OnMouseDown", function(selfSlot)
+		PluribusUIFramework:BringOwnerToFront(selfSlot)
+	end)
+
 	slot:SetScript("OnClick", function(selfSlot, mouseBtn)
+		PluribusUIFramework:BringOwnerToFront(selfSlot)
 		if IsShiftKeyDown and IsShiftKeyDown() and ChatEdit_InsertLink then
 			local link = itemData.link
 			if not link and itemData.itemID and _G.PluribusUtils then
@@ -642,8 +1218,14 @@ function PluribusUIFramework:CreateListRow(parent, width, height, index, onclick
 	row:SetScript("OnLeave", function(selfRow)
 		PluribusUIFramework:ApplyBackdrop(selfRow, base[1], base[2], base[3], base[4], p.border[1], p.border[2], p.border[3], 0.35)
 	end)
+	row:SetScript("OnMouseDown", function(selfRow)
+		PluribusUIFramework:BringOwnerToFront(selfRow)
+	end)
 	if onclick then
-		row:SetScript("OnClick", onclick)
+		row:SetScript("OnClick", function(selfRow, mouseBtn)
+			PluribusUIFramework:BringOwnerToFront(selfRow)
+			onclick(selfRow, mouseBtn)
+		end)
 	end
 	return row
 end
@@ -687,8 +1269,15 @@ function PluribusUIFramework:CreateButton(parent, text, width, height, onclick, 
 		end
 	end
 
+	btn:SetScript("OnMouseDown", function(selfBtn)
+		PluribusUIFramework:BringOwnerToFront(selfBtn)
+	end)
+
 	if onclick then
-		btn:SetScript("OnClick", onclick)
+		btn:SetScript("OnClick", function(selfBtn, mouseBtn)
+			PluribusUIFramework:BringOwnerToFront(selfBtn)
+			onclick(selfBtn, mouseBtn)
+		end)
 	end
 
 	return btn
@@ -712,6 +1301,9 @@ function PluribusUIFramework:CreateInputBox(parent, width, height, onchange)
 	input:SetTextInsets(6, 6, 0, 0)
 	self:ApplyBackdrop(input, 0.04, 0.06, 0.09, 1, p.border[1], p.border[2], p.border[3], 1)
 
+	input:SetScript("OnMouseDown", function(selfBox)
+		PluribusUIFramework:BringOwnerToFront(selfBox)
+	end)
 	input:SetScript("OnEscapePressed", function(selfBox) selfBox:ClearFocus() end)
 	input:SetScript("OnEnterPressed", function(selfBox) selfBox:ClearFocus() end)
 
@@ -746,11 +1338,16 @@ function PluribusUIFramework:CreateDropdown(parent, options, selected, onchange)
 end
 
 function PluribusUIFramework:CreateScrollFrame(parent, name, width, height)
-	local scroll = CreateFrame("ScrollFrame", name, parent, "UIPanelScrollFrameTemplate")
+	-- Append unique sequence suffix so UIPanelScrollFrameTemplate scrollbar globals NEVER collide on tab switches
+	self._scrollSeq = (self._scrollSeq or 0) + 1
+	local uniqueName = tostring(name or "PluribusScroll") .. "_" .. tostring(self._scrollSeq)
+	local scroll = CreateFrame("ScrollFrame", uniqueName, parent, "UIPanelScrollFrameTemplate")
 	scroll:SetSize(width, height)
 	local content = CreateFrame("Frame", nil, scroll)
-	content:SetSize(width - 24, height)
+	content:SetSize(math.max(40, (width or 300) - 24), math.max(40, height or 200))
 	scroll:SetScrollChild(content)
+	scroll:Show()
+	content:Show()
 	scroll.content = content
 	return scroll
 end
@@ -777,36 +1374,49 @@ function PluribusUIFramework:CreateMinimapButton()
 		return _G.PluribusMinimapButton
 	end
 
-	local btn = CreateFrame("Button", "PluribusMinimapButton", Minimap, BACKDROP_TEMPLATE)
-	btn:SetSize(30, 30)
+	-- True circular minimap orb with custom glowing Infinity symbol (zero ugly square box!)
+	local btn = CreateFrame("Button", "PluribusMinimapButton", Minimap)
+	btn:SetSize(32, 32)
 	btn:SetFrameStrata("MEDIUM")
 	btn:SetFrameLevel(8)
-	btn:SetPoint("TOPLEFT", Minimap, "TOPLEFT", -4, -4)
-	self:ApplyBackdrop(btn, 0.08, 0.14, 0.24, 0.96, 0.22, 0.62, 0.98, 1)
 
-	local txt = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-	txt:SetPoint("CENTER", 0, 0)
-	txt:SetText("|cff38bdf8PLB|r")
-
-	-- Compact live HiveMind connectivity beacon dot on bottom-right corner of minimap button
-	local statusDot = btn:CreateTexture(nil, "OVERLAY")
-	statusDot:SetSize(7, 7)
-	statusDot:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", -2, 2)
-	if statusDot.SetColorTexture then
-		statusDot:SetColorTexture(0.29, 0.87, 0.50, 1)
-	else
-		statusDot:SetTexture("Interface\\Buttons\\WHITE8X8")
-		statusDot:SetVertexColor(0.29, 0.87, 0.50, 1)
+	local function PositionOnRim(angleRad)
+		local r = (Minimap:GetWidth() or 140) * 0.5 + 8
+		btn:ClearAllPoints()
+		btn:SetPoint("CENTER", Minimap, "CENTER", math.cos(angleRad) * r, math.sin(angleRad) * r)
 	end
+	local savedAngle = (_G.PluribusHive and _G.PluribusHive.GetConfig and tonumber(_G.PluribusHive:GetConfig().minimapAngle)) or math.rad(215)
+	PositionOnRim(savedAngle)
+
+	-- Circular Infinity Orb texture (64x64 anti-aliased RGBA TGA)
+	local orbIcon = btn:CreateTexture(nil, "ARTWORK")
+	orbIcon:SetAllPoints(btn)
+	orbIcon:SetTexture("Interface\\AddOns\\PluribusCore\\Media\\InfinityOrb")
+	btn.orbIcon = orbIcon
+
+	-- Authentic circular WoW minimap hover halo
+	local hl = btn:CreateTexture(nil, "HIGHLIGHT")
+	hl:SetPoint("TOPLEFT", btn, "TOPLEFT", -2, 2)
+	hl:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", 2, -2)
+	hl:SetTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+	hl:SetBlendMode("ADD")
+
+	-- Tiny circular HiveMind status pip on bottom-right rim
+	local statusDot = btn:CreateTexture(nil, "OVERLAY")
+	statusDot:SetSize(8, 8)
+	statusDot:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", -1, 1)
+	statusDot:SetTexture("Interface\\COMMON\\Indicator-Green")
 	btn.statusDot = statusDot
 
 	local function RefreshOrbDot()
 		local h = (_G.PluribusHive and _G.PluribusHive.GetNetworkHealth) and _G.PluribusHive:GetNetworkHealth() or nil
-		if h and h.color then
-			if btn.statusDot.SetColorTexture then
-				btn.statusDot:SetColorTexture(h.color[1], h.color[2], h.color[3], 1)
+		if h and h.state then
+			if h.state == "OFFLINE" then
+				btn.statusDot:SetTexture("Interface\\COMMON\\Indicator-Red")
+			elseif h.state == "DEGRADED" then
+				btn.statusDot:SetTexture("Interface\\COMMON\\Indicator-Yellow")
 			else
-				btn.statusDot:SetVertexColor(h.color[1], h.color[2], h.color[3], 1)
+				btn.statusDot:SetTexture("Interface\\COMMON\\Indicator-Green")
 			end
 		end
 		return h
@@ -822,10 +1432,33 @@ function PluribusUIFramework:CreateMinimapButton()
 	end)
 
 	btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-	btn:SetMovable(true)
 	btn:RegisterForDrag("LeftButton")
-	btn:SetScript("OnDragStart", function(selfBtn) selfBtn:StartMoving() end)
-	btn:SetScript("OnDragStop", function(selfBtn) selfBtn:StopMovingOrSizing() end)
+	btn:SetScript("OnDragStart", function(selfBtn)
+		selfBtn._dragging = true
+		selfBtn:SetScript("OnUpdate", function()
+			local mx, my = Minimap:GetCenter()
+			local cx, cy = GetCursorPosition()
+			local sc = Minimap:GetEffectiveScale() or 1
+			if mx and my and cx and cy then
+				local ang = math.atan2((cy / sc) - my, (cx / sc) - mx)
+				savedAngle = ang
+				PositionOnRim(ang)
+			end
+		end)
+	end)
+	btn:SetScript("OnDragStop", function(selfBtn)
+		selfBtn._dragging = false
+		if _G.PluribusHive and _G.PluribusHive.SetConfig then
+			_G.PluribusHive:SetConfig("minimapAngle", savedAngle)
+		end
+		selfBtn:SetScript("OnUpdate", function(_, elapsed)
+			orbTick = orbTick + (elapsed or 0)
+			if orbTick >= 3 then
+				orbTick = 0
+				RefreshOrbDot()
+			end
+		end)
+	end)
 
 	btn:SetScript("OnClick", function(_, mouseButton)
 		if mouseButton == "RightButton" then

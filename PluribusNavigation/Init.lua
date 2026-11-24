@@ -22,19 +22,29 @@ local function InitializeNavigation()
 	_G.PluribusWayPointUI = PluribusWayPointUI
 	_G.PluribusNavigationUI = PluribusNavigationUI
 	
-	-- Slash commands
+	-- Slash commands (/nav, /navigate, /navigation, /way X Y Label)
 	PluribusCommandRegistry:RegisterCommand("nav", function(args)
 		if not args or #args == 0 then
 			PluribusNavigationUI:Toggle()
+		elseif args[1] == "compass" or args[1] == "hud" then
+			PluribusNavigationUI:ToggleCompassHUD()
+		elseif args[1] == "clear" then
+			PluribusNavigationUI:ClearWaypoint()
+		elseif tonumber(args[1]) and tonumber(args[2]) then
+			local label = table.concat(args, " ", 3)
+			local zone = (GetRealZoneText and GetRealZoneText()) or "Azeroth"
+			PluribusNavigationUI:SetWaypoint(label ~= "" and label or "Custom Pin", zone, tonumber(args[1]), tonumber(args[2]))
 		elseif args[1] == "waypoint" and args[2] then
 			local questId = tonumber(args[2])
 			if questId then
 				PluribusNavigator:SetObjective(questId)
 			end
+		else
+			PluribusNavigationUI:Toggle()
 		end
-	end, {"navigate", "navigation"})
+	end, {"navigate", "navigation", "way", "compass"})
 	
-	PluribusUtils:Info("PluribusNavigation initialized successfully", "Navigation")
+	PluribusUtils:Info("PluribusNavigation initialized successfully (/nav, /way)", "Navigation")
 	PluribusMessaging:Publish(PLURIBUS_EVENTS.FEATURE_ENABLED, "navigation", true)
 end
 

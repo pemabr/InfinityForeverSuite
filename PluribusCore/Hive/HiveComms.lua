@@ -4,25 +4,40 @@
 
 local ADDON_PREFIX = "PLBHIVE"
 local MAX_MSG_BYTES = 220
-local SEND_INTERVAL = 0.22
+local SEND_INTERVAL_URGENT = 0.25
+local SEND_INTERVAL_NORMAL = 0.45
+local SEND_INTERVAL_BG = 1.15
+local SEND_INTERVAL_COMBAT = 2.50
+local AUTO_TRICKLE_INTERVAL = 180 -- Rotate one domain quietly every 3 min in background
+
+-- Safe printable 64-char alphabet (excludes |, ~, \t, \r, \n, \0 for WoW SendAddonMessage safety)
+local B64 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_"
+local B64_INV = {}
+for i = 1, #B64 do
+	B64_INV[B64:sub(i, i)] = i - 1
+end
 
 PluribusHive = PluribusHive or {
-	version = "2.0.0",
+	version = "2.1.0",
 	initialized = false,
 	prefixRegistered = false,
 	handlers = {},
 	sendQueue = {},
 	urgentQueue = {},
+	backgroundQueue = {},
 	reassembly = {},
 	members = {},
 	recentEvents = {},
 	chunkCounter = 0,
 	lastSendTime = 0,
 	lastHeartbeat = 0,
+	bgTrickleStep = 0,
 	stats = {
 		messagesSent = 0,
 		messagesReceived = 0,
 		failedSends = 0,
+		bytesRaw = 0,
+		bytesSent = 0,
 		lastOutboundAt = 0,
 		lastInboundAt = 0,
 		lastSyncRequestedAt = 0,
@@ -30,6 +45,111 @@ PluribusHive = PluribusHive or {
 	},
 }
 _G.PluribusHive = PluribusHive
+
+-- Pure Lua 5.1 printable-ASCII LZ77 compressor (WoW SendAddonMessage safe, zero external deps)
+-- Encodes matches >= 5 chars within 4095-byte window as "~<distHi><distLo><len>" (4 bytes)
+function PluribusHive:Compress(input)
+	if type(input) ~= "string" or #input < 24 then return input, false end
+	local len = #input
+	local out = {}
+	local i = 1
+	local lastSeen = {}
+
+	while i <= len do
+		local bestDist, bestLen = 0, 0
+		if i + 4 <= len then
+			local key = input:sub(i, i + 3)
+			local prev = lastSeen[key]
+			lastSeen[key] = i
+			if prev and (i - prev) <= 4095 then
+				local dist = i - prev
+				local maxM = math.min(67, len - i + 1)
+				local m = 4
+				while m < maxM and input:byte(prev + m) == input:byte(i + m) do
+					m = m + 1
+				end
+				if m >= 5 then
+					bestDist = dist
+					bestLen = m
+				end
+			end
+		end
+
+		if bestLen >= 5 then
+			local hi = math.floor(bestDist / 64) + 1
+			local lo = (bestDist % 64) + 1
+			local lc = (bestLen - 4) + 1
+			table.insert(out, "~" .. B64:sub(hi, hi) .. B64:sub(lo, lo) .. B64:sub(lc, lc))
+			i = i + bestLen
+		else
+			local ch = input:sub(i, i)
+			if ch == "~" then
+				table.insert(out, "~~")
+			else
+				table.insert(out, ch)
+			end
+			i = i + 1
+		end
+	end
+
+	local compressed = table.concat(out)
+	if #compressed + 4 < len then
+		return compressed, true
+	end
+	return input, false
+end
+
+function PluribusHive:Decompress(input)
+	if type(input) ~= "string" or input == "" then return "" end
+	local out = {}
+	local outStr = ""
+	local i = 1
+	local len = #input
+
+	while i <= len do
+		local ch = input:sub(i, i)
+		if ch == "~" then
+			local nxt = input:sub(i + 1, i + 1)
+			if nxt == "~" then
+				outStr = outStr .. "~"
+				i = i + 2
+			elseif i + 3 <= len then
+				local hi = B64_INV[nxt]
+				local lo = B64_INV[input:sub(i + 2, i + 2)]
+				local lc = B64_INV[input:sub(i + 3, i + 3)]
+				if hi and lo and lc then
+					local dist = hi * 64 + lo
+					local matchLen = lc + 4
+					local startPos = #outStr - dist + 1
+					if startPos >= 1 then
+						-- Byte-by-byte copy supports overlapping RLE-style LZ77 matches
+						for k = 0, matchLen - 1 do
+							local pos = startPos + k
+							outStr = outStr .. outStr:sub(pos, pos)
+						end
+					end
+					i = i + 4
+				else
+					outStr = outStr .. ch
+					i = i + 1
+				end
+			else
+				outStr = outStr .. ch
+				i = i + 1
+			end
+		else
+			local nextTilde = input:find("~", i, true)
+			if nextTilde then
+				outStr = outStr .. input:sub(i, nextTilde - 1)
+				i = nextTilde
+			else
+				outStr = outStr .. input:sub(i)
+				break
+			end
+		end
+	end
+	return outStr
+end
 
 PluribusHive.DEFAULT_CONFIG = {
 	-- All sharing ON by default for true guild hive-mind experience
@@ -66,11 +186,36 @@ PluribusHive.DEFAULT_CONFIG = {
 	enableDataCollector = true,
 	enableNotifications = true,
 	autoSaveInterval = 300,
+	-- Distributed Zero-Lag Hive Compute settings
+	computeEnabled = true,
+	computeBudgetMs = 1.5,
+	computeMinFps = 45,
+	computePauseInInstances = true,
+	computeIdleOnly = false,
+	-- Guild Chat @Mention & Smart Sound Ping settings
+	mentionsEnabled = true,
+	mentionSoundEnabled = true,
+	-- Sharpie's Gear Judge (SGJ) Tooltip & Cap Guardian settings
+	showGearJudgeTooltips = true,
+	-- Quality-of-Life: Auto-sell Poor (gray) junk items upon opening any vendor (hold Shift to bypass)
+	autoSellJunk = true,
 }
+
+function PluribusHive:NormalizeName(name)
+	if not name then return "" end
+	local clean = tostring(name):gsub("%-.+$", ""):match("^%s*(.-)%s*$") or ""
+	return clean
+end
+
+function PluribusHive:SamePlayer(a, b)
+	local na = self:NormalizeName(a):lower()
+	local nb = self:NormalizeName(b):lower()
+	return na ~= "" and na == nb
+end
 
 function PluribusHive:GetPlayerShortName()
 	local name = UnitName and UnitName("player") or "Unknown"
-	return (name:gsub("%-.+$", ""))
+	return self:NormalizeName(name)
 end
 
 function PluribusHive:GetRealmKey()
@@ -161,35 +306,75 @@ function PluribusHive:CanSendChannel(channel)
 	return true
 end
 
-function PluribusHive:SendRaw(payload, channel, target, urgent)
+function PluribusHive:SendRaw(payload, channel, target, urgent, background, dedupKey)
 	channel = channel or "GUILD"
 	if not self:CanSendChannel(channel) then return false end
 	if not payload or payload == "" then return false end
 
-	local queue = urgent and self.urgentQueue or self.sendQueue
+	if self.stats then
+		self.stats.bytesRaw = (self.stats.bytesRaw or 0) + #payload
+	end
 
-	if #payload <= MAX_MSG_BYTES then
-		table.insert(queue, { msg = payload, channel = channel, target = target })
+	-- Automatically LZ-compress larger payloads before chunking (zero client overload!)
+	local wirePayload = payload
+	if #payload >= 48 then
+		local comp, used = self:Compress(payload)
+		if used then
+			wirePayload = "Z\t" .. comp
+		end
+	end
+
+	local queue = urgent and self.urgentQueue or (background and self.backgroundQueue or self.sendQueue)
+
+	-- Coalesce older unsent background snapshots of the same dedupKey so queues never bloat
+	if dedupKey and #queue > 0 then
+		for i = #queue, 1, -1 do
+			if queue[i].dedupKey == dedupKey then
+				table.remove(queue, i)
+			end
+		end
+	end
+
+	if #wirePayload <= MAX_MSG_BYTES then
+		table.insert(queue, { msg = wirePayload, channel = channel, target = target, dedupKey = dedupKey })
 		return true
 	end
 
-	-- Automatic chunking for larger payloads (full bags/bank/professions/DB sync)
+	-- Automatic chunking for larger payloads (full bags/bank/professions/recipes/DB sync)
 	self.chunkCounter = (self.chunkCounter + 1) % 9999
 	local cid = tostring(self.chunkCounter)
 	local chunkBodySize = MAX_MSG_BYTES - 18
-	local total = math.ceil(#payload / chunkBodySize)
+	local total = math.ceil(#wirePayload / chunkBodySize)
 	for i = 1, total do
 		local startIdx = (i - 1) * chunkBodySize + 1
-		local slice = payload:sub(startIdx, startIdx + chunkBodySize - 1)
+		local slice = wirePayload:sub(startIdx, startIdx + chunkBodySize - 1)
 		local packet = string.format("C\t%s\t%d\t%d\t%s", cid, i, total, slice)
-		table.insert(queue, { msg = packet, channel = channel, target = target })
+		table.insert(queue, { msg = packet, channel = channel, target = target, dedupKey = dedupKey })
 	end
 	return true
 end
 
 function PluribusHive:Send(msgType, body, channel, target, urgent)
 	local payload = msgType .. "\t" .. (body or "")
-	return self:SendRaw(payload, channel or "GUILD", target, urgent)
+	-- Route large bulk sync & compute messages through the gentle background trickle queue automatically
+	local isBulk = (not urgent) and (msgType == "BAGS" or msgType == "BANK" or msgType == "PROF" or msgType == "RECIPES" or msgType == "AH" or msgType == "DBRES" or msgType == "JOBRES" or msgType == "TELEM")
+	return self:SendRaw(payload, channel or "GUILD", target, urgent, isBulk, isBulk and msgType or nil)
+end
+
+function PluribusHive:SendBackground(msgType, body, dedupKey, channel)
+	local payload = msgType .. "\t" .. (body or "")
+	return self:SendRaw(payload, channel or "GUILD", nil, false, true, dedupKey or msgType)
+end
+
+function PluribusHive:UnpackAndDispatch(senderShort, fullPayload, distribution)
+	if not fullPayload or fullPayload == "" then return end
+	if fullPayload:sub(1, 2) == "Z\t" then
+		fullPayload = self:Decompress(fullPayload:sub(3))
+	end
+	local msgType, body = fullPayload:match("^([^\t]+)\t?(.*)$")
+	if msgType then
+		self:DispatchMessage(senderShort, msgType, body or "", distribution)
+	end
 end
 
 function PluribusHive:DispatchMessage(senderShort, msgType, body, distribution)
@@ -200,7 +385,7 @@ function PluribusHive:DispatchMessage(senderShort, msgType, body, distribution)
 	if self.stats then
 		self.stats.messagesReceived = (self.stats.messagesReceived or 0) + 1
 		self.stats.lastInboundAt = now
-		if msgType == "BAGS" or msgType == "BANK" or msgType == "PROF" or msgType == "DBRES" or msgType == "PING" then
+		if msgType == "BAGS" or msgType == "BANK" or msgType == "PROF" or msgType == "RECIPES" or msgType == "TAXLOG" or msgType == "DBRES" or msgType == "PING" then
 			self.stats.lastSyncCompletedAt = now
 		end
 	end
@@ -215,8 +400,8 @@ end
 
 function PluribusHive:OnAddonMessage(prefix, message, distribution, sender)
 	if prefix ~= ADDON_PREFIX or type(message) ~= "string" then return end
-	local senderShort = tostring(sender or ""):gsub("%-.+$", "")
-	if senderShort == "" or senderShort == self:GetPlayerShortName() then
+	local senderShort = self:NormalizeName(sender)
+	if senderShort == "" or self:SamePlayer(senderShort, self:GetPlayerShortName()) then
 		return
 	end
 
@@ -241,19 +426,12 @@ function PluribusHive:OnAddonMessage(prefix, message, distribution, sender)
 				ordered[i] = buf.parts[i] or ""
 			end
 			self.reassembly[key] = nil
-			local full = table.concat(ordered)
-			local mType, mBody = full:match("^([^\t]+)\t?(.*)$")
-			if mType then
-				self:DispatchMessage(senderShort, mType, mBody or "", distribution)
-			end
+			self:UnpackAndDispatch(senderShort, table.concat(ordered), distribution)
 		end
 		return
 	end
 
-	local msgType, body = message:match("^([^\t]+)\t?(.*)$")
-	if msgType then
-		self:DispatchMessage(senderShort, msgType, body or "", distribution)
-	end
+	self:UnpackAndDispatch(senderShort, message, distribution)
 end
 
 function PluribusHive:SendHeartbeat(requestFullSync)
@@ -289,7 +467,7 @@ function PluribusHive:GetNetworkHealth()
 	local prefixOk = self.prefixRegistered == true
 	local members = self:GetOnlineMembers()
 	local peers = math.max(0, #members - 1)
-	local queued = #(self.urgentQueue or {}) + #(self.sendQueue or {})
+	local queued = #(self.urgentQueue or {}) + #(self.sendQueue or {}) + #(self.backgroundQueue or {})
 
 	local reassemblyCount = 0
 	for _ in pairs(self.reassembly or {}) do
@@ -462,14 +640,36 @@ function PluribusHive:Initialize()
 
 	local pumpAccum = 0
 	local cleanupAccum = 0
+	local trickleAccum = 0
 	frame:SetScript("OnUpdate", function(_, elapsed)
 		pumpAccum = pumpAccum + (elapsed or 0)
 		cleanupAccum = cleanupAccum + (elapsed or 0)
+		trickleAccum = trickleAccum + (elapsed or 0)
 
-		if pumpAccum >= SEND_INTERVAL then
+		-- Combat-aware adaptive trickle rate: urgent fast, normal steady, bulk background gentle bit-by-bit
+		local inCombat = InCombatLockdown and InCombatLockdown() or false
+		local nextItem = nil
+		local neededInterval = SEND_INTERVAL_BG
+		if #(PluribusHive.urgentQueue or {}) > 0 then
+			neededInterval = SEND_INTERVAL_URGENT
+			if pumpAccum >= neededInterval then
+				nextItem = table.remove(PluribusHive.urgentQueue, 1)
+			end
+		elseif #(PluribusHive.sendQueue or {}) > 0 then
+			neededInterval = inCombat and SEND_INTERVAL_COMBAT or SEND_INTERVAL_NORMAL
+			if pumpAccum >= neededInterval then
+				nextItem = table.remove(PluribusHive.sendQueue, 1)
+			end
+		elseif #(PluribusHive.backgroundQueue or {}) > 0 then
+			neededInterval = inCombat and SEND_INTERVAL_COMBAT or SEND_INTERVAL_BG
+			if pumpAccum >= neededInterval then
+				nextItem = table.remove(PluribusHive.backgroundQueue, 1)
+			end
+		end
+
+		if nextItem then
 			pumpAccum = 0
-			local nextItem = table.remove(PluribusHive.urgentQueue, 1) or table.remove(PluribusHive.sendQueue, 1)
-			if nextItem and PluribusHive:CanSendChannel(nextItem.channel) then
+			if PluribusHive:CanSendChannel(nextItem.channel) then
 				local ok = false
 				if C_ChatInfo and C_ChatInfo.SendAddonMessage then
 					ok = pcall(C_ChatInfo.SendAddonMessage, ADDON_PREFIX, nextItem.msg, nextItem.channel, nextItem.target)
@@ -479,10 +679,31 @@ function PluribusHive:Initialize()
 				if PluribusHive.stats then
 					if ok then
 						PluribusHive.stats.messagesSent = (PluribusHive.stats.messagesSent or 0) + 1
+						PluribusHive.stats.bytesSent = (PluribusHive.stats.bytesSent or 0) + #(nextItem.msg or "")
 						PluribusHive.stats.lastOutboundAt = time()
 					else
 						PluribusHive.stats.failedSends = (PluribusHive.stats.failedSends or 0) + 1
 					end
+				end
+			end
+		end
+
+		-- Quiet automatic staggered background sync: rotates ONE domain every few minutes so client is never spiked
+		if trickleAccum >= AUTO_TRICKLE_INTERVAL then
+			trickleAccum = 0
+			if not inCombat and IsInGuild and IsInGuild() and #(PluribusHive.backgroundQueue or {}) < 8 then
+				PluribusHive.bgTrickleStep = (PluribusHive.bgTrickleStep % 5) + 1
+				local step = PluribusHive.bgTrickleStep
+				if step == 1 and _G.PluribusHiveInventory and _G.PluribusHiveInventory.BroadcastBags then
+					pcall(function() _G.PluribusHiveInventory:BroadcastBags() end)
+				elseif step == 2 and _G.PluribusHiveProfessions and _G.PluribusHiveProfessions.BroadcastProfessions then
+					pcall(function() _G.PluribusHiveProfessions:BroadcastProfessions() end)
+				elseif step == 3 and _G.PluribusHiveTax and _G.PluribusHiveTax.BroadcastMyLedger then
+					pcall(function() _G.PluribusHiveTax:BroadcastMyLedger() end)
+				elseif step == 4 and _G.PluribusHiveMail and _G.PluribusHiveMail.FlushOutboxFor then
+					pcall(function() _G.PluribusHiveMail:FlushOutboxFor(nil) end)
+				elseif step == 5 and _G.PluribusHiveNetworkDB and _G.PluribusHiveNetworkDB.CheckForNetworkUpdates then
+					pcall(function() _G.PluribusHiveNetworkDB:CheckForNetworkUpdates() end)
 				end
 			end
 		end
@@ -507,6 +728,8 @@ function PluribusHive:Initialize()
 	if _G.PluribusHiveNetworkDB and _G.PluribusHiveNetworkDB.Initialize then pcall(function() _G.PluribusHiveNetworkDB:Initialize() end) end
 	if _G.PluribusHiveInventory and _G.PluribusHiveInventory.Initialize then pcall(function() _G.PluribusHiveInventory:Initialize() end) end
 	if _G.PluribusHiveProfessions and _G.PluribusHiveProfessions.Initialize then pcall(function() _G.PluribusHiveProfessions:Initialize() end) end
+	if _G.PluribusHiveMail and _G.PluribusHiveMail.Initialize then pcall(function() _G.PluribusHiveMail:Initialize() end) end
+	if _G.PluribusHiveTax and _G.PluribusHiveTax.Initialize then pcall(function() _G.PluribusHiveTax:Initialize() end) end
 	if _G.PluribusHiveDistress and _G.PluribusHiveDistress.Initialize then pcall(function() _G.PluribusHiveDistress:Initialize() end) end
 	if _G.PluribusHiveCooldowns and _G.PluribusHiveCooldowns.Initialize then pcall(function() _G.PluribusHiveCooldowns:Initialize() end) end
 	if _G.PluribusHiveLFG and _G.PluribusHiveLFG.Initialize then pcall(function() _G.PluribusHiveLFG:Initialize() end) end
@@ -514,6 +737,9 @@ function PluribusHive:Initialize()
 	if _G.PluribusHiveTooltips and _G.PluribusHiveTooltips.Initialize then pcall(function() _G.PluribusHiveTooltips:Initialize() end) end
 	if _G.PluribusHiveUI and _G.PluribusHiveUI.Initialize then pcall(function() _G.PluribusHiveUI:Initialize() end) end
 	if _G.PluribusHiveNativeTabs and _G.PluribusHiveNativeTabs.Initialize then pcall(function() _G.PluribusHiveNativeTabs:Initialize() end) end
+	if _G.PluribusHiveCompute and _G.PluribusHiveCompute.Initialize then pcall(function() _G.PluribusHiveCompute:Initialize() end) end
+	if _G.PluribusHiveMentions and _G.PluribusHiveMentions.Initialize then pcall(function() _G.PluribusHiveMentions:Initialize() end) end
+	if _G.PluribusHiveGearJudge and _G.PluribusHiveGearJudge.Initialize then pcall(function() _G.PluribusHiveGearJudge:Initialize() end) end
 end
 
 return PluribusHive

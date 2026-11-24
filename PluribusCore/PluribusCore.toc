@@ -37,6 +37,11 @@ Hive\HiveComms.lua
 Hive\HiveNetworkDB.lua
 Hive\HiveInventory.lua
 Hive\HiveProfessions.lua
+Hive\HiveMail.lua
+Hive\HiveTax.lua
+Hive\HiveCompute.lua
+Hive\HiveMentions.lua
+Hive\HiveGearJudge.lua
 Hive\HiveDistress.lua
 Hive\HiveCooldowns.lua
 Hive\HiveLFG.lua

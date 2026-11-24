@@ -23,17 +23,74 @@ local function GetContainerSlotItem(bag, slot)
 	if C_Container and C_Container.GetContainerItemInfo then
 		local info = C_Container.GetContainerItemInfo(bag, slot)
 		if info and info.itemID then
-			return info.itemID, info.stackCount or 1, info.hyperlink
+			return info.itemID, info.stackCount or 1, info.hyperlink, info.quality, info.isLocked
 		end
 		return nil
 	elseif GetContainerItemInfo then
-		local _, count, _, _, _, _, link = GetContainerItemInfo(bag, slot)
+		local _, count, locked, quality, _, _, link = GetContainerItemInfo(bag, slot)
 		if link then
 			local itemID = PluribusUtils and PluribusUtils:GetItemIDFromHyperlink(link)
-			return itemID, count or 1, link
+			if quality == nil and itemID and PluribusUtils then
+				quality = select(3, PluribusUtils:GetItemInfo(itemID))
+			end
+			return itemID, count or 1, link, quality, locked
 		end
 	end
 	return nil
+end
+
+-- Auto-sell all Poor (gray, quality == 0) sellable items in bags when a vendor window is open.
+-- Hold Shift when talking to a vendor to temporarily skip automatic selling.
+function PluribusHiveInventory:SellGrayTrash(silent)
+	if not (_G.MerchantFrame and _G.MerchantFrame:IsShown()) then
+		if not silent and _G.PluribusUIFramework then
+			_G.PluribusUIFramework:ShowNotification("|cfffbbf24Open any vendor/merchant first, then click Sell Gray Junk.|r", 3)
+		end
+		return 0, 0
+	end
+
+	local soldStacks, soldItems, earnedCopper = 0, 0, 0
+	local maxBag = NUM_BAG_SLOTS or 4
+	for bag = 0, maxBag do
+		local slots = GetContainerSlots(bag)
+		for slot = 1, slots do
+			local itemID, count, _, quality, isLocked = GetContainerSlotItem(bag, slot)
+			if itemID and not isLocked then
+				local q = quality
+				local sellPrice = 0
+				if PluribusUtils and PluribusUtils.GetItemInfo then
+					local _, _, infoQ, _, _, _, _, _, _, _, infoSell = PluribusUtils:GetItemInfo(itemID)
+					if q == nil then q = infoQ end
+					sellPrice = tonumber(infoSell) or 0
+				end
+				if q == 0 and sellPrice > 0 then
+					if C_Container and C_Container.UseContainerItem then
+						pcall(C_Container.UseContainerItem, bag, slot)
+					elseif UseContainerItem then
+						pcall(UseContainerItem, bag, slot)
+					end
+					soldStacks = soldStacks + 1
+					soldItems = soldItems + (count or 1)
+					earnedCopper = earnedCopper + (sellPrice * (count or 1))
+				end
+			end
+		end
+	end
+
+	if soldItems > 0 then
+		local goldStr = (PluribusUtils and PluribusUtils:FormatGold(earnedCopper)) or (tostring(earnedCopper) .. "c")
+		local msg = string.format("|cff4ade80Auto-sold %d gray trash item%s for %s.|r", soldItems, soldItems == 1 and "" or "s", goldStr)
+		if _G.PluribusUIFramework then
+			_G.PluribusUIFramework:ShowNotification(msg, 3)
+		end
+		if PluribusUtils and PluribusUtils.Print then
+			PluribusUtils:Print(msg, "Bags")
+		end
+	elseif not silent and _G.PluribusUIFramework then
+		_G.PluribusUIFramework:ShowNotification("|cff94a3b8No gray trash items found in your bags.|r", 2.5)
+	end
+
+	return soldItems, earnedCopper
 end
 
 function PluribusHiveInventory:GetMyAltRecord()
@@ -181,24 +238,34 @@ function PluribusHiveInventory:GetItemCounts(itemID)
 	}
 
 	local realmAlts = db.alts[realm] or {}
+	local ownLower = {}
+	local meLower = PluribusHive:NormalizeName(me):lower()
+	if meLower ~= "" then ownLower[meLower] = true end
+
 	for charName, rec in pairs(realmAlts) do
+		local cLower = PluribusHive:NormalizeName(charName):lower()
+		if cLower ~= "" then ownLower[cLower] = true end
 		local b = (rec.bags and rec.bags[itemID]) or 0
 		local k = (rec.bank and rec.bank[itemID]) or 0
-		if charName == me then
+		if cLower == meLower then
 			result.selfBags = b
 			result.selfBank = k
 		elseif (b + k) > 0 then
-			table.insert(result.alts, { name = charName, class = rec.class, bags = b, bank = k, total = b + k })
+			table.insert(result.alts, { name = PluribusHive:NormalizeName(charName), class = rec.class, bags = b, bank = k, total = b + k })
 			result.totalAlts = result.totalAlts + b + k
 		end
 	end
 
+	local seenGuild = {}
 	for memberName, rec in pairs(db.guildBags or {}) do
-		if memberName ~= me and not realmAlts[memberName] then
+		local mNorm = PluribusHive:NormalizeName(memberName)
+		local mLower = mNorm:lower()
+		if mLower ~= "" and not ownLower[mLower] and not seenGuild[mLower] then
+			seenGuild[mLower] = true
 			local b = (rec.bags and rec.bags[itemID]) or 0
 			local k = (rec.bank and rec.bank[itemID]) or 0
 			if (b + k) > 0 then
-				table.insert(result.guild, { name = memberName, class = rec.class, bags = b, bank = k, total = b + k })
+				table.insert(result.guild, { name = mNorm, class = rec.class, bags = b, bank = k, total = b + k })
 				result.totalGuild = result.totalGuild + b + k
 			end
 		end
@@ -209,33 +276,45 @@ function PluribusHiveInventory:GetItemCounts(itemID)
 	return result
 end
 
--- List all inspectable characters (self + alts + sharing guildmates)
+-- List all inspectable characters (self + alts + sharing guildmates) with strict deduplication
 function PluribusHiveInventory:GetInspectableCharacters()
 	local db = PluribusHive:GetDB()
 	local realm = PluribusHive:GetRealmKey()
 	local me = PluribusHive:GetPlayerShortName()
+	local meLower = PluribusHive:NormalizeName(me):lower()
 	local list = {}
-	local seen = {}
+	local seenLower = {}
 
 	local realmAlts = db.alts[realm] or {}
 	for charName, rec in pairs(realmAlts) do
-		seen[charName] = true
-		table.insert(list, {
-			name = charName,
-			class = rec.class or "WARRIOR",
-			level = rec.level or 60,
-			gold = rec.gold or 0,
-			bags = rec.bags or {},
-			bank = rec.bank or {},
-			updatedAt = rec.updatedAt or 0,
-			group = (charName == me) and "YOU" or "ALT",
-		})
+		local norm = PluribusHive:NormalizeName(charName)
+		local low = norm:lower()
+		if low ~= "" and not seenLower[low] then
+			seenLower[low] = true
+			table.insert(list, {
+				name = norm,
+				class = rec.class or "WARRIOR",
+				level = rec.level or 60,
+				gold = rec.gold or 0,
+				bags = rec.bags or {},
+				bank = rec.bank or {},
+				updatedAt = rec.updatedAt or 0,
+				group = (low == meLower) and "YOU" or "ALT",
+			})
+		end
 	end
 
+	-- Prune any stale self/alt duplicates that may have previously landed in guildBags
+	local staleKeys = {}
 	for memberName, rec in pairs(db.guildBags or {}) do
-		if not seen[memberName] then
+		local norm = PluribusHive:NormalizeName(memberName)
+		local low = norm:lower()
+		if low == "" or low == meLower or seenLower[low] then
+			table.insert(staleKeys, memberName)
+		else
+			seenLower[low] = true
 			table.insert(list, {
-				name = memberName,
+				name = norm,
 				class = rec.class or "WARRIOR",
 				level = rec.level or 60,
 				gold = rec.gold or 0,
@@ -245,6 +324,9 @@ function PluribusHiveInventory:GetInspectableCharacters()
 				group = "GUILD",
 			})
 		end
+	end
+	for _, k in ipairs(staleKeys) do
+		if db.guildBags then db.guildBags[k] = nil end
 	end
 
 	table.sort(list, function(a, b)
@@ -316,6 +398,13 @@ function PluribusHiveInventory:AttachToContainerHost(parent, isBank)
 		end,
 	})
 	parent._plbBagSideTab = tab
+	if _G.PluribusUIFramework.LayoutSideTabs then
+		_G.PluribusUIFramework:LayoutSideTabs(parent, { tab }, {
+			preferredY = isBank and -54 or -36,
+			minYOffset = isBank and -54 or -36,
+			spacing = 44,
+		})
+	end
 end
 
 function PluribusHiveInventory:AttachBagFrameButton()
@@ -335,12 +424,14 @@ function PluribusHiveInventory:Initialize()
 	if self.initialized then return end
 	self.initialized = true
 
-	-- Receive guildmates' bags
+	-- Receive guildmates' bags (strictly ignore own character & normalize name)
 	PluribusHive:RegisterHandler("BAGS", function(sender, body)
+		local norm = PluribusHive:NormalizeName(sender)
+		if norm == "" or PluribusHive:SamePlayer(norm, PluribusHive:GetPlayerShortName()) then return end
 		local cls, lvl, gold, itemsStr = body:match("^([^|]*)|([^|]*)|([^|]*)|(.*)$")
 		local db = PluribusHive:GetDB()
-		db.guildBags[sender] = db.guildBags[sender] or { name = sender, bags = {}, bank = {} }
-		local rec = db.guildBags[sender]
+		db.guildBags[norm] = db.guildBags[norm] or { name = norm, bags = {}, bank = {} }
+		local rec = db.guildBags[norm]
 		rec.class = cls ~= "" and cls or rec.class or "WARRIOR"
 		rec.level = tonumber(lvl) or rec.level or 60
 		rec.gold = tonumber(gold) or rec.gold or 0
@@ -348,12 +439,14 @@ function PluribusHiveInventory:Initialize()
 		rec.updatedAt = time()
 	end)
 
-	-- Receive guildmates' bank
+	-- Receive guildmates' bank (strictly ignore own character & normalize name)
 	PluribusHive:RegisterHandler("BANK", function(sender, body)
+		local norm = PluribusHive:NormalizeName(sender)
+		if norm == "" or PluribusHive:SamePlayer(norm, PluribusHive:GetPlayerShortName()) then return end
 		local cls, gold, itemsStr = body:match("^([^|]*)|([^|]*)|(.*)$")
 		local db = PluribusHive:GetDB()
-		db.guildBags[sender] = db.guildBags[sender] or { name = sender, bags = {}, bank = {} }
-		local rec = db.guildBags[sender]
+		db.guildBags[norm] = db.guildBags[norm] or { name = norm, bags = {}, bank = {} }
+		local rec = db.guildBags[norm]
 		rec.class = cls ~= "" and cls or rec.class or "WARRIOR"
 		rec.gold = tonumber(gold) or rec.gold or 0
 		rec.bank = DeserializeCounts(itemsStr)
@@ -373,7 +466,7 @@ function PluribusHiveInventory:Initialize()
 	end
 
 	local f = CreateFrame("Frame")
-	for _, ev in ipairs({ "PLAYER_ENTERING_WORLD", "BAG_UPDATE_DELAYED", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "PLAYERBANKSLOTS_CHANGED", "PLAYER_MONEY" }) do
+	for _, ev in ipairs({ "PLAYER_ENTERING_WORLD", "BAG_UPDATE_DELAYED", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "PLAYERBANKSLOTS_CHANGED", "PLAYER_MONEY", "MERCHANT_SHOW" }) do
 		pcall(f.RegisterEvent, f, ev)
 	end
 
@@ -390,6 +483,17 @@ function PluribusHiveInventory:Initialize()
 		elseif event == "BAG_UPDATE_DELAYED" or event == "PLAYER_MONEY" then
 			PluribusHiveInventory:AttachBagFrameButton()
 			PluribusHiveInventory:ScheduleBagSync()
+		elseif event == "MERCHANT_SHOW" then
+			local cfg = PluribusHive and PluribusHive:GetConfig()
+			if cfg and cfg.autoSellJunk ~= false and not (IsShiftKeyDown and IsShiftKeyDown()) then
+				if C_Timer and C_Timer.After then
+					C_Timer.After(0.15, function()
+						PluribusHiveInventory:SellGrayTrash(true)
+					end)
+				else
+					PluribusHiveInventory:SellGrayTrash(true)
+				end
+			end
 		elseif event == "BANKFRAME_OPENED" then
 			PluribusHiveInventory.bankOpen = true
 			PluribusHiveInventory:AttachBagFrameButton()

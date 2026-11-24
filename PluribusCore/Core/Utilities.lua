@@ -246,12 +246,17 @@ end
 
 function PluribusUtils:GetItemIDFromHyperlink(link)
 	if not link then return nil end
-	if GetItemInfoFromHyperlink then
-		return GetItemInfoFromHyperlink(link)
-	end
 	if type(link) == "number" then return link end
+	if GetItemInfoFromHyperlink then
+		local ok, id = pcall(GetItemInfoFromHyperlink, link)
+		if ok and tonumber(id) then
+			return tonumber(id)
+		end
+	end
 	if type(link) == "string" then
-		return tonumber(link:match("item:(%d+)"))
+		local id = link:match("item:(%d+)")
+		if id then return tonumber(id) end
+		if tonumber(link) then return tonumber(link) end
 	end
 	return nil
 end
