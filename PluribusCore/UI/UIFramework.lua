@@ -47,6 +47,24 @@ PluribusUIFramework.PROFESSION_ICONS = {
 	["First Aid"] = "Interface\\Icons\\Spell_Holy_SealOfSacrifice",
 	Fishing = "Interface\\Icons\\Trade_Fishing",
 	Jewelcrafting = "Interface\\Icons\\INV_Misc_Gem_01",
+	Inscription = "Interface\\Icons\\INV_Inscription_Tradeskill01",
+}
+
+local PROFESSION_ICON_ALIASES = {
+	["alchemy"] = "Alchemy", ["alchemie"] = "Alchemy", ["alchimie"] = "Alchemy",
+	["blacksmithing"] = "Blacksmithing", ["schmiedekunst"] = "Blacksmithing", ["schmieden"] = "Blacksmithing",
+	["enchanting"] = "Enchanting", ["verzauberkunst"] = "Enchanting", ["verzaubern"] = "Enchanting",
+	["engineering"] = "Engineering", ["ingenieurskunst"] = "Engineering",
+	["herbalism"] = "Herbalism", ["kräuterkunde"] = "Herbalism", ["kraeuterkunde"] = "Herbalism",
+	["leatherworking"] = "Leatherworking", ["lederverarbeitung"] = "Leatherworking",
+	["mining"] = "Mining", ["bergbau"] = "Mining",
+	["skinning"] = "Skinning", ["kürschnerei"] = "Skinning", ["kuerschnerei"] = "Skinning",
+	["tailoring"] = "Tailoring", ["schneiderei"] = "Tailoring",
+	["cooking"] = "Cooking", ["kochkunst"] = "Cooking", ["kochen"] = "Cooking",
+	["first aid"] = "First Aid", ["erste hilfe"] = "First Aid",
+	["fishing"] = "Fishing", ["angeln"] = "Fishing",
+	["jewelcrafting"] = "Jewelcrafting", ["juwelenschleifen"] = "Jewelcrafting", ["juwelierskunst"] = "Jewelcrafting",
+	["inscription"] = "Inscription", ["inschriftenkunde"] = "Inscription",
 }
 
 PluribusUIFramework.CLASS_ICON_COORDS = {
@@ -62,7 +80,15 @@ PluribusUIFramework.CLASS_ICON_COORDS = {
 }
 
 function PluribusUIFramework:GetProfessionIcon(profName)
-	return self.PROFESSION_ICONS[profName or ""] or "Interface\\Icons\\Trade_BlackSmithing"
+	local raw = tostring(profName or ""):match("^%s*(.-)%s*$") or ""
+	if self.PROFESSION_ICONS[raw] then
+		return self.PROFESSION_ICONS[raw]
+	end
+	local canon = PROFESSION_ICON_ALIASES[raw:lower()]
+	if canon and self.PROFESSION_ICONS[canon] then
+		return self.PROFESSION_ICONS[canon]
+	end
+	return "Interface\\Icons\\INV_Misc_Book_09"
 end
 
 function PluribusUIFramework:CreateIconBadge(parent, iconPath, size, borderR, borderG, borderB)
@@ -490,6 +516,9 @@ PluribusUIFramework:ApplyDefaultTheme()
 -- Recursive subtree frame-level propagation so overlapping Pluribus windows never mush together
 local function ApplySubtreeLevels(frame, level, depth)
 	if not frame or depth > 12 then return end
+	if InCombatLockdown and InCombatLockdown() then return end
+	if frame._plbIgnoreStackLevel then return end
+	if frame.IsProtected and frame:IsProtected() then return end
 	if frame.SetFrameLevel then
 		pcall(frame.SetFrameLevel, frame, level)
 	end
@@ -497,7 +526,7 @@ local function ApplySubtreeLevels(frame, level, depth)
 	local parentStrata = frame.GetFrameStrata and frame:GetFrameStrata() or nil
 	local children = { frame:GetChildren() }
 	for _, child in ipairs(children) do
-		if child and not child._plbIgnoreStackLevel then
+		if child and not child._plbIgnoreStackLevel and not (child.IsProtected and child:IsProtected()) then
 			local cStrata = child.GetFrameStrata and child:GetFrameStrata() or parentStrata
 			if not parentStrata or cStrata == parentStrata then
 				local offset = child._plbLevelOffset or 1
@@ -510,6 +539,7 @@ end
 -- Raise a managed Pluribus window cleanly on top of all other open Pluribus windows
 function PluribusUIFramework:BringToFront(frame)
 	if not frame then return end
+	if InCombatLockdown and InCombatLockdown() then return end
 	local stack = self.windowStack
 	for i = #stack, 1, -1 do
 		if stack[i] == frame or stack[i] == nil then
@@ -961,15 +991,8 @@ function PluribusUIFramework:CreateSideTab(hostFrame, index, opts)
 	tab._isActive = false
 	tab._plbSideTab = true
 
-	-- Clean, non-bleeding bookmark backing (no oversized overflow into sibling tabs or docked drawers)
-	local bgTab = tab:CreateTexture(nil, "BACKGROUND")
-	bgTab:SetTexture("Interface\\SpellBook\\SpellBook-SkillLineTab")
-	bgTab:SetSize(size + 8, size + 6)
-	bgTab:SetPoint("TOPLEFT", tab, "TOPLEFT", -2, 3)
-	bgTab:SetVertexColor(0.24, 0.30, 0.42, 0.82)
-	tab.bgTab = bgTab
-
-	self:ApplyBackdrop(tab, 0.08, 0.11, 0.17, 0.96, p.border[1], p.border[2], p.border[3], 0.95)
+	-- Pure flat obsidian bookmark tab (eliminates classic SpellBook parchment patchwork)
+	self:ApplyBackdrop(tab, p.panel[1], p.panel[2], p.panel[3], 0.96, p.border[1], p.border[2], p.border[3], 0.95)
 
 	-- Active left-edge accent indicator bar
 	local activeStripe = tab:CreateTexture(nil, "OVERLAY")
@@ -1047,11 +1070,9 @@ function PluribusUIFramework:CreateSideTab(hostFrame, index, opts)
 		self:SetPoint("TOPLEFT", self._host, "TOPRIGHT", self._baseX + (self._isActive and 3 or 0), self._baseY)
 		if self._isActive then
 			PluribusUIFramework:ApplyBackdrop(self, 0.13, 0.24, 0.42, 0.98, 0.22, 0.74, 0.97, 1)
-			self.bgTab:SetVertexColor(0.22, 0.62, 0.95, 0.98)
 			self.activeStripe:Show()
 		else
-			PluribusUIFramework:ApplyBackdrop(self, 0.08, 0.11, 0.17, 0.96, pal.border[1], pal.border[2], pal.border[3], 0.92)
-			self.bgTab:SetVertexColor(0.24, 0.30, 0.42, 0.90)
+			PluribusUIFramework:ApplyBackdrop(self, pal.panel[1], pal.panel[2], pal.panel[3], 0.96, pal.border[1], pal.border[2], pal.border[3], 0.92)
 			self.activeStripe:Hide()
 		end
 	end
@@ -1337,12 +1358,130 @@ function PluribusUIFramework:CreateDropdown(parent, options, selected, onchange)
 	return dropdown
 end
 
+-- Taint-free flat obsidian skinning for native Blizzard Container / Bank / GuildBank ItemButtons.
+-- NEVER writes custom Lua fields onto the secure ItemButton itself!
+function PluribusUIFramework:SkinFlatItemSlot(btn, overlay)
+	if not btn then return end
+	local p = self.palette
+	local btnName = btn.GetName and btn:GetName() or nil
+
+	-- Hide Blizzard's beveled classic quickslot / parchment normal & border textures
+	local nt = (btn.GetNormalTexture and btn:GetNormalTexture()) or (btnName and _G[btnName .. "NormalTexture"])
+	if nt then
+		pcall(nt.SetTexture, nt, nil)
+		pcall(nt.SetAlpha, nt, 0)
+	end
+	for _, region in ipairs({
+		btn.IconBorder,
+		btn.SlotBackground,
+		btn.BattlepayItemTexture,
+		btn.NewItemTexture,
+		btn.BagIndicator,
+		btnName and _G[btnName .. "IconQuestTexture"],
+	}) do
+		if region and region.SetAlpha then
+			pcall(region.SetAlpha, region, 0)
+		end
+	end
+
+	-- Flat obsidian backing painted cleanly inside the non-interactive overlay (or btn BACKGROUND)
+	local bgHost = overlay or btn
+	local slotBg = bgHost:CreateTexture(nil, "BACKGROUND", nil, -6)
+	slotBg:SetPoint("TOPLEFT", btn, "TOPLEFT", 1, -1)
+	slotBg:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", -1, 1)
+	if slotBg.SetColorTexture then
+		slotBg:SetColorTexture(p.bg[1] * 0.85, p.bg[2] * 0.85, p.bg[3] * 0.95, 0.94)
+	else
+		slotBg:SetTexture("Interface\\Buttons\\WHITE8X8")
+		slotBg:SetVertexColor(p.bg[1] * 0.85, p.bg[2] * 0.85, p.bg[3] * 0.95, 0.94)
+	end
+
+	-- Crop & inset item icon so rounded Blizzard icon corners never peek out
+	local icon = btn.icon or btn.Icon or (btnName and _G[btnName .. "IconTexture"])
+	if icon then
+		pcall(icon.SetTexCoord, icon, 0.08, 0.92, 0.08, 0.92)
+		pcall(icon.ClearAllPoints, icon)
+		pcall(icon.SetPoint, icon, "TOPLEFT", btn, "TOPLEFT", 2, -2)
+		pcall(icon.SetPoint, icon, "BOTTOMRIGHT", btn, "BOTTOMRIGHT", -2, 2)
+	end
+
+	-- Replace classic golden highlight square with subtle flat cyan hover glow
+	local hl = btn.GetHighlightTexture and btn:GetHighlightTexture()
+	if hl then
+		pcall(hl.ClearAllPoints, hl)
+		pcall(hl.SetPoint, hl, "TOPLEFT", btn, "TOPLEFT", 2, -2)
+		pcall(hl.SetPoint, hl, "BOTTOMRIGHT", btn, "BOTTOMRIGHT", -2, 2)
+		if hl.SetColorTexture then
+			pcall(hl.SetColorTexture, hl, 0.22, 0.74, 0.97, 0.22)
+		else
+			pcall(hl.SetTexture, hl, "Interface\\Buttons\\WHITE8X8")
+			pcall(hl.SetVertexColor, hl, 0.22, 0.74, 0.97, 0.22)
+		end
+	end
+end
+
+-- Skin Blizzard's UIPanelScrollFrame scrollbar into a sleek flat obsidian rail (zero classic parchment chrome!)
+function PluribusUIFramework:SkinScrollBar(scrollBar, uniqueName)
+	if not scrollBar then return end
+	local p = self.palette
+	local sbName = scrollBar.GetName and scrollBar:GetName() or (uniqueName and (uniqueName .. "ScrollBar")) or nil
+
+	-- Hide any classic textured track art regions
+	if scrollBar.GetRegions then
+		for _, reg in ipairs({ scrollBar:GetRegions() }) do
+			if reg and reg.GetObjectType and reg:GetObjectType() == "Texture" then
+				pcall(reg.SetAlpha, reg, 0)
+			end
+		end
+	end
+
+	scrollBar:SetWidth(12)
+	self:ApplyBackdrop(scrollBar, 0.04, 0.06, 0.10, 0.88, p.border[1], p.border[2], p.border[3], 0.55)
+
+	local thumb = (scrollBar.GetThumbTexture and scrollBar:GetThumbTexture()) or (sbName and _G[sbName .. "ThumbTexture"])
+	if thumb then
+		thumb:SetWidth(8)
+		if thumb.SetColorTexture then
+			thumb:SetColorTexture(p.accent[1], p.accent[2], p.accent[3], 0.82)
+		else
+			thumb:SetTexture("Interface\\Buttons\\WHITE8X8")
+			thumb:SetVertexColor(p.accent[1], p.accent[2], p.accent[3], 0.82)
+		end
+		thumb:SetAlpha(1)
+	end
+
+	local upBtn = scrollBar.ScrollUpButton or (sbName and _G[sbName .. "ScrollUpButton"])
+	local downBtn = scrollBar.ScrollDownButton or (sbName and _G[sbName .. "ScrollDownButton"])
+	local function SkinArrowBtn(ab, glyph)
+		if not ab then return end
+		ab:SetSize(12, 12)
+		if ab.GetNormalTexture and ab:GetNormalTexture() then ab:GetNormalTexture():SetAlpha(0) end
+		if ab.GetPushedTexture and ab:GetPushedTexture() then ab:GetPushedTexture():SetAlpha(0) end
+		if ab.GetDisabledTexture and ab:GetDisabledTexture() then ab:GetDisabledTexture():SetAlpha(0) end
+		if ab.GetHighlightTexture and ab:GetHighlightTexture() then ab:GetHighlightTexture():SetAlpha(0) end
+		self:ApplyBackdrop(ab, p.panel[1], p.panel[2], p.panel[3], 0.95, p.border[1], p.border[2], p.border[3], 0.7)
+		if not ab._plbGlyph then
+			local fs = ab:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+			fs:SetPoint("CENTER", ab, "CENTER", 0, 0)
+			fs:SetText(glyph)
+			fs:SetTextColor(p.muted[1], p.muted[2], p.muted[3], 1)
+			ab._plbGlyph = fs
+		end
+	end
+	SkinArrowBtn(upBtn, "^")
+	SkinArrowBtn(downBtn, "v")
+end
+
 function PluribusUIFramework:CreateScrollFrame(parent, name, width, height)
 	-- Append unique sequence suffix so UIPanelScrollFrameTemplate scrollbar globals NEVER collide on tab switches
 	self._scrollSeq = (self._scrollSeq or 0) + 1
 	local uniqueName = tostring(name or "PluribusScroll") .. "_" .. tostring(self._scrollSeq)
 	local scroll = CreateFrame("ScrollFrame", uniqueName, parent, "UIPanelScrollFrameTemplate")
 	scroll:SetSize(width, height)
+	local sb = scroll.ScrollBar or _G[uniqueName .. "ScrollBar"]
+	if sb then
+		self:SkinScrollBar(sb, uniqueName)
+	end
 	local content = CreateFrame("Frame", nil, scroll)
 	content:SetSize(math.max(40, (width or 300) - 24), math.max(40, height or 200))
 	scroll:SetScrollChild(content)
@@ -1352,19 +1491,343 @@ function PluribusUIFramework:CreateScrollFrame(parent, name, width, height)
 	return scroll
 end
 
+-- True Windowed Virtual Scroll List:
+-- Instantiates ONLY visible viewport row frames lazily on demand (O(visible) frames total
+-- regardless of whether backing data has 50 or 50,000 items), supports smooth mouse wheel
+-- and draggable proportional scrollbar, and defers heavy live hydration during rapid drags.
+function PluribusUIFramework:CreateVirtualScrollList(parent, opts)
+	opts = opts or {}
+	local p = self.palette
+	local width = tonumber(opts.width) or 724
+	local height = tonumber(opts.height) or 290
+	local rowHeight = tonumber(opts.rowHeight) or 34
+	local rowGap = tonumber(opts.rowGap) or 2
+	local stride = math.max(1, rowHeight + rowGap)
+	local padTop = tonumber(opts.padTop) or 2
+	local scrollBarWidth = tonumber(opts.scrollBarWidth) or 16
+	local wheelStep = tonumber(opts.wheelStep) or 3
+	local shiftWheelStep = tonumber(opts.shiftWheelStep) or 12
+	local visibleCount = math.max(1, math.floor((height - padTop) / stride))
+	local rowWidth = math.max(80, width - scrollBarWidth - 8)
+
+	local viewport = CreateFrame("Frame", nil, parent)
+	viewport:SetSize(width, height)
+	viewport:EnableMouseWheel(true)
+	if viewport.SetClipsChildren then
+		viewport:SetClipsChildren(true)
+	end
+
+	-- Compact themed vertical scrollbar rail (up btn + slider + down btn)
+	local upBtn = self:CreateButton(viewport, "^", scrollBarWidth, 16, nil)
+	upBtn:SetPoint("TOPRIGHT", viewport, "TOPRIGHT", -2, -2)
+
+	local downBtn = self:CreateButton(viewport, "v", scrollBarWidth, 16, nil)
+	downBtn:SetPoint("BOTTOMRIGHT", viewport, "BOTTOMRIGHT", -2, 2)
+
+	local trackHeight = math.max(32, height - 40)
+	local slider = CreateFrame("Slider", nil, viewport, BACKDROP_TEMPLATE)
+	slider:SetOrientation("VERTICAL")
+	slider:SetWidth(scrollBarWidth)
+	slider:SetPoint("TOPRIGHT", upBtn, "BOTTOMRIGHT", 0, -2)
+	slider:SetPoint("BOTTOMRIGHT", downBtn, "TOPRIGHT", 0, 2)
+	self:ApplyBackdrop(slider, 0.04, 0.06, 0.10, 0.92, p.border[1], p.border[2], p.border[3], 0.55)
+	slider:SetMinMaxValues(0, 0)
+	slider:SetValueStep(1)
+	if slider.SetObeyStepOnDrag then
+		slider:SetObeyStepOnDrag(true)
+	end
+	slider:SetValue(0)
+	slider:EnableMouse(true)
+
+	local thumb = slider:CreateTexture(nil, "OVERLAY")
+	if thumb.SetColorTexture then
+		thumb:SetColorTexture(p.accent[1], p.accent[2], p.accent[3], 0.88)
+	else
+		thumb:SetTexture("Interface\\Buttons\\WHITE8X8")
+		thumb:SetVertexColor(p.accent[1], p.accent[2], p.accent[3], 0.88)
+	end
+	thumb:SetSize(math.max(8, scrollBarWidth - 4), 28)
+	slider:SetThumbTexture(thumb)
+
+	local dataList = {}
+	local dataGen = 0
+	local currentOffset = 0
+	local lastRenderedOffset = -1
+	local lastRenderedGen = -1
+	local lastRenderedCount = -1
+	local suppressSlider = false
+	local isDragging = false
+	local rowPool = {}
+	local shownCount = 0
+
+	-- Settle timer: after rapid scrollbar drag stops for 0.06s, hydrate live metadata on visible rows
+	local settleFrame = CreateFrame("Frame", nil, viewport)
+	settleFrame:Hide()
+	local settleRem = 0
+	local function HydrateVisibleAfterSettle()
+		local total = #dataList
+		local visEnd = math.min(total, currentOffset + visibleCount)
+		if opts.bindRow then
+			for slotIdx = 1, shownCount do
+				local dataIdx = currentOffset + slotIdx
+				local row = rowPool[slotIdx]
+				local item = dataList[dataIdx]
+				if row and item and row:IsShown() then
+					opts.bindRow(row, item, dataIdx, slotIdx, false)
+				end
+			end
+		end
+		if opts.onSettle then
+			opts.onSettle(currentOffset, total > 0 and (currentOffset + 1) or 0, visEnd, total)
+		end
+	end
+
+	settleFrame:SetScript("OnUpdate", function(sf, elapsed)
+		settleRem = settleRem - (elapsed or 0)
+		if settleRem <= 0 then
+			sf:Hide()
+			if viewport:IsVisible() then
+				HydrateVisibleAfterSettle()
+			end
+		end
+	end)
+
+	local function ScheduleSettle()
+		settleRem = 0.06
+		settleFrame:Show()
+	end
+
+	local function SyncScrollBar()
+		local total = #dataList
+		local maxOffset = math.max(0, total - visibleCount)
+		if currentOffset > maxOffset then currentOffset = maxOffset end
+		if currentOffset < 0 then currentOffset = 0 end
+
+		suppressSlider = true
+		slider:SetMinMaxValues(0, maxOffset)
+		slider:SetValue(currentOffset)
+		suppressSlider = false
+
+		local scrollable = maxOffset > 0
+		if scrollable then
+			local ratio = math.min(1, visibleCount / math.max(1, total))
+			local th = math.max(22, math.min(trackHeight - 4, math.floor(trackHeight * ratio)))
+			thumb:SetHeight(th)
+			slider:SetAlpha(1)
+			slider:EnableMouse(true)
+			upBtn:SetAlpha(currentOffset > 0 and 1 or 0.4)
+			downBtn:SetAlpha(currentOffset < maxOffset and 1 or 0.4)
+		else
+			thumb:SetHeight(math.max(22, trackHeight - 4))
+			slider:SetAlpha(0.32)
+			slider:EnableMouse(false)
+			upBtn:SetAlpha(0.32)
+			downBtn:SetAlpha(0.32)
+		end
+	end
+
+	local function RenderWindow(forceRebind, isFastScroll)
+		local total = #dataList
+		local maxOffset = math.max(0, total - visibleCount)
+		if currentOffset > maxOffset then currentOffset = maxOffset end
+		if currentOffset < 0 then currentOffset = 0 end
+
+		if not forceRebind
+			and currentOffset == lastRenderedOffset
+			and dataGen == lastRenderedGen
+			and total == lastRenderedCount then
+			return
+		end
+
+		lastRenderedOffset = currentOffset
+		lastRenderedGen = dataGen
+		lastRenderedCount = total
+
+		local visibleNow = 0
+		for slotIdx = 1, visibleCount do
+			local dataIdx = currentOffset + slotIdx
+			local item = dataList[dataIdx]
+			if item ~= nil then
+				visibleNow = visibleNow + 1
+				local row = rowPool[slotIdx]
+				if not row and opts.createRow then
+					row = opts.createRow(viewport, slotIdx, rowWidth, rowHeight)
+					row:ClearAllPoints()
+					row:SetPoint("TOPLEFT", viewport, "TOPLEFT", 2, -padTop - (slotIdx - 1) * stride)
+					rowPool[slotIdx] = row
+				end
+				if row then
+					if opts.bindRow then
+						opts.bindRow(row, item, dataIdx, slotIdx, isFastScroll == true)
+					end
+					row:Show()
+				end
+			else
+				local row = rowPool[slotIdx]
+				if row then row:Hide() end
+			end
+		end
+		shownCount = visibleNow
+
+		for slotIdx = visibleNow + 1, #rowPool do
+			if rowPool[slotIdx] then rowPool[slotIdx]:Hide() end
+		end
+
+		SyncScrollBar()
+		if isFastScroll then
+			ScheduleSettle()
+		else
+			settleFrame:Hide()
+		end
+
+		if opts.onScrollChanged then
+			local firstIdx = total > 0 and (currentOffset + 1) or 0
+			local lastIdx = math.min(total, currentOffset + visibleNow)
+			opts.onScrollChanged(currentOffset, firstIdx, lastIdx, total)
+		end
+	end
+
+	function viewport:SetOffset(newOffset, isFastScroll)
+		local total = #dataList
+		local maxOffset = math.max(0, total - visibleCount)
+		local clamped = math.max(0, math.min(maxOffset, math.floor((tonumber(newOffset) or 0) + 0.5)))
+		if clamped == currentOffset and lastRenderedGen == dataGen then
+			return currentOffset
+		end
+		currentOffset = clamped
+		RenderWindow(false, isFastScroll)
+		return currentOffset
+	end
+
+	function viewport:ScrollBy(delta, isFastScroll)
+		return self:SetOffset(currentOffset + (tonumber(delta) or 0), isFastScroll)
+	end
+
+	function viewport:ScrollToTop()
+		return self:SetOffset(0, false)
+	end
+
+	function viewport:ScrollToBottom()
+		return self:SetOffset(math.max(0, #dataList - visibleCount), false)
+	end
+
+	function viewport:SetData(items, preserveOffset)
+		dataList = items or {}
+		dataGen = dataGen + 1
+		if not preserveOffset then
+			currentOffset = 0
+		else
+			local maxOffset = math.max(0, #dataList - visibleCount)
+			if currentOffset > maxOffset then currentOffset = maxOffset end
+		end
+		RenderWindow(true, false)
+	end
+
+	function viewport:RefreshVisible(forceRebind)
+		if forceRebind then
+			RenderWindow(true, false)
+		else
+			HydrateVisibleAfterSettle()
+		end
+	end
+
+	function viewport:GetOffset() return currentOffset end
+	function viewport:GetVisibleCount() return visibleCount end
+	function viewport:GetShownCount() return shownCount end
+	function viewport:GetRowPool() return rowPool end
+	function viewport:GetDataCount() return #dataList end
+	function viewport:GetVisibleRange()
+		local total = #dataList
+		if total <= 0 or shownCount <= 0 then return 0, 0, total end
+		return currentOffset + 1, math.min(total, currentOffset + shownCount), total
+	end
+
+	upBtn:SetScript("OnClick", function()
+		viewport:ScrollBy(-1, false)
+	end)
+	downBtn:SetScript("OnClick", function()
+		viewport:ScrollBy(1, false)
+	end)
+
+	slider:SetScript("OnMouseDown", function()
+		isDragging = true
+	end)
+	slider:SetScript("OnMouseUp", function()
+		isDragging = false
+		ScheduleSettle()
+	end)
+	slider:SetScript("OnValueChanged", function(_, value)
+		if suppressSlider then return end
+		local nextOff = math.floor((tonumber(value) or 0) + 0.5)
+		local jump = math.abs(nextOff - currentOffset)
+		viewport:SetOffset(nextOff, isDragging or jump > visibleCount)
+	end)
+
+	viewport:SetScript("OnMouseWheel", function(_, delta)
+		local step = (IsShiftKeyDown and IsShiftKeyDown()) and shiftWheelStep or wheelStep
+		viewport:ScrollBy(-(delta or 0) * step, false)
+	end)
+
+	viewport._slider = slider
+	viewport._upBtn = upBtn
+	viewport._downBtn = downBtn
+	viewport._rowPool = rowPool
+	SyncScrollBar()
+	return viewport
+end
+
 function PluribusUIFramework:CreateCheckbox(parent, text, checked, onchange)
-	local checkbox = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
+	local p = self.palette
+	local checkbox = CreateFrame("CheckButton", nil, parent, BACKDROP_TEMPLATE)
+	checkbox:SetSize(18, 18)
+	self:ApplyBackdrop(checkbox, 0.04, 0.06, 0.10, 0.98, p.border[1], p.border[2], p.border[3], 0.95)
+
+	local checkFill = checkbox:CreateTexture(nil, "ARTWORK")
+	checkFill:SetPoint("TOPLEFT", checkbox, "TOPLEFT", 3, -3)
+	checkFill:SetPoint("BOTTOMRIGHT", checkbox, "BOTTOMRIGHT", -3, 3)
+	if checkFill.SetColorTexture then
+		checkFill:SetColorTexture(0.22, 0.74, 0.97, 1)
+	else
+		checkFill:SetTexture("Interface\\Buttons\\WHITE8X8")
+		checkFill:SetVertexColor(0.22, 0.74, 0.97, 1)
+	end
+	checkbox:SetCheckedTexture(checkFill)
+
+	local hl = checkbox:CreateTexture(nil, "HIGHLIGHT")
+	hl:SetPoint("TOPLEFT", checkbox, "TOPLEFT", 1, -1)
+	hl:SetPoint("BOTTOMRIGHT", checkbox, "BOTTOMRIGHT", -1, 1)
+	if hl.SetColorTexture then
+		hl:SetColorTexture(0.22, 0.74, 0.97, 0.18)
+	else
+		hl:SetTexture("Interface\\Buttons\\WHITE8X8")
+		hl:SetVertexColor(0.22, 0.74, 0.97, 0.18)
+	end
+
 	checkbox:SetChecked(checked == true)
+
+	local function SyncVisual(selfBox)
+		local isOn = selfBox:GetChecked() == true
+		if isOn then
+			PluribusUIFramework:ApplyBackdrop(selfBox, 0.08, 0.16, 0.28, 0.98, 0.22, 0.74, 0.97, 1)
+		else
+			PluribusUIFramework:ApplyBackdrop(selfBox, 0.04, 0.06, 0.10, 0.98, p.border[1], p.border[2], p.border[3], 0.95)
+		end
+	end
+	SyncVisual(checkbox)
+
 	if text then
 		local label = self:CreateLabel(checkbox, text)
-		label:SetPoint("LEFT", checkbox, "RIGHT", 4, 0)
+		label:SetPoint("LEFT", checkbox, "RIGHT", 6, 0)
 		checkbox.label = label
 	end
-	if onchange then
-		checkbox:SetScript("OnClick", function(selfBox)
+
+	checkbox:SetScript("OnClick", function(selfBox)
+		PluribusUIFramework:BringOwnerToFront(selfBox)
+		SyncVisual(selfBox)
+		if onchange then
 			onchange(selfBox:GetChecked() == true)
-		end)
-	end
+		end
+	end)
 	return checkbox
 end
 
@@ -1491,6 +1954,7 @@ function PluribusUIFramework:CreateMinimapButton()
 			GameTooltip:AddLine("Left-Click: Open Guild Hive Hub (/pluribus)", 0.8, 0.9, 1)
 			GameTooltip:AddLine("Right-Click: Pluribus Settings Menu", 0.8, 0.9, 1)
 			GameTooltip:AddLine("Shift + Right-Click: Officer Dashboard (/officer)", 0.7, 0.8, 0.9)
+			GameTooltip:AddLine("HealBot + Decursive: /healbot oder Hub-Tab", 0.45, 0.92, 0.68)
 			GameTooltip:AddLine("Drag: Reposition button", 0.6, 0.7, 0.8)
 			GameTooltip:Show()
 		end

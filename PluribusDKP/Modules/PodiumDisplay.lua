@@ -125,7 +125,7 @@ function PodiumDisplay:CreateFrame()
     end
     
     self.frame = frame
-    frame:Show()
+    frame:Hide()
 end
 
 function PodiumDisplay:CreateHeaderRow(parent)

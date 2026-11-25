@@ -1,7 +1,7 @@
 -- PluribusCore Constants
 -- Global constants used throughout the suite
 
-PLURIBUS_SUITE_VERSION = "1.0.0"
+PLURIBUS_SUITE_VERSION = "2.2.0"
 PLURIBUS_SUITE_NAME = "Pluribus Suite"
 PLURIBUS_CORE_NAME = "PluribusCore"
 

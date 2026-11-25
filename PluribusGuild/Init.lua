@@ -42,7 +42,7 @@ local function InitializeGuild()
 	
 	PluribusCommandRegistry:RegisterCommand({
 		name = "guildroster",
-		aliases = { "gr" },
+		aliases = { "plbroster" },
 		description = "Open guild roster",
 		func = function()
 			PluribusGuildUI:FocusTab("roster")

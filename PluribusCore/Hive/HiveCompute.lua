@@ -17,12 +17,16 @@ PluribusHiveCompute = {
 	selectedPriority = "BALANCED",
 	selectedFarmTarget = "GUILD_NEEDS",
 	zoneSession = { zone = nil, enteredAt = 0, xp = 0, copper = 0, items = {} },
+	catalogCursor = 1,
+	lastRefinementAt = 0,
+	refinementCursor = 1,
 }
 _G.PluribusHiveCompute = PluribusHiveCompute
 
 local TICK_INTERVAL = 0.10 -- Run compute slices at most 10 Hz (<1.5% idle CPU at 1.5ms budget)
 local SHARD_STEAL_TIMEOUT = 10 -- Reassign unclaimed/stalled shards after 10s so jobs always finish
 local TELEM_SHARE_INTERVAL = 300
+local REFINE_INTERVAL = 18 -- Run continuous background route refinement every 18s while idle
 
 local function NowMs()
 	if debugprofilestop then
@@ -89,9 +93,51 @@ function PluribusHiveCompute:GetComputeDB()
 	local db = PluribusHive:GetDB()
 	db.compute = db.compute or {
 		telemetry = {},      -- [zone] = { xpSamples, xpHrAvg, goldHrAvg, items = { [id]=count }, updatedAt }
-		cachedGuides = {},   -- [key] = { kind, title, createdAt, workers = {}, steps = {} }
+		cachedGuides = {},   -- [fullKey] = { kind, param, priority, createdAt, refinedAt, refinementPass, savedTravelSec, workers = {}, steps = {} }
+		stats = { totalRefinements = 0, totalTravelSavedSec = 0 },
 	}
+	db.compute.telemetry = db.compute.telemetry or {}
+	db.compute.cachedGuides = db.compute.cachedGuides or {}
+	db.compute.stats = db.compute.stats or { totalRefinements = 0, totalTravelSavedSec = 0 }
 	return db.compute
+end
+
+function PluribusHiveCompute:MakeGuideCacheKey(kind, param, priority)
+	kind = tostring(kind or "LEVELING")
+	param = tostring(param or (kind == "LEVELING" and "AUTO" or "GUILD_NEEDS"))
+	priority = tostring(priority or (kind == "LEVELING" and "BALANCED" or "GOLD"))
+	return kind .. ":" .. param .. ":" .. priority
+end
+
+function PluribusHiveCompute:GetCachedGuide(kind, param, priority)
+	local cdb = self:GetComputeDB()
+	local fullKey = self:MakeGuideCacheKey(kind, param, priority)
+	if cdb.cachedGuides[fullKey] and cdb.cachedGuides[fullKey].steps and #cdb.cachedGuides[fullKey].steps > 0 then
+		return cdb.cachedGuides[fullKey], fullKey
+	end
+	if cdb.cachedGuides[kind] and cdb.cachedGuides[kind].steps and #cdb.cachedGuides[kind].steps > 0 then
+		return cdb.cachedGuides[kind], kind
+	end
+	return nil, fullKey
+end
+
+function PluribusHiveCompute:GetRouteCacheSummary()
+	local cdb = self:GetComputeDB()
+	local guideCount = 0
+	for k, g in pairs(cdb.cachedGuides or {}) do
+		if k:find(":", 1, true) and g and g.steps and #g.steps > 0 then
+			guideCount = guideCount + 1
+		end
+	end
+	local pfStats = (_G.PluribusHivePathfinder and _G.PluribusHivePathfinder.GetCacheStats)
+		and _G.PluribusHivePathfinder:GetCacheStats() or { cachedRoutes = 0, totalImprovements = 0, observedEdges = 0 }
+	return {
+		cachedGuides = guideCount,
+		cachedPaths = pfStats.cachedRoutes or 0,
+		refinements = (cdb.stats and cdb.stats.totalRefinements or 0) + (pfStats.totalImprovements or 0),
+		savedTravelSec = cdb.stats and cdb.stats.totalTravelSavedSec or 0,
+		observedEdges = pfStats.observedEdges or 0,
+	}
 end
 
 function PluribusHiveCompute:GetBudgetConfig()
@@ -226,14 +272,15 @@ end
 function PluribusHiveCompute:GetItemValueCopper(itemID)
 	if _G.PluribusHiveAuction and _G.PluribusHiveAuction.GetPrice then
 		local p = _G.PluribusHiveAuction:GetPrice(itemID)
-		if p and p.buyout and p.buyout > 0 then
-			return p.buyout
+		if p and ((p.copper and p.copper > 0) or (p.buyout and p.buyout > 0)) then
+			return p.copper or p.buyout
 		end
 	end
 	local db = PluribusHive:GetDB()
 	local pr = db.prices and db.prices[itemID]
-	if pr and pr.buyout and pr.buyout > 0 then return pr.buyout end
-	-- Reasonable Classic baseline fallbacks for key mats if AH not yet scanned
+	if pr and ((pr.copper and pr.copper > 0) or (pr.buyout and pr.buyout > 0)) then
+		return pr.copper or pr.buyout
+	end
 	local FALLBACK = {
 		[13468] = 650000, [12363] = 550000, [12811] = 350000, [15417] = 180000,
 		[7080] = 160000,  [7082] = 180000,  [7076] = 85000,   [13466] = 28000,
@@ -244,6 +291,384 @@ function PluribusHiveCompute:GetItemValueCopper(itemID)
 		[3818] = 7500,    [3821] = 6200,    [3355] = 4800,    [2772] = 3200,
 	}
 	return FALLBACK[itemID] or 4500
+end
+
+-- Classic 1.60.1 per-item farm route knowledge base (used inline inside the To-Do List!)
+local ITEM_FARM_ROUTES = {
+	-- Herbs
+	[765]   = { zone = "Elwynn Forest",       x = 48.0, y = 52.0, source = "Silverleaf / Silberblatt",     yieldHr = 40 },
+	[2447]  = { zone = "Elwynn Forest",       x = 42.5, y = 64.0, source = "Peacebloom / Friedensblume",   yieldHr = 45 },
+	[2449]  = { zone = "The Barrens",         x = 46.2, y = 38.4, source = "Earthroot / Erdwurzel",        yieldHr = 28 },
+	[785]   = { zone = "Loch Modan",          x = 44.0, y = 56.0, source = "Mageroyal / Maguskönigskraut", yieldHr = 30 },
+	[2450]  = { zone = "Hillsbrad Foothills", x = 52.0, y = 44.0, source = "Briarthorn / Wilddornrose",    yieldHr = 32 },
+	[2453]  = { zone = "Redridge Mountains",  x = 34.0, y = 48.0, source = "Bruiseweed / Beulengras",      yieldHr = 28 },
+	[3355]  = { zone = "Stranglethorn Vale",  x = 35.0, y = 26.0, source = "Wild Steelbloom",              yieldHr = 24 },
+	[3356]  = { zone = "Swamp of Sorrows",    x = 46.0, y = 48.0, source = "Kingsblood / Königsblut",      yieldHr = 30 },
+	[3357]  = { zone = "Swamp of Sorrows",    x = 62.0, y = 38.0, source = "Liferoot / Lebenswurz",        yieldHr = 26 },
+	[3818]  = { zone = "Swamp of Sorrows",    x = 54.0, y = 52.0, source = "Fadeleaf / Blassblatt",        yieldHr = 24 },
+	[3820]  = { zone = "Stranglethorn Vale",  x = 26.0, y = 44.0, source = "Stranglekelp (Water/Küste)",   yieldHr = 34 },
+	[3821]  = { zone = "Arathi Highlands",    x = 46.0, y = 58.0, source = "Goldthorn / Golddorn",         yieldHr = 26 },
+	[8831]  = { zone = "Hinterlands",         x = 52.0, y = 46.0, source = "Purple Lotus / Lila Lotus",    yieldHr = 18 },
+	[8838]  = { zone = "Feralas",             x = 56.0, y = 54.0, source = "Sungrass / Sonnengras",        yieldHr = 28 },
+	[8846]  = { zone = "Felwood",             x = 42.4, y = 44.2, source = "Gromsblood / Gromsblut",       yieldHr = 22 },
+	[13463] = { zone = "Azshara",             x = 54.6, y = 50.8, source = "Dreamfoil / Traumblatt",       yieldHr = 24 },
+	[13464] = { zone = "Azshara",             x = 46.0, y = 56.0, source = "Golden Sansam",                yieldHr = 26 },
+	[13465] = { zone = "Winterspring",        x = 56.0, y = 44.0, source = "Mountain Silversage",          yieldHr = 20 },
+	[13466] = { zone = "Eastern Plaguelands", x = 58.2, y = 36.4, source = "Plaguebloom / Pestblüte",      yieldHr = 20 },
+	[13467] = { zone = "Winterspring",        x = 64.0, y = 52.0, source = "Icecap / Eiskappe",            yieldHr = 22 },
+	[13468] = { zone = "Eastern Plaguelands", x = 58.2, y = 36.4, source = "Black Lotus / Schwarzer Lotus",yieldHr = 1 },
+	-- Ores, Bars & Stones
+	[2770]  = { zone = "Durotar",             x = 48.0, y = 36.0, source = "Copper Vein / Kupferader",     yieldHr = 48 },
+	[2840]  = { zone = "Elwynn Forest",       x = 62.0, y = 50.0, source = "Copper Vein -> Smelt",         yieldHr = 48 },
+	[2771]  = { zone = "Redridge Mountains",  x = 42.0, y = 36.0, source = "Tin Vein / Zinnader",          yieldHr = 38 },
+	[2841]  = { zone = "Hillsbrad Foothills", x = 54.0, y = 36.0, source = "Tin + Copper -> Bronze",       yieldHr = 34 },
+	[2772]  = { zone = "Arathi Highlands",    x = 56.0, y = 62.4, source = "Iron Deposit / Eisenvorkommen",yieldHr = 36 },
+	[3575]  = { zone = "Arathi Highlands",    x = 56.0, y = 62.4, source = "Iron Deposit -> Smelt",        yieldHr = 36 },
+	[3858]  = { zone = "Badlands",            x = 52.4, y = 36.0, source = "Mithril Deposit Perimeter",    yieldHr = 40 },
+	[3860]  = { zone = "Badlands",            x = 52.4, y = 36.0, source = "Mithril Deposit -> Smelt",     yieldHr = 40 },
+	[10620] = { zone = "Un'Goro Crater",      x = 64.2, y = 38.5, source = "Rich Thorium Loop",            yieldHr = 38 },
+	[12359] = { zone = "Un'Goro Crater",      x = 64.2, y = 38.5, source = "Rich Thorium -> Smelt",        yieldHr = 38 },
+	[12363] = { zone = "Eastern Plaguelands", x = 46.8, y = 29.4, source = "Rich Thorium -> Arcane Crystal",yieldHr = 2 },
+	[12360] = { zone = "Eastern Plaguelands", x = 46.8, y = 29.4, source = "Rich Thorium + Transmute",     yieldHr = 2 },
+	[12365] = { zone = "Un'Goro Crater",      x = 64.2, y = 38.5, source = "Thorium Veins (Dense Stone)",  yieldHr = 28 },
+	[7912]  = { zone = "Badlands",            x = 52.4, y = 36.0, source = "Mithril Veins (Solid Stone)",  yieldHr = 30 },
+	-- Cloth
+	[2589]  = { zone = "Westfall",            x = 46.0, y = 66.0, source = "Defias Humanoids (Linen)",     yieldHr = 70 },
+	[2592]  = { zone = "Hillsbrad Foothills", x = 62.0, y = 32.0, source = "Syndicate / Dun Garok (Wool)", yieldHr = 60 },
+	[4306]  = { zone = "Scarlet Monastery",   x = 85.3, y = 32.2, source = "Scarlet Humanoids (Silk)",     yieldHr = 75 },
+	[4338]  = { zone = "Tanaris",             x = 68.4, y = 41.2, source = "Southsea Pirates (Mageweave)", yieldHr = 64 },
+	[14047] = { zone = "Western Plaguelands", x = 46.0, y = 17.8, source = "Hearthglen / Tyr's Hand (Rune)",yieldHr = 60 },
+	[14256] = { zone = "Felwood",             x = 40.5, y = 19.6, source = "Jaedenar Satyrs (Felcloth)",   yieldHr = 10 },
+	-- Leather & Scales
+	[2318]  = { zone = "Westfall",            x = 48.0, y = 44.0, source = "Coyotes & Boars (Light)",      yieldHr = 55 },
+	[2319]  = { zone = "Hillsbrad Foothills", x = 48.0, y = 38.0, source = "Yetis & Bears (Medium)",       yieldHr = 50 },
+	[4234]  = { zone = "Stranglethorn Vale",  x = 34.0, y = 36.0, source = "Panthers & Raptors (Heavy)",   yieldHr = 48 },
+	[4304]  = { zone = "Feralas",             x = 53.0, y = 55.6, source = "Yeti Cave (Thick Leather)",    yieldHr = 50 },
+	[8170]  = { zone = "Winterspring",        x = 66.2, y = 44.5, source = "Yeti Cave (Rugged Leather)",   yieldHr = 46 },
+	[15417] = { zone = "Un'Goro Crater",      x = 50.4, y = 62.0, source = "Devilsaurs (Loop)",            yieldHr = 5 },
+	-- Elementals & Essences & Fish
+	[7067]  = { zone = "Badlands",            x = 18.0, y = 42.0, source = "Rock Elementals (Earth)",      yieldHr = 12 },
+	[7068]  = { zone = "Arathi Highlands",    x = 56.0, y = 62.4, source = "Burning Exile (Fire)",         yieldHr = 10 },
+	[7076]  = { zone = "Silithus",            x = 24.4, y = 17.8, source = "NW Twilight/Earth Elementals", yieldHr = 6 },
+	[7078]  = { zone = "Felwood",             x = 42.0, y = 24.0, source = "Searing/Fire Elementals",      yieldHr = 5 },
+	[7080]  = { zone = "Felwood",             x = 40.5, y = 19.6, source = "Irontree Water Elementals",    yieldHr = 6 },
+	[7082]  = { zone = "Silithus",            x = 24.4, y = 17.8, source = "Dust Stormers (Air)",          yieldHr = 6 },
+	[12811] = { zone = "Eastern Plaguelands", x = 31.3, y = 15.7, source = "Stratholme Live (Orbs)",       yieldHr = 2 },
+	[13422] = { zone = "Azshara",             x = 68.5, y = 62.2, source = "Bay of Storms (Stonescale)",   yieldHr = 28 },
+	[13759] = { zone = "Feralas",             x = 45.0, y = 48.0, source = "Nightfin Snapper (Night)",     yieldHr = 24 },
+}
+
+function PluribusHiveCompute:GetFarmRouteForItem(itemID, itemName)
+	itemID = tonumber(itemID)
+	local cdb = self:GetComputeDB()
+	local telemetry = cdb.telemetry or {}
+
+	-- 1. Check live guild telemetry for observed zones dropping this exact item
+	local bestTelemZone, bestTelemCount = nil, 0
+	if itemID and itemID > 0 then
+		for zName, tRec in pairs(telemetry) do
+			local cnt = tRec.items and tRec.items[itemID] or 0
+			if cnt > bestTelemCount then
+				bestTelemCount = cnt
+				bestTelemZone = zName
+			end
+		end
+	end
+
+	-- 2. Direct per-item Classic route database
+	local direct = itemID and ITEM_FARM_ROUTES[itemID] or nil
+	if direct then
+		local goldHr = math.floor(self:GetItemValueCopper(itemID) * (direct.yieldHr or 10))
+		return {
+			zone = direct.zone,
+			x = direct.x,
+			y = direct.y,
+			source = direct.source,
+			yieldHr = direct.yieldHr,
+			yieldText = string.format("~%d/h · ~%s/h", direct.yieldHr or 10, PluribusUtils:FormatGold(goldHr)),
+			note = bestTelemZone and ("Guild Telemetry: " .. bestTelemZone) or string.format("~%d/h (%s)", direct.yieldHr or 10, direct.source),
+		}
+	end
+
+	-- 3. Search multi-drop FARM_SPOTS
+	if itemID and itemID > 0 then
+		for _, spot in ipairs(FARM_SPOTS) do
+			for _, drop in ipairs(spot.items or {}) do
+				if drop.id == itemID then
+					return {
+						zone = spot.zone,
+						x = spot.x,
+						y = spot.y,
+						source = spot.title,
+						yieldHr = drop.rate,
+						yieldText = string.format("~%d/h · %s", drop.rate or 10, spot.cat),
+						note = spot.title,
+					}
+				end
+			end
+		end
+	end
+
+	-- 4. Guild telemetry fallback if observed in the world
+	if bestTelemZone then
+		for _, z in ipairs(LEVELING_ZONES) do
+			if z.zone == bestTelemZone then
+				return {
+					zone = z.zone,
+					x = z.x,
+					y = z.y,
+					source = "Guild Loot Telemetry (" .. bestTelemCount .. "x)",
+					yieldHr = 10,
+					note = z.mobs,
+				}
+			end
+		end
+	end
+
+	-- 5. Fallback by player's current level bracket from auto-computed leveling guide
+	local myLvl = UnitLevel and UnitLevel("player") or 30
+	local bestZone = LEVELING_ZONES[1]
+	for _, z in ipairs(LEVELING_ZONES) do
+		if myLvl >= z.minL and myLvl <= z.maxL then
+			bestZone = z
+			break
+		end
+	end
+	return {
+		zone = bestZone.zone,
+		x = bestZone.x,
+		y = bestZone.y,
+		source = bestZone.mobs or "Open World",
+		yieldHr = 10,
+		note = "Recommended zone for Lv " .. myLvl .. " (" .. tostring(itemName or "Mat") .. ")",
+	}
+end
+
+-- Ordered catalog of ALL core guides pre-computed & cached automatically in the background (not waiting on user requests!)
+local AUTO_COMPUTE_CATALOG = {
+	{ kind = "LEVELING", param = "AUTO",               priority = "BALANCED" },
+	{ kind = "FARMING",  param = "GUILD_NEEDS",        priority = "GOLD" },
+	{ kind = "FARMING",  param = "BEST_GOLD",          priority = "GOLD" },
+	{ kind = "LEVELING", param = "AUTO",               priority = "XP" },
+	{ kind = "LEVELING", param = "AUTO",               priority = "SAFE" },
+	{ kind = "FARMING",  param = "Herbalism",          priority = "GOLD" },
+	{ kind = "FARMING",  param = "Mining",             priority = "GOLD" },
+	{ kind = "FARMING",  param = "Skinning",           priority = "GOLD" },
+	{ kind = "FARMING",  param = "Cloth & Elementals", priority = "GOLD" },
+	{ kind = "FARMING",  param = "Fishing",            priority = "GOLD" },
+	{ kind = "LEVELING", param = "1-15",               priority = "BALANCED" },
+	{ kind = "LEVELING", param = "15-30",              priority = "BALANCED" },
+	{ kind = "LEVELING", param = "30-45",              priority = "BALANCED" },
+	{ kind = "LEVELING", param = "45-60",              priority = "BALANCED" },
+	{ kind = "LEVELING", param = "1-60",               priority = "BALANCED" },
+}
+
+-- Estimate real travel seconds between two route steps using warm Pathfinder cache (fallback to continent/coord heuristic)
+local function EstimateStepTravelSec(a, b)
+	if not a or not b then return 0 end
+	if a.zone == b.zone then
+		local dx = (b.x or 50) - (a.x or 50)
+		local dy = (b.y or 50) - (a.y or 50)
+		return math.floor(math.sqrt(dx * dx + dy * dy) * 3.5)
+	end
+	if _G.PluribusHivePathfinder and _G.PluribusHivePathfinder.ComputeRoute then
+		local ok, r = pcall(function()
+			return _G.PluribusHivePathfinder:ComputeRoute(a.zone, a.x or 50, a.y or 50, b.zone, b.x or 50, b.y or 50, { noStore = false })
+		end)
+		if ok and r and r.totalEtaSec then
+			return r.totalEtaSec
+		end
+	end
+	return 180
+end
+
+local function ComputeTourTravelSec(steps)
+	local total = 0
+	for i = 1, (#steps - 1) do
+		total = total + EstimateStepTravelSec(steps[i], steps[i + 1])
+	end
+	return total
+end
+
+-- Continuous 2-Opt & live-economy refinement pass on a cached guide (runs silently in idle background!)
+function PluribusHiveCompute:RefineCachedGuide(cacheKey)
+	local cdb = self:GetComputeDB()
+	local guide = cdb.cachedGuides[cacheKey]
+	if not guide or not guide.steps or #guide.steps < 2 then return false, 0 end
+
+	local steps = guide.steps
+	local improved = false
+	local savedSec = 0
+
+	-- Step 1: Re-score with freshest AH prices, To-Do demand & guild telemetry
+	local telemetry = cdb.telemetry or {}
+	local demand = self:GetGuildDemandMap()
+	if guide.kind == "FARMING" then
+		for _, st in ipairs(steps) do
+			local spotDef = nil
+			for _, sp in ipairs(FARM_SPOTS) do
+				if sp.id == st.id then spotDef = sp break end
+			end
+			if spotDef then
+				local t = telemetry[spotDef.zone]
+				local ahGoldHr = 0
+				local demandScore = 0
+				for _, drop in ipairs(spotDef.items) do
+					local price = self:GetItemValueCopper(drop.id)
+					local boost = (t and t.items and t.items[drop.id]) and 1.15 or 1.0
+					ahGoldHr = ahGoldHr + math.floor(price * drop.rate * boost)
+					demandScore = demandScore + (demand[drop.id] or 0) * 120000
+				end
+				local newGold = math.max(spotDef.baseGoldHr, ahGoldHr)
+				local newScore = (guide.param == "GUILD_NEEDS") and (newGold + demandScore * 3) or newGold
+				if math.abs((st.goldHr or 0) - newGold) >= 5000 or math.abs((st.score or 0) - newScore) >= 10000 then
+					st.goldHr = math.floor(newGold)
+					st.score = math.floor(newScore)
+					st.demandHits = math.floor(demandScore / 120000)
+					st.calibrated = (t and (t.samples or 0) > 0) and true or false
+					improved = true
+				end
+			end
+		end
+	else
+		for _, st in ipairs(steps) do
+			local t = telemetry[st.zone]
+			if t and (t.samples or 0) > 0 and not st.calibrated then
+				st.calibrated = true
+				if t.xpHr and t.xpHr > 0 then
+					st.xpHr = math.floor((st.xpHr or t.xpHr) * 0.6 + t.xpHr * 0.4)
+				end
+				if t.goldHr and t.goldHr > 0 then
+					st.goldHr = math.floor((st.goldHr or t.goldHr) * 0.6 + t.goldHr * 0.4)
+				end
+				improved = true
+			end
+		end
+	end
+
+	-- Step 2: 2-Opt / adjacent travel-time optimization pass (eliminates unnecessary continent ping-pong!)
+	local beforeTravel = ComputeTourTravelSec(steps)
+	local n = math.min(#steps, 10)
+	local bestGain = 0
+	local bestI, bestJ = nil, nil
+
+	for i = 1, n - 1 do
+		for j = i + 1, n do
+			-- For LEVELING guides, preserve monotonic level progression (only swap overlapping level brackets!)
+			local legalSwap = true
+			if guide.kind == "LEVELING" then
+				local a, b = steps[i], steps[j]
+				if math.abs((a.minL or 1) - (b.minL or 1)) > 5 then
+					legalSwap = false
+				end
+			else
+				-- For FARMING guides, only swap stops with comparable value (within 25%) so #1 hotspot stays near top
+				local sa, sb = math.max(1, steps[i].score or 1), math.max(1, steps[j].score or 1)
+				if math.abs(sa - sb) / math.max(sa, sb) > 0.25 then
+					legalSwap = false
+				end
+			end
+
+			if legalSwap then
+				steps[i], steps[j] = steps[j], steps[i]
+				local candTravel = ComputeTourTravelSec(steps)
+				local gain = beforeTravel - candTravel
+				if gain > bestGain + 8 then
+					bestGain = gain
+					bestI, bestJ = i, j
+				end
+				-- Revert test swap
+				steps[i], steps[j] = steps[j], steps[i]
+			end
+		end
+	end
+
+	if bestI and bestJ and bestGain > 8 then
+		steps[bestI], steps[bestJ] = steps[bestJ], steps[bestI]
+		savedSec = math.floor(bestGain)
+		improved = true
+	end
+
+	guide.refinementPass = (guide.refinementPass or 1) + 1
+	guide.refinedAt = time()
+	guide.totalTravelSec = ComputeTourTravelSec(steps)
+	if savedSec > 0 then
+		guide.savedTravelSec = (guide.savedTravelSec or 0) + savedSec
+		cdb.stats.totalTravelSavedSec = (cdb.stats.totalTravelSavedSec or 0) + savedSec
+	end
+	if improved then
+		cdb.stats.totalRefinements = (cdb.stats.totalRefinements or 0) + 1
+		if _G.PluribusMessaging then
+			pcall(function() _G.PluribusMessaging:Publish("HIVE_COMPUTE_DONE", guide.kind) end)
+		end
+	end
+
+	return improved, savedSec
+end
+
+-- Auto-calculate & continuously pre-warm ALL core guides quietly in background (zero lag!)
+function PluribusHiveCompute:AutoCalculateGuidesIfStale(forceKind, forceParam, forcePriority)
+	local cdb = self:GetComputeDB()
+	local now = time()
+	local STALE_SEC = 900 -- 15 minutes full re-shard freshness
+	if self.activeJob and not self.activeJob.done then return end
+
+	if forceKind then
+		local p = forceParam or (forceKind == "LEVELING" and (self.selectedBracket or "AUTO") or (self.selectedFarmTarget or "GUILD_NEEDS"))
+		local pr = forcePriority or (forceKind == "LEVELING" and (self.selectedPriority or "BALANCED") or "GOLD")
+		self:StartJob(forceKind, p, pr, nil, nil, nil, true)
+		return
+	end
+
+	-- Walk the full catalog and immediately compute any missing or stale route (starting from highest-priority user routes!)
+	for i = 1, #AUTO_COMPUTE_CATALOG do
+		local idx = ((self.catalogCursor - 1 + i - 1) % #AUTO_COMPUTE_CATALOG) + 1
+		local entry = AUTO_COMPUTE_CATALOG[idx]
+		local fullKey = self:MakeGuideCacheKey(entry.kind, entry.param, entry.priority)
+		local cached = cdb.cachedGuides[fullKey]
+		if not cached or not cached.steps or #cached.steps == 0 or (now - (cached.createdAt or 0)) > STALE_SEC then
+			self.catalogCursor = (idx % #AUTO_COMPUTE_CATALOG) + 1
+			self:StartJob(entry.kind, entry.param, entry.priority, nil, nil, nil, true)
+			return
+		end
+	end
+end
+
+-- Continuously improves already-cached guides one by one whenever the worker is idle!
+function PluribusHiveCompute:RunIdleRefinementTick()
+	if self.activeJob and not self.activeJob.done then return end
+	local canRun = self:CanRunComputeSlice()
+	if not canRun then return end
+
+	local cdb = self:GetComputeDB()
+	local now = time()
+
+	-- First check if any catalog route is still missing/stale and kick off background shard job
+	for _, entry in ipairs(AUTO_COMPUTE_CATALOG) do
+		local fullKey = self:MakeGuideCacheKey(entry.kind, entry.param, entry.priority)
+		local cached = cdb.cachedGuides[fullKey]
+		if not cached or not cached.steps or #cached.steps == 0 then
+			self:StartJob(entry.kind, entry.param, entry.priority, nil, nil, nil, true)
+			return
+		end
+	end
+
+	-- All catalog routes exist -> continuously refine one cached guide every REFINE_INTERVAL seconds!
+	if (now - (self.lastRefinementAt or 0)) < REFINE_INTERVAL then return end
+	self.lastRefinementAt = now
+
+	local keys = {}
+	for k, g in pairs(cdb.cachedGuides or {}) do
+		if k:find(":", 1, true) and g and g.steps and #g.steps >= 2 then
+			table.insert(keys, k)
+		end
+	end
+	if #keys == 0 then return end
+	table.sort(keys)
+
+	local idx = ((self.refinementCursor - 1) % #keys) + 1
+	self.refinementCursor = (idx % #keys) + 1
+	self:RefineCachedGuide(keys[idx])
 end
 
 function PluribusHiveCompute:GetGuildDemandMap()
@@ -476,10 +901,10 @@ local function DecodeShardResults(str, kind)
 	return out
 end
 
-function PluribusHiveCompute:StartJob(kind, param, priority, fromPeer, remoteJobId, remoteWorkers)
+function PluribusHiveCompute:StartJob(kind, param, priority, fromPeer, remoteJobId, remoteWorkers, silent)
 	kind = kind or "LEVELING"
 	param = param or (kind == "LEVELING" and "AUTO" or "GUILD_NEEDS")
-	priority = priority or "BALANCED"
+	priority = priority or (kind == "LEVELING" and "BALANCED" or "GOLD")
 
 	local shards = BuildShardsForJob(kind, param, priority)
 	local workers = (remoteWorkers and #remoteWorkers > 0) and remoteWorkers or self:GetEligibleWorkers()
@@ -513,6 +938,7 @@ function PluribusHiveCompute:StartJob(kind, param, priority, fromPeer, remoteJob
 		completedCount = 0,
 		totalShards = #shardStates,
 		done = false,
+		silent = silent == true,
 	}
 	self.activeCoroutine = nil
 	self.activeShardIdx = nil
@@ -521,8 +947,12 @@ function PluribusHiveCompute:StartJob(kind, param, priority, fromPeer, remoteJob
 		-- Broadcast job spec to guild so idle guildmates claim their assigned shards!
 		local wList = table.concat(workers, ",")
 		local body = string.format("%s|%s|%s|%s|%d|%s", jobId, kind, tostring(param), tostring(priority), #shardStates, wList)
-		PluribusHive:Send("JOBREQ", body, "GUILD")
-		PluribusHive:AddFeedEvent("COMPUTE", string.format("Started %s guide across %d worker(s) (%d shards)", kind == "LEVELING" and "Leveling" or "Farming", #workers, #shardStates))
+		if silent and PluribusHive.SendBackground then
+			PluribusHive:SendBackground("JOBREQ", body, "JOBREQ:" .. kind .. ":" .. tostring(param), "GUILD")
+		else
+			PluribusHive:Send("JOBREQ", body, "GUILD")
+			PluribusHive:AddFeedEvent("COMPUTE", string.format("Started %s guide across %d worker(s) (%d shards)", kind == "LEVELING" and "Leveling" or "Farming", #workers, #shardStates))
+		end
 	end
 
 	return self.activeJob
@@ -558,27 +988,49 @@ function PluribusHiveCompute:FinalizeJob(job)
 
 	local cdb = self:GetComputeDB()
 	local cacheKey = job.kind == "LEVELING" and "LEVELING" or "FARMING"
-	cdb.cachedGuides[cacheKey] = {
+	local fullKey = self:MakeGuideCacheKey(job.kind, job.param, job.priority)
+	local prev = cdb.cachedGuides[fullKey]
+	local guideObj = {
 		jobId = job.id,
 		kind = job.kind,
 		param = job.param,
 		priority = job.priority,
 		createdAt = time(),
+		refinedAt = time(),
+		refinementPass = (prev and prev.refinementPass or 0) + 1,
+		savedTravelSec = prev and prev.savedTravelSec or 0,
 		workers = workerCounts,
 		totalShards = job.totalShards,
 		steps = merged,
 	}
+	cdb.cachedGuides[fullKey] = guideObj
+	-- Keep top-level alias updated when matching the active user selection or default
+	if (job.kind == "LEVELING" and job.param == (self.selectedBracket or "AUTO"))
+		or (job.kind == "FARMING" and job.param == (self.selectedFarmTarget or "GUILD_NEEDS"))
+		or not cdb.cachedGuides[cacheKey] then
+		cdb.cachedGuides[cacheKey] = guideObj
+	end
 
-	if _G.PluribusUIFramework and _G.PluribusUIFramework.ShowNotification then
+	-- Immediately run first 2-Opt travel refinement pass on the newly built guide!
+	pcall(function() self:RefineCachedGuide(fullKey) end)
+
+	if not job.silent and _G.PluribusUIFramework and _G.PluribusUIFramework.ShowNotification then
 		local wNames = {}
 		for wn in pairs(workerCounts) do table.insert(wNames, wn) end
 		_G.PluribusUIFramework:ShowNotification(
-			string.format("|cff4ade80Hive %s Guide ready!|r (%d steps · split across %d member(s))",
+			string.format("|cff4ade80Hive %s Guide optimiert!|r (%d Stationen · %d Helfer)",
 				job.kind == "LEVELING" and "Leveling" or "Farming", #merged, math.max(1, #wNames)),
 			3.5)
 	end
 	if _G.PluribusMessaging then
 		pcall(function() _G.PluribusMessaging:Publish("HIVE_COMPUTE_DONE", cacheKey) end)
+	end
+
+	-- Immediately continue pre-computing the next uncached route in the background catalog!
+	if C_Timer and C_Timer.After then
+		C_Timer.After(2.0, function()
+			PluribusHiveCompute:AutoCalculateGuidesIfStale()
+		end)
 	end
 end
 
@@ -631,7 +1083,10 @@ function PluribusHiveCompute:StepScheduler()
 	local job = self.activeJob
 	if not job or job.done then
 		local ok = self:CanRunComputeSlice()
-		if ok then self.workerStatus = "IDLE_READY" end
+		if ok then
+			self.workerStatus = "IDLE_READY"
+			self:RunIdleRefinementTick()
+		end
 		return
 	end
 
@@ -693,11 +1148,13 @@ function PluribusHiveCompute:RenderPanel(parent, width, height, onRefresh)
 	local workers = self:GetEligibleWorkers()
 	local job = self.activeJob
 
-	-- Top Graphical Mesh Status & Anti-Lag Controls Banner
-	local statusLine = string.format("Status: %s  ·  Idle Workers: |cff38bdf8%d|r  ·  Cap: |cfffbbf24%.1fms / FPS >= %d|r",
-		self:GetStatusLabel(), #workers, b.budgetMs, b.minFps)
+	-- Top Graphical Mesh Status & Live Auto-Cache Refinement Banner
+	local cacheSum = self:GetRouteCacheSummary()
+	local savedTxt = (cacheSum.savedTravelSec or 0) > 0 and string.format("  ·  |cff4ade80-%ds Reisezeit|r", cacheSum.savedTravelSec) or ""
+	local statusLine = string.format("%s · Worker: |cff38bdf8%d|r · Cache: |cff4ade80%d Guides / %d Pfade|r · Optimierungen: |cfffbbf24%d|r%s",
+		self:GetStatusLabel(), #workers, cacheSum.cachedGuides, cacheSum.cachedPaths, cacheSum.refinements, savedTxt)
 	local banner = UI:CreateBannerCard(parent, w, 54, "Interface\\Icons\\Spell_Arcane_MindMastery",
-		"|cff38bdf8Hive Distributed Compute Mesh (Zero-Lag)|r", statusLine, 0.22, 0.74, 0.97)
+		"|cff38bdf8Hive Auto-Routen & Kontinuierliche Optimierung|r", statusLine, 0.22, 0.74, 0.97)
 	banner:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, 0)
 
 	local budgetDrop = UI:CreateFlatDropdown(banner, 174, 24, {
@@ -748,7 +1205,7 @@ function PluribusHiveCompute:RenderPanel(parent, width, height, onRefresh)
 	local cdb = self:GetComputeDB()
 
 	if self.subView == "leveling" then
-		-- Controls bar: Bracket Dropdown + Priority Dropdown + Compute via Hive button
+		-- Controls bar: Bracket Dropdown + Priority Dropdown + Instant Re-Optimize button
 		local brDrop = UI:CreateFlatDropdown(parent, 186, 24, {
 			{ value = "AUTO",  label = "Auto (My Current Level)" },
 			{ value = "1-15",  label = "Levels 1 – 15" },
@@ -758,6 +1215,11 @@ function PluribusHiveCompute:RenderPanel(parent, width, height, onRefresh)
 			{ value = "1-60",  label = "Full Journey (1 – 60)" },
 		}, self.selectedBracket, function(v)
 			PluribusHiveCompute.selectedBracket = v
+			local g = PluribusHiveCompute:GetCachedGuide("LEVELING", v, PluribusHiveCompute.selectedPriority)
+			if not g or g.param ~= v then
+				PluribusHiveCompute:AutoCalculateGuidesIfStale("LEVELING", v, PluribusHiveCompute.selectedPriority)
+			end
+			if onRefresh then onRefresh() end
 		end, "Level Bracket...")
 		brDrop:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, bodyY)
 
@@ -767,10 +1229,15 @@ function PluribusHiveCompute:RenderPanel(parent, width, height, onRefresh)
 			{ value = "SAFE",     label = "Safest Solo Route" },
 		}, self.selectedPriority, function(v)
 			PluribusHiveCompute.selectedPriority = v
+			local g = PluribusHiveCompute:GetCachedGuide("LEVELING", PluribusHiveCompute.selectedBracket, v)
+			if not g or g.priority ~= v then
+				PluribusHiveCompute:AutoCalculateGuidesIfStale("LEVELING", PluribusHiveCompute.selectedBracket, v)
+			end
+			if onRefresh then onRefresh() end
 		end, "Route Goal...")
 		prDrop:SetPoint("LEFT", brDrop, "RIGHT", 8, 0)
 
-		local goBtn = UI:CreateButton(parent, "Compute via Hive", 148, 24, function()
+		local goBtn = UI:CreateButton(parent, "Jetzt neu optimieren", 156, 24, function()
 			PluribusHiveCompute:StartJob("LEVELING", PluribusHiveCompute.selectedBracket, PluribusHiveCompute.selectedPriority)
 			if onRefresh then onRefresh() end
 		end, true)
@@ -780,16 +1247,25 @@ function PluribusHiveCompute:RenderPanel(parent, width, height, onRefresh)
 		scroll:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, bodyY - 32)
 		local y = -2
 
-		local guide = cdb.cachedGuides["LEVELING"]
+		local guide = self:GetCachedGuide("LEVELING", self.selectedBracket, self.selectedPriority)
 		if job and job.kind == "LEVELING" and not job.done then
 			local pct = math.floor((job.completedCount / math.max(1, job.totalShards)) * 100)
 			local bar = UI:CreateStatusBar(scroll.content, w - 28, 24, 0.22, 0.74, 0.97)
 			bar:SetPoint("TOPLEFT", scroll.content, "TOPLEFT", 2, y)
-			bar:SetBarData(pct, string.format("Distributed Hive compute running (%d/%d shards across %d peers)...", job.completedCount, job.totalShards, #job.workers), pct .. "%")
+			bar:SetBarData(pct, string.format("Auto-Berechnung & Verfeinerung läuft (%d/%d Shards · %d Peers)...", job.completedCount, job.totalShards, #job.workers), pct .. "%")
 			y = y - 32
 		end
 
 		if guide and guide.steps and #guide.steps > 0 then
+			local passLbl = UI:CreateLabel(scroll.content, string.format(
+				"|cff4ade80Gecacht & aktiv verbessert|r  ·  Pass #%d  ·  Gesamtreisezeit: ~%ds%s",
+				guide.refinementPass or 1,
+				guide.totalTravelSec or 0,
+				(guide.savedTravelSec and guide.savedTravelSec > 0) and (" (|cff4ade80-" .. guide.savedTravelSec .. "s optimiert|r)") or ""
+			), 0.75, 0.88, 0.96, "GameFontHighlightSmall")
+			passLbl:SetPoint("TOPLEFT", scroll.content, "TOPLEFT", 4, y)
+			y = y - 18
+
 			for idx, st in ipairs(guide.steps) do
 				local row = UI:CreateListRow(scroll.content, w - 28, 44, idx)
 				row:SetPoint("TOPLEFT", scroll.content, "TOPLEFT", 2, y)
@@ -814,7 +1290,8 @@ function PluribusHiveCompute:RenderPanel(parent, width, height, onRefresh)
 				y = y - 46
 			end
 		else
-			local em = UI:CreateLabel(scroll.content, "Click 'Compute via Hive' to split optimal leveling route calculations across idle guild members using live guild XP/gold telemetry!", 0.70, 0.80, 0.90)
+			self:AutoCalculateGuidesIfStale("LEVELING", self.selectedBracket, self.selectedPriority)
+			local em = UI:CreateLabel(scroll.content, "Route wird gerade automatisch im Hintergrund berechnet, gecacht und fortlaufend optimiert...", 0.70, 0.80, 0.90)
 			em:SetPoint("TOPLEFT", scroll.content, "TOPLEFT", 6, -8)
 			em:SetWidth(w - 40)
 		end
@@ -831,10 +1308,15 @@ function PluribusHiveCompute:RenderPanel(parent, width, height, onRefresh)
 			{ value = "Fishing",           label = "Fishing & Stonescale Routes" },
 		}, self.selectedFarmTarget, function(v)
 			PluribusHiveCompute.selectedFarmTarget = v
+			local g = PluribusHiveCompute:GetCachedGuide("FARMING", v, "GOLD")
+			if not g or g.param ~= v then
+				PluribusHiveCompute:AutoCalculateGuidesIfStale("FARMING", v, "GOLD")
+			end
+			if onRefresh then onRefresh() end
 		end, "Farming Target...")
 		tgDrop:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, bodyY)
 
-		local goBtn = UI:CreateButton(parent, "Compute Farming Route", 174, 24, function()
+		local goBtn = UI:CreateButton(parent, "Jetzt neu optimieren", 168, 24, function()
 			PluribusHiveCompute:StartJob("FARMING", PluribusHiveCompute.selectedFarmTarget, "GOLD")
 			if onRefresh then onRefresh() end
 		end, true)
@@ -844,16 +1326,25 @@ function PluribusHiveCompute:RenderPanel(parent, width, height, onRefresh)
 		scroll:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, bodyY - 32)
 		local y = -2
 
-		local guide = cdb.cachedGuides["FARMING"]
+		local guide = self:GetCachedGuide("FARMING", self.selectedFarmTarget, "GOLD")
 		if job and job.kind == "FARMING" and not job.done then
 			local pct = math.floor((job.completedCount / math.max(1, job.totalShards)) * 100)
 			local bar = UI:CreateStatusBar(scroll.content, w - 28, 24, 0.29, 0.87, 0.50)
 			bar:SetPoint("TOPLEFT", scroll.content, "TOPLEFT", 2, y)
-			bar:SetBarData(pct, string.format("Evaluating AH prices & guild demand (%d/%d shards)...", job.completedCount, job.totalShards), pct .. "%")
+			bar:SetBarData(pct, string.format("AH-Preise & Gildenbedarf werden automatisch optimiert (%d/%d Shards)...", job.completedCount, job.totalShards), pct .. "%")
 			y = y - 32
 		end
 
 		if guide and guide.steps and #guide.steps > 0 then
+			local passLbl = UI:CreateLabel(scroll.content, string.format(
+				"|cff4ade80Gecacht & aktiv verbessert|r  ·  Pass #%d  ·  Tour-Reisezeit: ~%ds%s",
+				guide.refinementPass or 1,
+				guide.totalTravelSec or 0,
+				(guide.savedTravelSec and guide.savedTravelSec > 0) and (" (|cff4ade80-" .. guide.savedTravelSec .. "s optimiert|r)") or ""
+			), 0.75, 0.88, 0.96, "GameFontHighlightSmall")
+			passLbl:SetPoint("TOPLEFT", scroll.content, "TOPLEFT", 4, y)
+			y = y - 18
+
 			for idx, st in ipairs(guide.steps) do
 				local row = UI:CreateListRow(scroll.content, w - 28, 46, idx)
 				row:SetPoint("TOPLEFT", scroll.content, "TOPLEFT", 2, y)
@@ -882,7 +1373,8 @@ function PluribusHiveCompute:RenderPanel(parent, width, height, onRefresh)
 				y = y - 48
 			end
 		else
-			local em = UI:CreateLabel(scroll.content, "Click 'Compute Farming Route' to calculate the highest-value material farming routes from live guild AH prices, Shopping List needs, and gathered drop telemetry!", 0.70, 0.80, 0.90)
+			self:AutoCalculateGuidesIfStale("FARMING", self.selectedFarmTarget, "GOLD")
+			local em = UI:CreateLabel(scroll.content, "Farm-Route wird gerade automatisch aus AH-Preisen, To-Do-Bedarf und Telemetrie berechnet und gecacht...", 0.70, 0.80, 0.90)
 			em:SetPoint("TOPLEFT", scroll.content, "TOPLEFT", 6, -8)
 			em:SetWidth(w - 40)
 		end
@@ -988,22 +1480,55 @@ function PluribusHiveCompute:Initialize()
 		cdb.telemetry[zone] = rec
 	end)
 
-	-- Event frame for passive telemetry + throttled 10Hz zero-lag scheduler
+	-- Event frame for passive telemetry, auto-guide calculation, + throttled 10Hz zero-lag scheduler
 	local f = CreateFrame("Frame")
-	for _, ev in ipairs({ "ZONE_CHANGED_NEW_AREA", "CHAT_MSG_COMBAT_XP_GAIN", "CHAT_MSG_LOOT", "CHAT_MSG_MONEY", "QUEST_TURNED_IN" }) do
+	for _, ev in ipairs({ "PLAYER_ENTERING_WORLD", "PLAYER_LEVEL_UP", "ZONE_CHANGED_NEW_AREA", "CHAT_MSG_COMBAT_XP_GAIN", "CHAT_MSG_LOOT", "CHAT_MSG_MONEY", "QUEST_TURNED_IN" }) do
 		pcall(f.RegisterEvent, f, ev)
 	end
 	self.zoneSession.zone = GetRealZoneText and GetRealZoneText() or "Azeroth"
 	self.zoneSession.enteredAt = time()
 
+	if _G.PluribusMessaging and _G.PluribusMessaging.Subscribe then
+		_G.PluribusMessaging:Subscribe("HIVE_TODO_CHANGED", function()
+			if C_Timer and C_Timer.After then
+				C_Timer.After(1.5, function()
+					PluribusHiveCompute:AutoCalculateGuidesIfStale("FARMING", "GUILD_NEEDS", "GOLD")
+				end)
+			end
+		end)
+		_G.PluribusMessaging:Subscribe("HIVE_AH_UPDATED", function()
+			if C_Timer and C_Timer.After then
+				C_Timer.After(2.0, function()
+					PluribusHiveCompute:AutoCalculateGuidesIfStale("FARMING", "BEST_GOLD", "GOLD")
+				end)
+			end
+		end)
+	end
+
 	f:SetScript("OnEvent", function(_, event, arg1, arg2)
 		local zs = PluribusHiveCompute.zoneSession
-		if event == "ZONE_CHANGED_NEW_AREA" then
+		if event == "PLAYER_ENTERING_WORLD" then
+			if C_Timer and C_Timer.After then
+				C_Timer.After(2.0, function()
+					PluribusHiveCompute:AutoCalculateGuidesIfStale()
+				end)
+			else
+				PluribusHiveCompute:AutoCalculateGuidesIfStale()
+			end
+		elseif event == "PLAYER_LEVEL_UP" then
+			if C_Timer and C_Timer.After then
+				C_Timer.After(2.0, function()
+					PluribusHiveCompute:AutoCalculateGuidesIfStale("LEVELING", "AUTO", PluribusHiveCompute.selectedPriority or "BALANCED")
+				end)
+			end
+		elseif event == "ZONE_CHANGED_NEW_AREA" then
 			PluribusHiveCompute:FlushZoneSession()
 			zs.zone = GetRealZoneText and GetRealZoneText() or "Azeroth"
 			zs.enteredAt = time()
+			-- Immediately re-rank active routes around the player's newly entered zone
+			PluribusHiveCompute.lastRefinementAt = 0
 		elseif event == "CHAT_MSG_COMBAT_XP_GAIN" and type(arg1) == "string" then
-			local xp = tonumber(arg1:match("(%d+)%s+experience")) or tonumber(arg1:match("(%d+)")) or 0
+			local xp = tonumber(arg1:match("(%d+)%s+experience")) or tonumber(arg1:match("(%d+)%s+Erfahrung")) or tonumber(arg1:match("(%d+)")) or 0
 			if xp > 0 then zs.xp = (zs.xp or 0) + xp end
 		elseif event == "QUEST_TURNED_IN" then
 			local xp = tonumber(arg2) or 0
@@ -1016,8 +1541,8 @@ function PluribusHiveCompute:Initialize()
 			end
 		elseif event == "CHAT_MSG_MONEY" and type(arg1) == "string" then
 			local g = tonumber(arg1:match("(%d+)%s*Gold")) or 0
-			local s = tonumber(arg1:match("(%d+)%s*Silver")) or 0
-			local c = tonumber(arg1:match("(%d+)%s*Copper")) or 0
+			local s = tonumber(arg1:match("(%d+)%s*Silver")) or tonumber(arg1:match("(%d+)%s*Silber")) or 0
+			local c = tonumber(arg1:match("(%d+)%s*Copper")) or tonumber(arg1:match("(%d+)%s*Kupfer")) or 0
 			local total = g * 10000 + s * 100 + c
 			if total > 0 then zs.copper = (zs.copper or 0) + total end
 		end

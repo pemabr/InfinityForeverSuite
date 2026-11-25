@@ -22,7 +22,7 @@ local function InitializeNavigation()
 	_G.PluribusWayPointUI = PluribusWayPointUI
 	_G.PluribusNavigationUI = PluribusNavigationUI
 	
-	-- Slash commands (/nav, /navigate, /navigation, /way X Y Label)
+	-- Slash commands (/nav, /navigate, /navigation, /way X Y Label, /nav skip, /nav route)
 	PluribusCommandRegistry:RegisterCommand("nav", function(args)
 		if not args or #args == 0 then
 			PluribusNavigationUI:Toggle()
@@ -30,6 +30,25 @@ local function InitializeNavigation()
 			PluribusNavigationUI:ToggleCompassHUD()
 		elseif args[1] == "clear" then
 			PluribusNavigationUI:ClearWaypoint()
+		elseif args[1] == "skip" then
+			if _G.PluribusHiveDynamicRoute and _G.PluribusHiveDynamicRoute.SkipActiveStop then
+				_G.PluribusHiveDynamicRoute:SkipActiveStop()
+			end
+		elseif args[1] == "route" then
+			local sub = args[2] and tostring(args[2]):lower() or ""
+			if _G.PluribusHiveDynamicRoute then
+				if sub == "quests" or sub == "quest" then
+					_G.PluribusHiveDynamicRoute:EnableSources(true, nil, true)
+				elseif sub == "todos" or sub == "todo" then
+					_G.PluribusHiveDynamicRoute:EnableSources(nil, true, true)
+				elseif sub == "all" or sub == "both" then
+					_G.PluribusHiveDynamicRoute:EnableSources(true, true, true)
+				elseif sub == "restore" then
+					_G.PluribusHiveDynamicRoute:RestoreAllSkipped()
+				end
+			end
+			PluribusNavigationUI.selectedCat = "Route"
+			PluribusNavigationUI:Toggle()
 		elseif tonumber(args[1]) and tonumber(args[2]) then
 			local label = table.concat(args, " ", 3)
 			local zone = (GetRealZoneText and GetRealZoneText()) or "Azeroth"

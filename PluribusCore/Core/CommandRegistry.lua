@@ -44,20 +44,25 @@ local function ensureSlashHook(rootCmd)
 	end
 end
 
--- Built-in WoW chat & system slash commands that NO addon may ever overwrite
+-- Built-in WoW chat & system slash commands (EN + DE) that NO addon may ever overwrite
 local RESERVED_WOW_COMMANDS = {
-	s = true, say = true, y = true, yell = true,
-	p = true, party = true, g = true, guild = true, o = true, officer = true,
-	r = true, reply = true, w = true, whisper = true, t = true, tell = true,
-	raid = true, ra = true, rw = true, bg = true, i = true, instance = true,
+	s = true, say = true, sagen = true, y = true, yell = true, schreien = true,
+	p = true, party = true, gr = true, gruppe = true,
+	g = true, guild = true, gilde = true, o = true, officer = true, offizier = true,
+	r = true, reply = true, a = true, antworten = true,
+	w = true, whisper = true, t = true, tell = true, f = true, ["flüstern"] = true, fluestern = true,
+	raid = true, ra = true, rw = true, sz = true, sch = true, schlachtzug = true,
+	bg = true, i = true, instance = true, instanz = true,
 	e = true, em = true, emote = true, me = true, c = true, csay = true,
 	["1"] = true, ["2"] = true, ["3"] = true, ["4"] = true, ["5"] = true,
 	["6"] = true, ["7"] = true, ["8"] = true, ["9"] = true,
-	inv = true, invite = true, who = true, join = true, leave = true,
-	cast = true, use = true, target = true, assist = true, focus = true, follow = true,
-	trade = true, kick = true, afk = true, dnd = true, roll = true, random = true,
+	inv = true, invite = true, einladen = true, who = true, wer = true, join = true, leave = true,
+	cast = true, wirken = true, use = true, benutzen = true,
+	target = true, z = true, ziel = true, assist = true, focus = true, fokus = true, follow = true, folgen = true,
+	trade = true, handeln = true, kick = true, afk = true, dnd = true, roll = true, random = true, wuerfeln = true,
 	reload = true, rl = true, logout = true, camp = true, quit = true,
-	macro = true, m = true, help = true, gm = true, q = true,
+	macro = true, makro = true, m = true, help = true, hilfe = true, gm = true, q = true,
+	ginfo = true, gquit = true, gremove = true, gpromote = true, gdemote = true, ginvite = true, gmotd = true,
 }
 
 -- Register a slash command (supports 3 signatures:

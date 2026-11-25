@@ -66,31 +66,39 @@ function MinimapArrow:OnUpdate(elapsed)
 	
 	self.lastUpdate = 0
 	
-	-- Get player position
-	local playerX, playerY = PluribusUtils:GetUnitMapPosition("player")
-	
-	if not playerX or not playerY or (playerX == 0 and playerY == 0) then
+	-- Get player position (0..1 -> 0..100%)
+	local rawX, rawY = PluribusUtils:GetUnitMapPosition("player")
+	if not rawX or not rawY or (rawX == 0 and rawY == 0) then
 		return
 	end
-	
-	-- Calculate direction to target
-	local dx = self.targetX - playerX
-	local dy = self.targetY - playerY
-	
-	-- Calculate angle (0 = up, 90 = right, 180 = down, 270 = left)
-	local angle = math.atan2(dy, dx)
-	angle = angle - math.pi / 2 -- Rotate so 0 is up
-	
-	-- Apply rotation to arrow
-	self.arrow.texture:SetRotation(angle)
-	
-	-- Calculate distance
-	local distance = math.sqrt(dx * dx + dy * dy) * 100
-	local distanceText = string.format("%.0f yards", distance)
-	self.arrow.distance:SetText(distanceText)
-	
-	-- Update arrow visibility
-	if distance < 0.1 then
+	local px, py = rawX * 100, rawY * 100
+	local tx = (self.targetX <= 1.0) and (self.targetX * 100) or self.targetX
+	local ty = (self.targetY <= 1.0) and (self.targetY * 100) or self.targetY
+
+	-- Follow active road/terrain-mesh leg waypoint instead of straight line!
+	local curZone = (GetRealZoneText and GetRealZoneText()) or ""
+	if _G.PluribusHivePathfinder and _G.PluribusHivePathfinder.GetActiveLeg then
+		local leg = _G.PluribusHivePathfinder:GetActiveLeg(curZone, px, py)
+		if leg and leg.x and leg.y then
+			tx, ty = leg.x, leg.y
+		end
+	end
+
+	local dx = tx - px
+	local dy = ty - py
+	local facing = (GetPlayerFacing and GetPlayerFacing()) or 0
+	local angle = math.atan2(-dx, -dy) - facing
+
+	if self.arrow.texture.SetRotation then
+		pcall(self.arrow.texture.SetRotation, self.arrow.texture, angle)
+	end
+
+	local distance = (_G.PluribusHivePathfinder and _G.PluribusHivePathfinder.DistanceYards)
+		and _G.PluribusHivePathfinder:DistanceYards(curZone, px, py, tx, ty)
+		or (math.sqrt(dx * dx + dy * dy) * 28)
+	self.arrow.distance:SetText(string.format("%.0f yards", distance))
+
+	if distance < 5 then
 		self.arrow:Hide()
 	else
 		self.arrow:Show()

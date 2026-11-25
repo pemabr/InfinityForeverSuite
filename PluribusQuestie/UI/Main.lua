@@ -32,19 +32,27 @@ function PluribusQuestieUI:Initialize()
 	tabBar:SetPoint("TOP", frame, "TOP", 0, -44)
 	frame.tabBar = tabBar
 
-	local searchBox = PluribusUIFramework:CreateInputBox(frame, 360, 24, function(box)
+	local searchBox = PluribusUIFramework:CreateInputBox(frame, 290, 24, function(box)
 		PluribusQuestieUI.searchQuery = box:GetText() or ""
 		PluribusQuestieUI:Update()
 	end)
 	searchBox:SetPoint("TOPLEFT", tabBar, "BOTTOMLEFT", 0, -8)
 	frame.searchBox = searchBox
 
-	local scanBtn = PluribusUIFramework:CreateButton(frame, "Sync Quest Log", 136, 24, function()
+	local scanBtn = PluribusUIFramework:CreateButton(frame, "Sync Quest Log", 122, 24, function()
 		PluribusQuestieUI:SyncFromWoWQuestLog()
 		PluribusQuestieUI:Update()
 		PluribusUIFramework:ShowNotification("Synced active WoW Quest Log.", 2)
 	end, true)
-	scanBtn:SetPoint("LEFT", searchBox, "RIGHT", 10, 0)
+	scanBtn:SetPoint("LEFT", searchBox, "RIGHT", 8, 0)
+
+	local routeBtn = PluribusUIFramework:CreateButton(frame, "+ Route", 84, 24, function()
+		PluribusQuestieUI:SyncFromWoWQuestLog()
+		if _G.PluribusHiveDynamicRoute and _G.PluribusHiveDynamicRoute.EnableSources then
+			_G.PluribusHiveDynamicRoute:EnableSources(true, nil, true)
+		end
+	end, true)
+	routeBtn:SetPoint("LEFT", scanBtn, "RIGHT", 6, 0)
 
 	local listCard = PluribusUIFramework:CreateCard(frame, 536, 360)
 	listCard:SetPoint("TOPLEFT", searchBox, "BOTTOMLEFT", 0, -10)

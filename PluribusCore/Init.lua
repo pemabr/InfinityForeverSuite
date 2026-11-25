@@ -154,9 +154,11 @@ local function InitializePluribusCore()
 				if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
 					_G.PluribusMainFrame:OpenToTab("Bags & Bank")
 				end
-			elseif sub == "profs" or sub == "professions" or sub == "shop" then
+			elseif sub == "profs" or sub == "professions" or sub == "shop" or sub == "todo" or sub == "einkaufsliste" or sub == "shopping" then
 				if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
-					if sub == "shop" then _G.PluribusMainFrame.profSubTab = "wishlist" end
+					if sub == "shop" or sub == "todo" or sub == "einkaufsliste" or sub == "shopping" then
+						_G.PluribusMainFrame.profSubTab = "wishlist"
+					end
 					_G.PluribusMainFrame:OpenToTab("Professions")
 				end
 			elseif sub == "tax" then
@@ -175,13 +177,20 @@ local function InitializePluribusCore()
 				if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
 					_G.PluribusMainFrame:OpenToTab("Guides")
 				end
-			elseif sub == "gear" or sub == "gearjudge" or sub == "sgj" then
+			elseif sub == "gear" or sub == "gearadvisor" or sub == "advisor" then
 				if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
-					_G.PluribusMainFrame:OpenToTab("Gear Judge")
+					_G.PluribusMainFrame:OpenToTab("GearAdvisor")
 				end
 			elseif sub == "cd" or sub == "cooldowns" then
 				if _G.PluribusHiveUI and _G.PluribusHiveUI.ToggleCooldownOverlay then
 					_G.PluribusHiveUI:ToggleCooldownOverlay()
+				end
+			elseif sub == "heal" or sub == "healer" or sub == "healbot" or sub == "hb" or sub == "decursive" or sub == "dcr" then
+				if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
+					if sub == "decursive" or sub == "dcr" then
+						_G.PluribusMainFrame.healSubTab = "decursive"
+					end
+					_G.PluribusMainFrame:OpenToTab("HealBot")
 				end
 			else
 				if _G.PluribusMainFrame and _G.PluribusMainFrame.Toggle then
@@ -202,9 +211,11 @@ local function InitializePluribusCore()
 				if _G.PluribusHive then _G.PluribusHive:RequestFullGuildSync() end
 				if _G.PluribusHiveNetworkDB then _G.PluribusHiveNetworkDB:CheckForNetworkUpdates() end
 				if _G.PluribusUtils then _G.PluribusUtils:Info("Requested full Guild Hive sync + DB update check.", "Hive") end
-			elseif sub == "profs" or sub == "professions" or sub == "shop" then
+			elseif sub == "profs" or sub == "professions" or sub == "shop" or sub == "todo" or sub == "einkaufsliste" or sub == "shopping" then
 				if _G.PluribusMainFrame then
-					if sub == "shop" then _G.PluribusMainFrame.profSubTab = "wishlist" end
+					if sub == "shop" or sub == "todo" or sub == "einkaufsliste" or sub == "shopping" then
+						_G.PluribusMainFrame.profSubTab = "wishlist"
+					end
 					_G.PluribusMainFrame:OpenToTab("Professions")
 				end
 			elseif sub == "tax" then
@@ -215,8 +226,8 @@ local function InitializePluribusCore()
 				if _G.PluribusMainFrame then _G.PluribusMainFrame:OpenToTab("Navigation") end
 			elseif sub == "guides" or sub == "compute" then
 				if _G.PluribusMainFrame then _G.PluribusMainFrame:OpenToTab("Guides") end
-			elseif sub == "gear" or sub == "gearjudge" or sub == "sgj" then
-				if _G.PluribusMainFrame then _G.PluribusMainFrame:OpenToTab("Gear Judge") end
+			elseif sub == "gear" or sub == "gearadvisor" or sub == "advisor" then
+				if _G.PluribusMainFrame then _G.PluribusMainFrame:OpenToTab("GearAdvisor") end
 			elseif sub == "market" or sub == "db" then
 				if _G.PluribusMainFrame then _G.PluribusMainFrame:OpenToTab("Market & DB") end
 			elseif sub == "lfg" then
@@ -263,23 +274,54 @@ local function InitializePluribusCore()
 			end
 		end, { "hiveguides", "farmguide" })
 
-		PluribusCommandRegistry:RegisterCommand("gearjudge", function()
-			if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
-				_G.PluribusMainFrame:OpenToTab("Gear Judge")
+		PluribusCommandRegistry:RegisterCommand("todo", function(args)
+			local first = (type(args) == "table" and args[1]) or (type(args) == "string" and args) or ""
+			first = tostring(first):lower()
+			if first == "popout" or first == "pop" or first == "float" then
+				if _G.PluribusHiveProfessions and _G.PluribusHiveProfessions.ToggleTodoPopout then
+					_G.PluribusHiveProfessions:ToggleTodoPopout()
+				end
+				return
 			end
-		end, { "sgj" })
+			if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
+				_G.PluribusMainFrame.profSubTab = "wishlist"
+				_G.PluribusMainFrame:OpenToTab("Professions")
+			end
+		end, { "einkaufsliste", "shopping", "wishlist" })
+
+		PluribusCommandRegistry:RegisterCommand("todopop", function()
+			if _G.PluribusHiveProfessions and _G.PluribusHiveProfessions.ToggleTodoPopout then
+				_G.PluribusHiveProfessions:ToggleTodoPopout()
+			end
+		end, { "todopopout" })
+
+		PluribusCommandRegistry:RegisterCommand("mitglieder", function()
+			if _G.PluribusHive and _G.PluribusHive.RequestVersionCheck then
+				_G.PluribusHive:RequestVersionCheck()
+			end
+			if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
+				_G.PluribusMainFrame:OpenToTab("Roster")
+			end
+		end, { "plbroster", "addoncheck" })
+
+		PluribusCommandRegistry:RegisterCommand("gearadvisor", function()
+			if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
+				_G.PluribusMainFrame:OpenToTab("GearAdvisor")
+			end
+		end, { "plbgear", "advisor" })
 
 		PluribusCommandRegistry:RegisterCommand("xpbar", function()
-			if _G.PluribusHiveGearJudge and _G.PluribusHiveGearJudge.ToggleXPBar then
-				_G.PluribusHiveGearJudge:ToggleXPBar()
+			local ga = _G.PluribusGearAdvisor or _G.PluribusHiveGearJudge
+			if ga and ga.ToggleXPBar then
+				ga:ToggleXPBar()
 			end
 		end, { "lootbar" })
 
-		PluribusCommandRegistry:RegisterCommand("officer", function()
+		PluribusCommandRegistry:RegisterCommand("plbofficer", function()
 			if _G.PluribusOfficerDashboard and _G.PluribusOfficerDashboard.Toggle then
 				_G.PluribusOfficerDashboard:Toggle()
 			end
-		end, { "plbdash" })
+		end, { "plbdash", "offizier" })
 
 		PluribusCommandRegistry:RegisterCommand("audit", function(args)
 			if _G.PluribusOfficerDashboard and _G.PluribusOfficerDashboard.OpenTransactionHistory then
@@ -287,6 +329,79 @@ local function InitializePluribusCore()
 				_G.PluribusOfficerDashboard:OpenTransactionHistory(filter, "ALL")
 			end
 		end, { "txlog", "officerlog" })
+
+		PluribusCommandRegistry:RegisterCommand("markerbar", function()
+			if _G.PluribusHiveRaidTools and _G.PluribusHiveRaidTools.ToggleMarkerBar then
+				_G.PluribusHiveRaidTools:ToggleMarkerBar()
+			end
+		end, { "raidbar", "markbar" })
+
+		PluribusCommandRegistry:RegisterCommand("pull", function(args)
+			if _G.PluribusHiveRaidTools and _G.PluribusHiveRaidTools.StartPullTimer then
+				local raw = type(args) == "table" and args[1] or args
+				local sec = tonumber(raw)
+				if raw and tostring(raw):lower() == "cancel" then
+					_G.PluribusHiveRaidTools:StartPullTimer(0)
+				else
+					_G.PluribusHiveRaidTools:StartPullTimer(sec)
+				end
+			end
+		end, { "pulltimer" })
+
+		PluribusCommandRegistry:RegisterCommand("readycheck", function()
+			if _G.PluribusHiveRaidTools and _G.PluribusHiveRaidTools.OpenReadyCheckWindow then
+				_G.PluribusHiveRaidTools:OpenReadyCheckWindow(true)
+			end
+		end, { "rc", "bcheck" })
+
+		PluribusCommandRegistry:RegisterCommand("cdconfig", function()
+			if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
+				_G.PluribusMainFrame:OpenToTab("CooldownConfig")
+			end
+		end, { "cdmenu", "raidcds" })
+
+		-- Built-in HealBot + Decursive commands (always available inside PluribusCore!)
+		PluribusCommandRegistry:RegisterCommand("healbot", function(args)
+			local sub = args and args[1] and string.lower(args[1]) or ""
+			local eng = _G.PluribusHealDecursive
+			if sub == "frames" or sub == "grid" or sub == "toggle" then
+				if eng then eng:ToggleGrid() end
+			elseif sub == "show" or sub == "on" or sub == "solo" then
+				if eng then
+					eng.config.enabled = true
+					eng.config.showSolo = true
+					eng:SaveConfig()
+					eng:RequestRebuild()
+				end
+			elseif sub == "hide" or sub == "off" then
+				if eng then
+					eng.config.enabled = false
+					eng:SaveConfig()
+					eng:RequestRebuild()
+				end
+			elseif sub == "muf" or sub == "decursive" then
+				if eng then eng:ToggleCompactMUF() end
+			elseif _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
+				_G.PluribusMainFrame:OpenToTab("HealBot")
+			elseif _G.PluribusHealerUI and _G.PluribusHealerUI.Toggle then
+				_G.PluribusHealerUI:Toggle()
+			end
+		end, { "hb", "healer", "heal" })
+
+		PluribusCommandRegistry:RegisterCommand("decursive", function(args)
+			local sub = args and args[1] and string.lower(args[1]) or ""
+			if sub == "config" or sub == "cfg" then
+				if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
+					_G.PluribusMainFrame.healSubTab = "decursive"
+					_G.PluribusMainFrame:OpenToTab("HealBot")
+				end
+			elseif _G.PluribusHealDecursive then
+				_G.PluribusHealDecursive:ToggleCompactMUF()
+			elseif _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
+				_G.PluribusMainFrame.healSubTab = "decursive"
+				_G.PluribusMainFrame:OpenToTab("HealBot")
+			end
+		end, { "dcr", "decurse" })
 	end
 
 	-- Attach Officer Dashboard DKP/Loot/Audit hooks immediately on login so nothing is missed
@@ -301,7 +416,7 @@ local function InitializePluribusCore()
 
 	pcall(function()
 		if _G.PluribusUtils then
-			_G.PluribusUtils:Info("Pluribus Suite v2.1 (1.60.1) active! Use /pluribus, /bags, /guides, /gearjudge, /xpbar, /tax, /mail, /audit, or @Name in /g.", "Core")
+			_G.PluribusUtils:Info("Pluribus Suite v2.2 (1.60.1) active! Use /pluribus, /todo, /bags, /guides, /gearadvisor, /xpbar, /tax, /mail, /audit, or @Name in /g.", "Core")
 		end
 	end)
 

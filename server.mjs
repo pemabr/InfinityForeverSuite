@@ -922,9 +922,9 @@ function renderHtml() {
     <span class="strip-sep" aria-hidden="true"></span>
     <span class="strip-item"><svg viewBox="0 0 16 16" fill="none"><path d="M8 2a4.5 4.5 0 014.5 4.5v2.7l1.2 1.8H2.3l1.2-1.8V6.5A4.5 4.5 0 018 2z" stroke="#facc15" stroke-width="1.4"/><path d="M6.3 12.8a1.9 1.9 0 003.4 0" stroke="#facc15" stroke-width="1.4" stroke-linecap="round"/></svg>Smart Guild @Mentions</span>
     <span class="strip-sep" aria-hidden="true"></span>
-    <span class="strip-item"><svg viewBox="0 0 16 16" fill="none"><path d="M8 1.8l5 2.1v4.2c0 3.2-2.2 5.4-5 6.3-2.8-.9-5-3.1-5-6.3V3.9l5-2.1z" stroke="#4ade80" stroke-width="1.4"/><path d="M5.7 8.1l1.6 1.6 3.2-3.4" stroke="#4ade80" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Sharpie's Gear Judge + /xpbar</span>
+    <span class="strip-item"><svg viewBox="0 0 16 16" fill="none"><path d="M8 1.8l5 2.1v4.2c0 3.2-2.2 5.4-5 6.3-2.8-.9-5-3.1-5-6.3V3.9l5-2.1z" stroke="#4ade80" stroke-width="1.4"/><path d="M5.7 8.1l1.6 1.6 3.2-3.4" stroke="#4ade80" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Pluribus GearAdvisor + /xpbar &amp; Pathfinder</span>
     <span class="strip-sep" aria-hidden="true"></span>
-    <span class="strip-item"><svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#eab308" stroke-width="1.4"/><path d="M8 4.8v6.4M6.2 6.8c0-.8.8-1.3 1.8-1.3s1.8.5 1.8 1.2c0 1.6-3.6.9-3.6 2.6 0 .8.8 1.3 1.8 1.3s1.8-.5 1.8-1.3" stroke="#eab308" stroke-width="1.3" stroke-linecap="round"/></svg>AH &amp; Top-3 Tooltips + Auto-Sell Trash</span>
+    <span class="strip-item"><svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#eab308" stroke-width="1.4"/><path d="M8 4.8v6.4M6.2 6.8c0-.8.8-1.3 1.8-1.3s1.8.5 1.8 1.2c0 1.6-3.6.9-3.6 2.6 0 .8.8 1.3 1.8 1.3s1.8-.5 1.8-1.3" stroke="#eab308" stroke-width="1.3" stroke-linecap="round"/></svg>Fast AH, To-Do Routes &amp; DE/EN Localization</span>
     <span class="strip-sep" aria-hidden="true"></span>
     <span class="strip-item"><svg viewBox="0 0 16 16" fill="none"><rect x="2.2" y="3" width="11.6" height="10" rx="2" stroke="#c084fc" stroke-width="1.4"/><path d="M5.5 8h5M8 5.5v5" stroke="#c084fc" stroke-width="1.4" stroke-linecap="round"/></svg>Dungeon Finder LFG &amp; Guild Side Tabs</span>
   </nav>

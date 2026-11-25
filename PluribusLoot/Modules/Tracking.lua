@@ -1,5 +1,4 @@
 -- PluribusLoot - Loot Tracking Module
--- Extracted from SharpiesLootTracker
 -- Tracks loot values and calculates farming metrics
 
 PluribusLootTracking = {

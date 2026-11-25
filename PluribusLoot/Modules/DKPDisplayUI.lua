@@ -64,6 +64,7 @@ function PluribusDKPUI:CreateMainWindow()
 	
 	-- Create tabs
 	self:CreateMainWindowTabs(frame)
+	frame:Hide()
 	
 	self.mainWindow = frame
 end

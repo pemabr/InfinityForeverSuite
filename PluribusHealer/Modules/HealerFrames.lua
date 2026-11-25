@@ -37,96 +37,30 @@ PluribusHealer.settings = {
 --- Initialize healing UI system
 function PluribusHealer:Initialize()
 	PluribusUtils:Info("PluribusHealer initializing...", "Healer")
-	
-	-- Load saved settings
 	self.settings = PluribusStorageManager:GetFeatureSettings("healer") or self.settings
-	
-	-- Register for group updates
-	self:RegisterEvents()
-	
-	-- Build initial frames if in a group
-	if GetNumGroupMembers() > 0 then
-		self:RefreshRaidFrames()
+	-- Legacy classic-bordered raid frames are superseded by unified PluribusHealDecursive grid
+	if _G.PluribusHealDecursive and _G.PluribusHealDecursive.Initialize then
+		_G.PluribusHealDecursive:Initialize()
 	end
-	
 	PluribusUtils:Info("PluribusHealer initialized", "Healer")
 end
 
---- Register for WoW events
+--- Register for WoW events (managed by PluribusHealDecursive)
 function PluribusHealer:RegisterEvents()
-	local frame = CreateFrame("Frame")
-	local events = {
-		"GROUP_ROSTER_UPDATE",
-		"UNIT_HEALTH",
-		"UNIT_HEALTH_FREQUENT",
-		"UNIT_AURA",
-		"UNIT_SPELLCAST_START",
-		"UNIT_SPELLCAST_STOP",
-		"UNIT_SPELLCAST_FAILED",
-		"UNIT_SPELLCAST_SUCCEEDED",
-		"PARTY_MEMBERS_CHANGED",
-		"RAID_ROSTER_UPDATE",
-		"ARENA_OPPONENT_UPDATE",
-	}
-	for _, ev in ipairs(events) do
-		pcall(frame.RegisterEvent, frame, ev)
-	end
-	
-	frame:SetScript("OnEvent", function(f, event, ...)
-		PluribusHealer:OnEvent(event, ...)
-	end)
 end
 
 --- Handle WoW events
 function PluribusHealer:OnEvent(event, ...)
-	if event == "GROUP_ROSTER_UPDATE" or event == "RAID_ROSTER_UPDATE" or event == "PARTY_MEMBERS_CHANGED" then
-		self:RefreshRaidFrames()
-	elseif event == "UNIT_HEALTH" or event == "UNIT_HEALTH_FREQUENT" then
-		local unit = ...
-		self:UpdateUnitHealth(unit)
-	elseif event == "UNIT_AURA" then
-		local unit = ...
-		self:UpdateUnitAuras(unit)
-	elseif event == "SPELL_CAST_SUCCESS" then
-		local castGUID, spellId = ...
-		self:OnSpellCast(spellId)
-	end
 end
 
 -- ============================================================================
--- RAID FRAME MANAGEMENT
+-- RAID FRAME MANAGEMENT (Delegated to Unified PluribusHealDecursive)
 -- ============================================================================
 
---- Create or update raid frames for all group members
 function PluribusHealer:RefreshRaidFrames()
-	local groupSize = GetNumGroupMembers()
-	
-	if groupSize == 0 then
-		self:ClearRaidFrames()
-		return
+	if _G.PluribusHealDecursive and _G.PluribusHealDecursive.RequestRebuild then
+		_G.PluribusHealDecursive:RequestRebuild()
 	end
-	
-	-- Determine frame configuration based on group size
-	if groupSize <= 5 then
-		self.settings.layoutMode = "party"
-	elseif groupSize <= 10 then
-		self.settings.layoutMode = "smallRaid"
-	else
-		self.settings.layoutMode = "raid"
-	end
-	
-	-- Create frames for each group member
-	for i = 1, groupSize do
-		local unitToken = self:GetUnitToken(i, groupSize)
-		if unitToken and not self.frames[unitToken] then
-			self:CreateUnitFrame(unitToken)
-		end
-	end
-	
-	-- Layout frames
-	self:LayoutFrames()
-	
-	PluribusUtils:Debug("Raid frames refreshed. Mode: " .. self.settings.layoutMode .. ", Members: " .. groupSize, "Healer")
 end
 
 --- Get unit token for a group member (raid1, raid2, party1, etc.)

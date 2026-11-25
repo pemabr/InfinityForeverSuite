@@ -75,6 +75,9 @@ function PluribusInventoryUI:Initialize()
 end
 
 function PluribusInventoryUI:SellGrayJunk()
+	if InCombatLockdown and InCombatLockdown() then
+		return 0
+	end
 	if not MerchantFrame or not MerchantFrame:IsShown() then
 		PluribusUIFramework:ShowNotification("|cfffbbf24Open any vendor window first to auto-sell gray items.|r", 2.8)
 		return 0

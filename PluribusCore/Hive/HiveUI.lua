@@ -629,8 +629,15 @@ function PluribusHiveUI:CreateCooldownOverlay()
 	end)
 	closeBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -5, -4)
 
+	local cfgBtn = UI:CreateButton(f, "Cfg", 28, 14, function()
+		if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
+			_G.PluribusMainFrame:OpenToTab("CooldownConfig")
+		end
+	end)
+	cfgBtn:SetPoint("RIGHT", closeBtn, "LEFT", -3, 0)
+
 	f.bars = {}
-	for i = 1, 8 do
+	for i = 1, 12 do
 		local bar = UI:CreateStatusBar(f, 214, 18, 0.18, 0.56, 0.92)
 		bar:SetPoint("TOPLEFT", f, "TOPLEFT", 8, -24 - (i - 1) * 20)
 		bar:Hide()
@@ -757,12 +764,16 @@ function PluribusHiveUI:CreateHealthBadge(parent, onSyncClick)
 			self.halo:SetVertexColor(c[1], c[2], c[3], 0.26)
 		end
 		UI:ApplyBackdrop(self, 0.06, 0.09, 0.14, 0.96, c[1], c[2], c[3], 0.72)
-		self.text:SetText(string.format("%sHiveMind: %s|r |cff94a3b8· %dp · v%d|r", h.hex, h.shortLabel, h.onlinePeers or 0, h.dbRevision or 1))
+		local nodes = h.connectedNodes or ((h.onlinePeers or 0) + 1)
+		self.text:SetText(string.format("%sHiveMind: %s|r |cff94a3b8· v%s|r", h.hex, h.shortLabel, tostring(h.latestVersion or (_G.PluribusHive and _G.PluribusHive.version) or "2.2.0")))
 		self._lastHealth = h
 	end
 
 	badge:SetScript("OnClick", function(selfBadge)
-		if _G.PluribusHive then _G.PluribusHive:RequestFullGuildSync() end
+		if _G.PluribusHive then
+			_G.PluribusHive:RequestVersionCheck()
+			_G.PluribusHive:RequestFullGuildSync()
+		end
 		if _G.PluribusHiveNetworkDB then _G.PluribusHiveNetworkDB:CheckForNetworkUpdates() end
 		selfBadge:Refresh()
 		if onSyncClick then pcall(onSyncClick) end
@@ -775,13 +786,19 @@ function PluribusHiveUI:CreateHealthBadge(parent, onSyncClick)
 			GameTooltip:SetOwner(selfBadge, "ANCHOR_BOTTOM")
 			GameTooltip:AddLine("|cff38bdf8Guild HiveMind Network Health|r", 1, 1, 1)
 			GameTooltip:AddDoubleLine("Status:", h.hex .. h.label .. " (" .. tostring(h.score or 0) .. "%)|r", 0.75, 0.82, 0.90, 1, 1, 1)
-			GameTooltip:AddDoubleLine("Guild Channel:", h.isInGuild and "|cff4ade80Connected (PLBHIVE)|r" or "|cfff87171Not in Guild|r", 0.75, 0.82, 0.90, 1, 1, 1)
-			GameTooltip:AddDoubleLine("Online Hive Peers:", tostring(h.onlinePeers or 0), 0.75, 0.82, 0.90, 1, 1, 1)
-			GameTooltip:AddDoubleLine("Data Sync:", tostring(h.syncFreshness or "Never"), 0.75, 0.82, 0.90, 1, 1, 1)
+			GameTooltip:AddDoubleLine("Guild Channel:", h.isInGuild and "|cff4ade80Connected (PLBHIVE)|r" or "|cfffbbf24Local (No Guild)|r", 0.75, 0.82, 0.90, 1, 1, 1)
+			GameTooltip:AddDoubleLine("Connected Nodes:", string.format("%d online (%d other peers)", h.connectedNodes or 1, h.onlinePeers or 0), 0.75, 0.82, 0.90, 1, 1, 1)
+			GameTooltip:AddDoubleLine("Addon Version:", string.format("v%s (Latest: v%s)", (_G.PluribusHive and _G.PluribusHive.version) or "2.2.0", h.latestVersion or "2.2.0"), 0.75, 0.82, 0.90, 1, 1, 1)
+			if h.isSelfOutdated then
+				GameTooltip:AddLine("|cfffbbf24Update available! Newer version seen in guild.|r", 1, 0.8, 0.2)
+			elseif (h.outdatedPeers or 0) > 0 then
+				GameTooltip:AddLine(string.format("|cfffbbf24%d guildmate(s) running an older Pluribus version.|r", h.outdatedPeers), 1, 0.8, 0.2)
+			end
+			GameTooltip:AddDoubleLine("Data Sync:", tostring(h.syncFreshness or "Bereit"), 0.75, 0.82, 0.90, 1, 1, 1)
 			GameTooltip:AddDoubleLine("Queue / Packets:", string.format("%d queued · %d tx / %d rx", h.queuedMessages or 0, h.messagesSent or 0, h.messagesReceived or 0), 0.75, 0.82, 0.90, 1, 1, 1)
 			GameTooltip:AddDoubleLine("Hive DB Cache:", string.format("Rev v%d (%d items)", h.dbRevision or 1, h.dbItems or 0), 0.75, 0.82, 0.90, 1, 1, 1)
 			GameTooltip:AddLine(" ")
-			GameTooltip:AddLine("|cff4ade80Click to run an immediate guild sync & DB check|r", 0.6, 0.9, 0.7)
+			GameTooltip:AddLine("|cff4ade80Click to check guild versions & run immediate sync|r", 0.6, 0.9, 0.7)
 			GameTooltip:Show()
 		end
 	end)
@@ -880,23 +897,24 @@ function PluribusHiveUI:CreateHealthBanner(parent, width, onSyncClick)
 		end
 
 		UI:ApplyBackdrop(self, 0.06, 0.09, 0.14, 0.96, c[1], c[2], c[3], 0.55)
+		local nodes = h.connectedNodes or ((h.onlinePeers or 0) + 1)
 		self.titleLbl:SetText(string.format("HiveMind Network: %s%s|r", h.hex, h.label))
 		if compact then
 			self.detailLbl:SetText(string.format(
-				"PLBHIVE · %d peers · Sync: %s · %d tx/%d rx · DB v%d",
-				h.onlinePeers or 0,
-				h.syncFreshness or "Never",
+				"PLBHIVE · %d aktiv · Sync: %s · %d tx/%d rx · DB v%d",
+				nodes,
+				h.syncFreshness or "Bereit",
 				h.messagesSent or 0,
 				h.messagesReceived or 0,
 				h.dbRevision or 1
 			))
 		else
 			self.detailLbl:SetText(string.format(
-				"PLBHIVE %s · %d peers · Sync: %s · Queue: %d (%d tx / %d rx) · DB Rev v%d",
-				h.isInGuild and "Connected" or "No Guild",
+				"PLBHIVE %s · %d Knoten aktiv (%d weitere Peers) · Sync: %s · %d tx / %d rx · DB v%d",
+				h.isInGuild and "Online" or "Lokal",
+				nodes,
 				h.onlinePeers or 0,
-				h.syncFreshness or "Never",
-				h.queuedMessages or 0,
+				h.syncFreshness or "Bereit",
 				h.messagesSent or 0,
 				h.messagesReceived or 0,
 				h.dbRevision or 1

@@ -1,17 +1,21 @@
--- PluribusHive Open-World Distress, Rare Spotting, Shared Nodes & Quest Overlap
--- Strictly NEVER triggers distress warnings inside instances, raids, BGs, or arenas
--- Warns nearby guildmates only when close enough to arrive and help in time
+-- PluribusHive Open-World Distress (SOS), Rescue Popup, Rare Sharing & Quest Overlap
+-- Strictly OPEN-WORLD ONLY: automatically disabled inside dungeons, raids, arenas, and battlegrounds
+-- Incoming nearby SOS alerts display a dedicated SOS Rescue Popup with 1-Click [Invite + Navigate]
 
 PluribusHiveDistress = {
 	initialized = false,
-	lastSOSSent = 0,
-	lastSOSBySender = {},
-	lastRareSeen = {},
-	lastQuestBroadcast = 0,
+	lastSOSSentAt = 0,
+	activeAlerts = {},
+	myQuests = {},
+	seenRares = {},
+	sosPopup = nil,
 }
 _G.PluribusHiveDistress = PluribusHiveDistress
 
-local function IsInOpenWorld()
+local SOS_COOLDOWN = 45
+local RARE_COOLDOWN = 120
+
+function PluribusHiveDistress:IsOpenWorld()
 	if IsInInstance then
 		local inInstance, instanceType = IsInInstance()
 		if inInstance or (instanceType and instanceType ~= "none") then
@@ -21,206 +25,298 @@ local function IsInOpenWorld()
 	return true
 end
 
-function PluribusHiveDistress:BroadcastSOS(manual)
+function PluribusHiveDistress:GetPlayerPosition()
+	local mapID = 0
+	if C_Map and C_Map.GetBestMapForUnit then
+		mapID = C_Map.GetBestMapForUnit("player") or 0
+	end
+	local x, y = 0, 0
+	if _G.PluribusUtils and _G.PluribusUtils.GetUnitMapPosition then
+		local px, py = _G.PluribusUtils:GetUnitMapPosition("player")
+		x, y = px or 0, py or 0
+	end
+	local zone = (GetRealZoneText and GetRealZoneText()) or (GetZoneText and GetZoneText()) or "Azeroth"
+	return mapID, x, y, zone
+end
+
+function PluribusHiveDistress:BroadcastSOS(isManual)
+	if not self:IsOpenWorld() then return false end
 	local cfg = PluribusHive:GetConfig()
 	if not cfg.shareDistress then return false end
-	if not IsInOpenWorld() then return false end
 
-	local now = GetTime()
-	if not manual and (now - self.lastSOSSent) < 35 then
-		return false
-	end
+	local now = time()
+	if not isManual and (now - self.lastSOSSentAt) < SOS_COOLDOWN then return false end
+	self.lastSOSSentAt = now
 
-	local hp = UnitHealth and UnitHealth("player") or 0
-	local hpMax = UnitHealthMax and UnitHealthMax("player") or 1
-	if PluribusUtils:IsSecret(hp) or PluribusUtils:IsSecret(hpMax) or hpMax <= 0 then
-		return false
+	local mapID, x, y, zone = self:GetPlayerPosition()
+	local hp = UnitHealth and UnitHealth("player") or 1
+	local maxHp = math.max(1, UnitHealthMax and UnitHealthMax("player") or 100)
+	local hpPct = math.floor((hp / maxHp) * 100)
+	local attacker = (UnitExists and UnitExists("target") and UnitCanAttack and UnitCanAttack("player", "target") and UnitName("target")) or "Hostile"
+	if PluribusUtils and PluribusUtils.IsSecret and PluribusUtils:IsSecret(attacker) then
+		attacker = "Hostile"
 	end
-	local hpPct = math.floor((hp / hpMax) * 100)
-	local px, py, mapID = PluribusUtils:GetUnitMapPosition("player")
-	local zone = (GetRealZoneText and GetRealZoneText()) or "Azeroth"
-	local subzone = (GetSubZoneText and GetSubZoneText()) or ""
-	local attacker = "Danger"
-	if UnitExists and UnitExists("target") and UnitCanAttack and UnitCanAttack("player", "target") then
-		local tName = UnitName("target")
-		if tName and not PluribusUtils:IsSecret(tName) then
-			attacker = tName
-		end
-	end
+	local cls = PluribusHive:GetPlayerClass()
+	local lvl = (UnitLevel and UnitLevel("player")) or 60
 
-	self.lastSOSSent = now
-	local payload = string.format("%s|%d|%s|%s|%.4f|%.4f|%d|%s",
-		PluribusHive:GetPlayerClass(),
-		mapID or 0,
-		zone:gsub("|", " "),
-		subzone:gsub("|", " "),
-		px or 0,
-		py or 0,
-		hpPct,
-		attacker:gsub("|", " ")
+	local payload = string.format("%d|%.4f|%.4f|%d|%s|%s|%s|%d",
+		mapID, x, y, hpPct,
+		tostring(zone):gsub("|", " "),
+		tostring(attacker):gsub("|", " "),
+		cls, lvl
 	)
+
 	PluribusHive:Send("SOS", payload, "GUILD", nil, true)
-	PluribusHive:AddFeedEvent("SOS", "Sent distress ping in " .. zone .. string.format(" (%.1f, %.1f)", (px or 0) * 100, (py or 0) * 100))
+	PluribusHive:AddFeedEvent("SOS", string.format("You sent open-world SOS in %s (%d%% HP)", zone, hpPct))
+	if isManual and _G.PluribusUIFramework then
+		local L = _G.PluribusL
+		_G.PluribusUIFramework:ShowNotification("|cfff87171" .. (L and L:Get("SOS_SENT") or "Open-world SOS sent to nearby guildmates!") .. "|r", 3)
+	end
 	return true
 end
 
-function PluribusHiveDistress:HandleIncomingSOS(sender, body)
+-- Helper: Invite player cross-API (Classic 1.60.1 InviteUnit + modern C_PartyInfo.InviteUnit)
+function PluribusHiveDistress:InvitePlayer(playerName)
+	if not playerName or playerName == "" then return false end
+	if C_PartyInfo and C_PartyInfo.InviteUnit then
+		pcall(C_PartyInfo.InviteUnit, playerName)
+		return true
+	elseif InviteUnit then
+		pcall(InviteUnit, playerName)
+		return true
+	end
+	return false
+end
+
+-- Dedicated crisp SOS Rescue Popup with 1-Click [Invite + Navigate] & [Navigate Only]
+function PluribusHiveDistress:ShowRescuePopup(alert)
+	local UI = _G.PluribusUIFramework
+	if not UI or not alert then return end
+	local L = _G.PluribusL
+
+	if not self.sosPopup then
+		local f = CreateFrame("Frame", "PluribusSOSRescuePopup", UIParent, BackdropTemplateMixin and "BackdropTemplate" or nil)
+		f:SetSize(354, 128)
+		f:SetPoint("TOP", UIParent, "TOP", 0, -170)
+		f:SetFrameStrata("DIALOG")
+		f:SetMovable(true)
+		f:EnableMouse(true)
+		f:SetClampedToScreen(true)
+		f:RegisterForDrag("LeftButton")
+		f:SetScript("OnDragStart", f.StartMoving)
+		f:SetScript("OnDragStop", f.StopMovingOrSizing)
+		UI:ApplyBackdrop(f, 0.08, 0.04, 0.06, 0.97, 0.95, 0.28, 0.30, 1.0)
+
+		local header = UI:CreateLabel(f, "", 1.0, 0.36, 0.38, "GameFontNormal")
+		header:SetPoint("TOPLEFT", f, "TOPLEFT", 12, -10)
+		f.header = header
+
+		local closeBtn = UI:CreateButton(f, "X", 22, 18, function()
+			f:Hide()
+		end)
+		closeBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, -8)
+
+		local iconSlot = UI:CreateClassIcon(f, "WARRIOR", 34)
+		iconSlot:SetPoint("TOPLEFT", f, "TOPLEFT", 12, -32)
+		f.classIcon = iconSlot
+
+		local infoLbl = UI:CreateLabel(f, "", 0.96, 0.96, 1.0, "GameFontNormal")
+		infoLbl:SetPoint("TOPLEFT", iconSlot, "TOPRIGHT", 10, 0)
+		infoLbl:SetWidth(286)
+		f.infoLbl = infoLbl
+
+		local subLbl = UI:CreateLabel(f, "", 0.85, 0.78, 0.82, "GameFontHighlightSmall")
+		subLbl:SetPoint("TOPLEFT", infoLbl, "BOTTOMLEFT", 0, -3)
+		subLbl:SetWidth(286)
+		f.subLbl = subLbl
+
+		local invNavBtn = UI:CreateButton(f, L and L:Get("SOS_INVITE_NAV") or "Invite + Navigate", 168, 26, function()
+			local a = f._alert
+			if not a then return end
+			PluribusHiveDistress:InvitePlayer(a.sender)
+			if _G.PluribusNavigationUI and _G.PluribusNavigationUI.SetWaypoint then
+				_G.PluribusNavigationUI:SetWaypoint("SOS: " .. a.sender, a.zone, a.x * 100, a.y * 100, a.mapID)
+			end
+			if SendChatMessage then
+				local msg = (L and L:Get("SOS_WHISPER_OMW")) or "On my way to rescue you! Group invite sent!"
+				pcall(SendChatMessage, msg, "WHISPER", nil, a.sender)
+			end
+			f:Hide()
+		end, true)
+		invNavBtn:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 12, 10)
+		f.invNavBtn = invNavBtn
+
+		local navBtn = UI:CreateButton(f, L and L:Get("SOS_NAV_ONLY") or "Navigate Only", 148, 26, function()
+			local a = f._alert
+			if not a then return end
+			if _G.PluribusNavigationUI and _G.PluribusNavigationUI.SetWaypoint then
+				_G.PluribusNavigationUI:SetWaypoint("SOS: " .. a.sender, a.zone, a.x * 100, a.y * 100, a.mapID)
+			end
+			if SendChatMessage then
+				local msg = (L and L:Get("SOS_WHISPER_NAV")) or "On my way to help! Hold on!"
+				pcall(SendChatMessage, msg, "WHISPER", nil, a.sender)
+			end
+			f:Hide()
+		end)
+		navBtn:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -12, 10)
+		f.navBtn = navBtn
+
+		f:Hide()
+		self.sosPopup = f
+	end
+
+	local f = self.sosPopup
+	f._alert = alert
+	f.header:SetText("|cfff87171" .. (L and L:Get("SOS_POPUP_TITLE") or "GUILD SOS — RESCUE NEEDED!") .. "|r")
+	if f.invNavBtn and f.invNavBtn.label then
+		f.invNavBtn.label:SetText(L and L:Get("SOS_INVITE_NAV") or "Invite + Navigate")
+	end
+	if f.navBtn and f.navBtn.label then
+		f.navBtn.label:SetText(L and L:Get("SOS_NAV_ONLY") or "Navigate Only")
+	end
+
+	local _, _, _, hex = UI:GetClassColor(alert.class or "WARRIOR")
+	f.infoLbl:SetText(string.format("%s%s|r (Lv%d) — |cfff87171%d%% HP|r", hex, alert.sender, alert.level or 60, alert.hpPct or 25))
+	local distTxt = alert.yards and string.format(" (~%d yds)", alert.yards) or ""
+	f.subLbl:SetText(string.format("%s (%.1f, %.1f)%s · vs |cfffbbf24%s|r", alert.zone, alert.x * 100, alert.y * 100, distTxt, alert.attacker or "Hostile"))
+
+	local expireAt = GetTime() + 30
+	f:SetScript("OnUpdate", function(selfF)
+		if GetTime() >= expireAt then
+			selfF:SetScript("OnUpdate", nil)
+			selfF:Hide()
+		end
+	end)
+	f:Show()
+	if PlaySound and SOUNDKIT and SOUNDKIT.RAID_WARNING then
+		pcall(PlaySound, SOUNDKIT.RAID_WARNING)
+	end
+end
+
+function PluribusHiveDistress:OnReceiveSOS(sender, body)
+	if PluribusHive:SamePlayer(sender, PluribusHive:GetPlayerShortName()) then return end
+	if not self:IsOpenWorld() then return end
+
 	local cfg = PluribusHive:GetConfig()
 	if not cfg.showDistressAlerts then return end
-	if not IsInOpenWorld() then return end
 
-	local now = GetTime()
-	if self.lastSOSBySender[sender] and (now - self.lastSOSBySender[sender]) < 30 then
-		return
-	end
-
-	local cls, mapIDStr, zone, subzone, xStr, yStr, hpStr, attacker =
-		body:match("^([^|]*)|([^|]*)|([^|]*)|([^|]*)|([^|]*)|([^|]*)|([^|]*)|(.*)$")
-	local mapID = tonumber(mapIDStr) or 0
-	local tx, ty = tonumber(xStr) or 0, tonumber(yStr) or 0
+	local mapStr, xStr, yStr, hpStr, zone, attacker, cls, lvlStr =
+		tostring(body or ""):match("^([^|]*)|([^|]*)|([^|]*)|([^|]*)|([^|]*)|([^|]*)|?([^|]*)|?(.*)$")
+	local rMap = tonumber(mapStr) or 0
+	local rx = tonumber(xStr) or 0
+	local ry = tonumber(yStr) or 0
 	local hpPct = tonumber(hpStr) or 25
+	zone = (zone and zone ~= "") and zone or "Azeroth"
+	attacker = (attacker and attacker ~= "") and attacker or "Hostile"
+	cls = (cls and cls ~= "") and cls or "WARRIOR"
+	local lvl = tonumber(lvlStr) or 60
 
-	-- Check if we are in the SAME zone/map AND close enough to reach them in time!
-	local mx, my, myMapID = PluribusUtils:GetUnitMapPosition("player")
-	local myZone = (GetRealZoneText and GetRealZoneText()) or ""
-	local sameArea = (mapID > 0 and myMapID and mapID == myMapID) or (zone ~= "" and zone == myZone)
-	if not sameArea then return end
+	local myMap, mx, my, myZone = self:GetPlayerPosition()
+	local sameZone = (rMap > 0 and myMap > 0 and rMap == myMap)
+		or (zone:lower() == myZone:lower())
+	if not sameZone then return end
 
-	local dist = 0
-	if tx > 0 and ty > 0 and mx and my and (mx > 0 or my > 0) then
-		local dx, dy = tx - mx, ty - my
-		dist = math.sqrt(dx * dx + dy * dy)
-		if dist > (cfg.distressMaxDistance or 0.18) then
-			return -- Too far away to save them in time — do not irritate the player
-		end
-	end
-
-	self.lastSOSBySender[sender] = now
-	local etaSec = math.max(5, math.floor(dist * 240))
-	local locText = string.format("%s (%.1f, %.1f)", (subzone ~= "" and subzone or zone), tx * 100, ty * 100)
-
-	PluribusHive:AddFeedEvent("SOS", string.format("%s needs help (%d%% HP vs %s) — ~%ds away at %s", sender, hpPct, attacker or "Mob", etaSec, locText))
-
-	if _G.PluribusHiveUI and _G.PluribusHiveUI.ShowToast then
-		_G.PluribusHiveUI:ShowToast({
-			kind = "SOS",
-			title = string.format("Guildmate in Danger: %s (%d%% HP)", sender, hpPct),
-			body = string.format("Fighting %s · %s · ~%ds away", attacker or "Enemy", locText, etaSec),
-			color = { 0.94, 0.27, 0.27 },
-			duration = 14,
-			action1 = {
-				label = "Set Waypoint",
-				onClick = function()
-					PluribusHiveDistress:SetRescueWaypoint(mapID, tx, ty, sender .. " (SOS)")
-				end,
-			},
-			action2 = {
-				label = "On my way!",
-				onClick = function()
-					if SendChatMessage then
-						pcall(SendChatMessage, "On my way to help! Hold on!", "WHISPER", nil, sender)
-					end
-					PluribusHiveDistress:SetRescueWaypoint(mapID, tx, ty, sender .. " (SOS)")
-				end,
-			},
-		})
-	end
-end
-
-function PluribusHiveDistress:SetRescueWaypoint(mapID, x, y, title)
-	if mapID and mapID > 0 and x and y and C_Map and C_Map.SetUserWaypoint and UiMapPoint and UiMapPoint.CreateFromCoordinates then
-		pcall(function()
-			C_Map.SetUserWaypoint(UiMapPoint.CreateFromCoordinates(mapID, x, y))
-			if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then
-				C_SuperTrack.SetSuperTrackedUserWaypoint(true)
-			end
-		end)
-	end
-	if _G.PluribusPathFinding and _G.PluribusPathFinding.SetWaypoint and x and y then
-		pcall(function() _G.PluribusPathFinding:SetWaypoint(x, y, mapID or 0, title or "Guild Waypoint") end)
-	end
-end
-
-function PluribusHiveDistress:CheckTargetRare()
-	local cfg = PluribusHive:GetConfig()
-	if not cfg.shareWorldEvents or not IsInOpenWorld() then return end
-	if not UnitExists or not UnitExists("target") then return end
-	if UnitIsDead and UnitIsDead("target") then return end
-
-	local classification = UnitClassification and UnitClassification("target")
-	if classification ~= "rare" and classification ~= "rareelite" and classification ~= "worldboss" then
+	local dx, dy = (rx - mx), (ry - my)
+	local dist = math.sqrt(dx * dx + dy * dy)
+	local maxDist = tonumber(cfg.distressMaxDistance) or 0.18
+	if (mx > 0 or my > 0) and (rx > 0 or ry > 0) and dist > maxDist then
 		return
 	end
+
+	local yards = (mx > 0 or my > 0) and math.floor(dist * 2800) or nil
+	local alert = {
+		sender = PluribusHive:NormalizeName(sender),
+		mapID = rMap,
+		x = rx,
+		y = ry,
+		hpPct = hpPct,
+		zone = zone,
+		attacker = attacker,
+		class = cls,
+		level = lvl,
+		yards = yards,
+		time = time(),
+	}
+	table.insert(self.activeAlerts, 1, alert)
+	while #self.activeAlerts > 10 do table.remove(self.activeAlerts) end
+
+	PluribusHive:AddFeedEvent("SOS", string.format("%s needs help in %s (%d%% HP vs %s)", alert.sender, zone, hpPct, attacker))
+	self:ShowRescuePopup(alert)
+end
+
+-- Share rare mob sighting in open world
+function PluribusHiveDistress:CheckTargetForRare()
+	if not self:IsOpenWorld() then return end
+	if not PluribusHive:GetConfig().shareWorldEvents then return end
+	if not UnitExists or not UnitExists("target") or UnitIsDead("target") or UnitIsPlayer("target") then return end
+
+	local cls = UnitClassification and UnitClassification("target") or ""
+	if cls ~= "rare" and cls ~= "rareelite" then return end
 
 	local name = UnitName("target")
-	local level = UnitLevel("target")
-	if not name or PluribusUtils:IsSecret(name) or PluribusUtils:IsSecret(level) then return end
+	if not name or (PluribusUtils and PluribusUtils.IsSecret and PluribusUtils:IsSecret(name)) then return end
+	local now = time()
+	if self.seenRares[name] and (now - self.seenRares[name]) < RARE_COOLDOWN then return end
+	self.seenRares[name] = now
 
-	local now = GetTime()
-	if self.lastRareSeen[name] and (now - self.lastRareSeen[name]) < 600 then
-		return
-	end
-	self.lastRareSeen[name] = now
-
-	local px, py, mapID = PluribusUtils:GetUnitMapPosition("player")
-	local zone = (GetRealZoneText and GetRealZoneText()) or "Azeroth"
-	local payload = string.format("%s|%d|%s|%d|%s|%.3f|%.3f",
-		name:gsub("|", " "), level or 0, classification, mapID or 0, zone:gsub("|", " "), px or 0, py or 0)
+	local mapID, x, y, zone = self:GetPlayerPosition()
+	local lvl = UnitLevel and UnitLevel("target") or 0
+	local payload = string.format("%s|%d|%d|%.4f|%.4f|%s", name:gsub("|", " "), lvl, mapID, x, y, zone:gsub("|", " "))
 	PluribusHive:Send("RARE", payload, "GUILD")
-	PluribusHive:AddFeedEvent("RARE", string.format("Spotted %s (%s) in %s (%.1f, %.1f)", name, classification, zone, (px or 0) * 100, (py or 0) * 100))
+	PluribusHive:AddFeedEvent("RARE", string.format("You spotted rare %s (Lv%d) in %s", name, lvl, zone))
 end
 
-function PluribusHiveDistress:BroadcastActiveZoneQuests()
-	local cfg = PluribusHive:GetConfig()
-	if not cfg.shareWorldEvents then return end
-	local now = GetTime()
-	if (now - self.lastQuestBroadcast) < 45 then return end
-	self.lastQuestBroadcast = now
-
-	local zone = (GetRealZoneText and GetRealZoneText()) or "Azeroth"
-	local qids = {}
-	local count = PluribusUtils and PluribusUtils:GetQuestLogCount() or 0
-	for i = 1, count do
-		local _, _, isHeader, questID = PluribusUtils:GetQuestLogEntry(i)
-		if not isHeader and questID and type(questID) == "number" and questID > 0 then
-			table.insert(qids, tostring(questID))
-			if #qids >= 25 then break end
+-- Quest overlap sharing (tells guildmates silently when you're on the same quests)
+function PluribusHiveDistress:ScanAndBroadcastQuests()
+	if not PluribusHive:GetConfig().shareWorldEvents then return end
+	local titles = {}
+	if C_QuestLog and C_QuestLog.GetNumQuestLogEntries and C_QuestLog.GetInfo then
+		for i = 1, C_QuestLog.GetNumQuestLogEntries() do
+			local info = C_QuestLog.GetInfo(i)
+			if info and not info.isHeader and info.title and not info.isHidden then
+				local cleanTitle = (info.title:gsub("[|,]", " "))
+				table.insert(titles, cleanTitle)
+				if #titles >= 15 then break end
+			end
+		end
+	elseif GetNumQuestLogEntries and GetQuestLogTitle then
+		for i = 1, GetNumQuestLogEntries() do
+			local title, _, _, isHeader = GetQuestLogTitle(i)
+			if title and not isHeader then
+				local cleanTitle = (title:gsub("[|,]", " "))
+				table.insert(titles, cleanTitle)
+				if #titles >= 15 then break end
+			end
 		end
 	end
-	if #qids > 0 then
-		PluribusHive:Send("QZONE", zone:gsub("|", " ") .. "|" .. table.concat(qids, ","), "GUILD")
+
+	self.myQuests = {}
+	for _, t in ipairs(titles) do self.myQuests[t:lower()] = t end
+
+	local _, _, _, zone = self:GetPlayerPosition()
+	local db = PluribusHive:GetDB()
+	local me = PluribusHive:GetPlayerShortName()
+	db.questZones[me] = { zone = zone, quests = titles, updatedAt = time() }
+
+	if #titles > 0 then
+		PluribusHive:Send("QUEST", zone:gsub("|", " ") .. "|" .. table.concat(titles, ","), "GUILD")
 	end
 end
 
 function PluribusHiveDistress:GetGuildmatesOnSameQuest()
 	local db = PluribusHive:GetDB()
 	local me = PluribusHive:GetPlayerShortName()
-	local myQuests = {}
-	local count = PluribusUtils and PluribusUtils:GetQuestLogCount() or 0
-	for i = 1, count do
-		local title, _, isHeader, qid = PluribusUtils:GetQuestLogEntry(i)
-		if not isHeader and qid then
-			myQuests[qid] = title or ("Quest #" .. qid)
-		end
-	end
-
-	local overlaps = {}
-	local now = time()
-	for memberName, entry in pairs(db.questZones or {}) do
-		if memberName ~= me and (now - (entry.updatedAt or 0)) <= 1800 then
-			for qid in pairs(entry.quests or {}) do
-				if myQuests[qid] then
-					table.insert(overlaps, {
-						member = memberName,
-						questID = qid,
-						questTitle = myQuests[qid],
-						zone = entry.zone or "Azeroth",
-					})
+	local matches = {}
+	for member, rec in pairs(db.questZones or {}) do
+		if not PluribusHive:SamePlayer(member, me) and rec.quests then
+			for _, q in ipairs(rec.quests) do
+				if self.myQuests[q:lower()] then
+					table.insert(matches, { member = member, questTitle = q, zone = rec.zone or "Azeroth" })
 				end
 			end
 		end
 	end
-	return overlaps
+	return matches
 end
 
 function PluribusHiveDistress:Initialize()
@@ -228,85 +324,77 @@ function PluribusHiveDistress:Initialize()
 	self.initialized = true
 
 	PluribusHive:RegisterHandler("SOS", function(sender, body)
-		PluribusHiveDistress:HandleIncomingSOS(sender, body)
+		PluribusHiveDistress:OnReceiveSOS(sender, body)
 	end)
 
 	PluribusHive:RegisterHandler("RARE", function(sender, body)
-		local name, lvl, cls, mapID, zone, x, y = body:match("^([^|]*)|([^|]*)|([^|]*)|([^|]*)|([^|]*)|([^|]*)|(.*)$")
-		if not name or name == "" then return end
+		if PluribusHive:SamePlayer(sender, PluribusHive:GetPlayerShortName()) then return end
+		local rName, lvlStr, mapStr, xStr, yStr, zone =
+			tostring(body or ""):match("^([^|]*)|([^|]*)|([^|]*)|([^|]*)|([^|]*)|(.*)$")
+		if not rName or rName == "" then return end
 		local db = PluribusHive:GetDB()
-		db.rares[name] = {
-			name = name,
-			level = tonumber(lvl) or 0,
-			classification = cls or "rare",
-			mapID = tonumber(mapID) or 0,
-			zone = zone or "Azeroth",
-			x = tonumber(x) or 0,
-			y = tonumber(y) or 0,
-			spottedBy = sender,
-			seenAt = time(),
-		}
-		PluribusHive:AddFeedEvent("RARE", string.format("%s spotted %s in %s (%.1f, %.1f)", sender, name, zone or "?", (tonumber(x) or 0) * 100, (tonumber(y) or 0) * 100))
-	end)
+		db.rares[rName] = { name = rName, level = tonumber(lvlStr) or 0, mapID = tonumber(mapStr) or 0, x = tonumber(xStr) or 0, y = tonumber(yStr) or 0, zone = zone or "", reporter = sender, seenAt = time() }
+		PluribusHive:AddFeedEvent("RARE", string.format("%s spotted rare %s in %s", sender, rName, zone or ""))
 
-	PluribusHive:RegisterHandler("NODE", function(sender, body)
-		local nodeType, zone, xStr, yStr = body:match("^([^|]*)|([^|]*)|([^|]*)|(.*)$")
-		local x, y = tonumber(xStr) or 0, tonumber(yStr) or 0
-		if x > 0 or y > 0 then
-			if _G.PluribusNodeDB and _G.PluribusNodeDB.RecordNode then
-				pcall(function() _G.PluribusNodeDB:RecordNode(nodeType or "herb", x * 100, y * 100, zone or "Azeroth", 300) end)
-			end
-			if _G.PluribusDataCollectorCore and _G.PluribusDataCollectorCore.RecordNodeData then
-				local nid = math.floor(x * 1000) * 1000 + math.floor(y * 1000)
-				pcall(function() _G.PluribusDataCollectorCore:RecordNodeData(nodeType or "herb", nid, x * 100, y * 100, zone or "Azeroth", 0, 300) end)
+		if PluribusHiveDistress:IsOpenWorld() and _G.PluribusHiveUI then
+			local _, _, _, myZone = PluribusHiveDistress:GetPlayerPosition()
+			if myZone:lower() == tostring(zone or ""):lower() then
+				_G.PluribusHiveUI:ShowToast({
+					title = "Rare Spotted Nearby: " .. rName,
+					body = string.format("%s spotted Lv%d %s in %s (%.1f, %.1f)", sender, tonumber(lvlStr) or 0, rName, zone or "", (tonumber(xStr) or 0) * 100, (tonumber(yStr) or 0) * 100),
+					color = { 0.96, 0.72, 0.16 },
+					duration = 10,
+					action1 = {
+						label = "Set Waypoint",
+						onClick = function()
+							if _G.PluribusNavigationUI and _G.PluribusNavigationUI.SetWaypoint then
+								_G.PluribusNavigationUI:SetWaypoint("Rare: " .. rName, zone or "", (tonumber(xStr) or 0) * 100, (tonumber(yStr) or 0) * 100, tonumber(mapStr) or 0)
+							end
+						end,
+					},
+				})
 			end
 		end
 	end)
 
-	PluribusHive:RegisterHandler("QZONE", function(sender, body)
-		local zone, qStr = body:match("^([^|]*)|(.*)$")
+	PluribusHive:RegisterHandler("QUEST", function(sender, body)
+		if PluribusHive:SamePlayer(sender, PluribusHive:GetPlayerShortName()) then return end
+		local zone, qList = tostring(body or ""):match("^([^|]*)|(.*)$")
 		local quests = {}
-		for qidStr in (qStr or ""):gmatch("(%d+)") do
-			local qid = tonumber(qidStr)
-			if qid then quests[qid] = true end
+		for q in tostring(qList or ""):gmatch("[^,]+") do
+			table.insert(quests, q)
 		end
 		local db = PluribusHive:GetDB()
-		db.questZones[sender] = { zone = zone or "Azeroth", quests = quests, updatedAt = time() }
+		db.questZones[PluribusHive:NormalizeName(sender)] = { zone = zone or "", quests = quests, updatedAt = time() }
 	end)
-
-	local GATHER_SPELLS = { [2366] = "herb", [2575] = "mining", [8613] = "skinning", [7620] = "fishing" }
 
 	local f = CreateFrame("Frame")
-	for _, ev in ipairs({ "UNIT_HEALTH", "PLAYER_TARGET_CHANGED", "UNIT_SPELLCAST_SUCCEEDED", "QUEST_LOG_UPDATE", "ZONE_CHANGED_NEW_AREA" }) do
+	for _, ev in ipairs({ "UNIT_HEALTH", "PLAYER_TARGET_CHANGED", "QUEST_LOG_UPDATE", "PLAYER_ENTERING_WORLD" }) do
 		pcall(f.RegisterEvent, f, ev)
 	end
 
-	f:SetScript("OnEvent", function(_, event, arg1, _, arg3)
-		if event == "UNIT_HEALTH" and arg1 == "player" then
-			if InCombatLockdown and InCombatLockdown() and IsInOpenWorld() then
-				local hp = UnitHealth("player")
-				local hpMax = UnitHealthMax("player")
-				if not PluribusUtils:IsSecret(hp) and not PluribusUtils:IsSecret(hpMax) and hpMax > 0 then
-					local pct = (hp / hpMax) * 100
-					local threshold = PluribusHive:GetConfig().distressHpThreshold or 35
-					if pct > 0 and pct <= threshold then
-						PluribusHiveDistress:BroadcastSOS(false)
-					end
-				end
+	local questThrottle = 0
+	f:SetScript("OnEvent", function(_, event, unit)
+		if event == "UNIT_HEALTH" and unit == "player" then
+			if not PluribusHiveDistress:IsOpenWorld() then return end
+			if not (UnitAffectingCombat and UnitAffectingCombat("player")) then return end
+			local hp = UnitHealth and UnitHealth("player") or 1
+			local maxHp = math.max(1, UnitHealthMax and UnitHealthMax("player") or 1)
+			local pct = (hp / maxHp) * 100
+			local thresh = tonumber(PluribusHive:GetConfig().distressHpThreshold) or 35
+			if hp > 0 and pct <= thresh then
+				PluribusHiveDistress:BroadcastSOS(false)
 			end
 		elseif event == "PLAYER_TARGET_CHANGED" then
-			PluribusHiveDistress:CheckTargetRare()
-		elseif event == "UNIT_SPELLCAST_SUCCEEDED" and arg1 == "player" and arg3 and not PluribusUtils:IsSecret(arg3) then
-			local nodeType = GATHER_SPELLS[arg3]
-			if nodeType and PluribusHive:GetConfig().shareWorldEvents and IsInOpenWorld() then
-				local px, py = PluribusUtils:GetUnitMapPosition("player")
-				local zone = (GetRealZoneText and GetRealZoneText()) or "Azeroth"
-				if px and py and (px > 0 or py > 0) then
-					PluribusHive:Send("NODE", string.format("%s|%s|%.4f|%.4f", nodeType, zone:gsub("|", " "), px, py), "GUILD")
+			PluribusHiveDistress:CheckTargetForRare()
+		elseif event == "QUEST_LOG_UPDATE" or event == "PLAYER_ENTERING_WORLD" then
+			local now = GetTime()
+			if (now - questThrottle) > 30 then
+				questThrottle = now
+				if C_Timer and C_Timer.After then
+					C_Timer.After(4, function() PluribusHiveDistress:ScanAndBroadcastQuests() end)
 				end
 			end
-		elseif event == "QUEST_LOG_UPDATE" or event == "ZONE_CHANGED_NEW_AREA" then
-			PluribusHiveDistress:BroadcastActiveZoneQuests()
 		end
 	end)
 end

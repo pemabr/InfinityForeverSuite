@@ -64,6 +64,7 @@ function PluribusWorldBossUI:Initialize()
 
 	self.mainFrame = frame
 	self:RefreshTimerList()
+	frame:Hide()
 	return frame
 end
 

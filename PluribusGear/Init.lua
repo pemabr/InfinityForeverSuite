@@ -24,8 +24,8 @@ local function InitializeGear()
 	
 	PluribusCommandRegistry:RegisterCommand({
 		name = "gear",
-		aliases = { "equipment", "e" },
-		description = "Open gear manager",
+		aliases = { "equipment", "plbgear" },
+		description = "Open gear advisor",
 		func = function() PluribusGearUI:Toggle() end,
 	})
 	

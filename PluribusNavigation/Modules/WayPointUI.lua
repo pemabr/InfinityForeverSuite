@@ -43,6 +43,7 @@ function PluribusWayPointUI:CreateFrame()
 	
 	frame.scroll = scroll
 	frame.content = content
+	frame:Hide()
 	self.frame = frame
 end
 

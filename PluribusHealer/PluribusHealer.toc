@@ -4,7 +4,7 @@
 ## Author: Pluribus Suite Team
 ## Version: 1.4.0
 ## SavedVariables: PluribusHealerDB
-## Depends: PluribusCore
+## Dependencies: PluribusCore
 ## X-Category: Raid
 
 Localization\Localization.lua
@@ -64,6 +64,7 @@ Modules\BuffDebuffTracker.lua
 Modules\ResourceTracker.lua
 Modules\ThreatTracker.lua
 Modules\DebuffHighlighter.lua
+Modules\HealDecursiveUnified.lua
 
 UI\HealerUI.lua
 

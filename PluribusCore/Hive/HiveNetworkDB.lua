@@ -8,8 +8,49 @@ PluribusHiveNetworkDB = {
 	missingQueue = {},
 	lastVersionCheck = 0,
 	lastPeerBroadcast = 0,
+	dataRevision = 1,
+	_countsInitialized = false,
+	_counts = { items = 0, quests = 0, npcs = 0, missing = 0 },
 }
 _G.PluribusHiveNetworkDB = PluribusHiveNetworkDB
+
+function PluribusHiveNetworkDB:GetDataRevision()
+	return self.dataRevision or 1
+end
+
+function PluribusHiveNetworkDB:EnsureCounts(forceRefresh)
+	if self._countsInitialized and not forceRefresh then
+		return self._counts
+	end
+	local store = self:GetStore()
+	local items, quests, npcs, missing = 0, 0, 0, 0
+	for _ in pairs(store.items) do items = items + 1 end
+	for _ in pairs(store.quests) do quests = quests + 1 end
+	for _ in pairs(store.npcs) do npcs = npcs + 1 end
+	for _ in pairs(self.missingQueue) do missing = missing + 1 end
+	self._counts = { items = items, quests = quests, npcs = npcs, missing = missing }
+	self._countsInitialized = true
+	return self._counts
+end
+
+function PluribusHiveNetworkDB:SyncCachedStats()
+	local store = self:GetStore()
+	local c = self._counts or { items = 0, quests = 0, npcs = 0, missing = 0 }
+	local stats = self._cachedStats
+	if not stats then
+		stats = {}
+		self._cachedStats = stats
+	end
+	stats.revision = store.revision or 1
+	stats.items = c.items or 0
+	stats.quests = c.quests or 0
+	stats.npcs = c.npcs or 0
+	stats.missing = c.missing or 0
+	stats.hasQuestieDB = _G.QuestieDB ~= nil
+	stats.hasWowheadDB = (_G.WoWHeadDB ~= nil or _G.WowHeadDB ~= nil)
+	stats.hasGathererDB = (_G.GathererDB ~= nil or _G.GatherMate2 ~= nil)
+	return stats
+end
 
 local VERSION_CHECK_INTERVAL = 900 -- 15 minutes periodic network update check
 
@@ -38,11 +79,13 @@ function PluribusHiveNetworkDB:SeedFromWowheadCache()
 		store.updatedAt = cache.updatedAt or time()
 	end
 
+	local newItems, newQuests, newNpcs = 0, 0, 0
 	for id, entry in pairs(cache.items or {}) do
 		local numID = tonumber(id)
 		if numID and type(entry) == "table" then
 			local existing = store.items[numID]
 			if not existing or (cache.revision or 1) >= (existing.rev or 0) then
+				if not existing then newItems = newItems + 1 end
 				store.items[numID] = {
 					id = numID,
 					name = entry.name or ("Item #" .. numID),
@@ -62,6 +105,7 @@ function PluribusHiveNetworkDB:SeedFromWowheadCache()
 		if numID and type(entry) == "table" then
 			local existing = store.quests[numID]
 			if not existing or (cache.revision or 1) >= (existing.rev or 0) then
+				if not existing then newQuests = newQuests + 1 end
 				store.quests[numID] = {
 					id = numID,
 					name = entry.name or ("Quest #" .. numID),
@@ -81,6 +125,7 @@ function PluribusHiveNetworkDB:SeedFromWowheadCache()
 		if numID and type(entry) == "table" then
 			local existing = store.npcs[numID]
 			if not existing or (cache.revision or 1) >= (existing.rev or 0) then
+				if not existing then newNpcs = newNpcs + 1 end
 				store.npcs[numID] = {
 					id = numID,
 					name = entry.name or ("NPC #" .. numID),
@@ -91,6 +136,18 @@ function PluribusHiveNetworkDB:SeedFromWowheadCache()
 				}
 				added = added + 1
 			end
+		end
+	end
+
+	if added > 0 then
+		if self._countsInitialized then
+			self._counts.items = (self._counts.items or 0) + newItems
+			self._counts.quests = (self._counts.quests or 0) + newQuests
+			self._counts.npcs = (self._counts.npcs or 0) + newNpcs
+		end
+		self.dataRevision = (self.dataRevision or 1) + 1
+		if self._countsInitialized then
+			self:SyncCachedStats()
 		end
 	end
 
@@ -139,6 +196,12 @@ function PluribusHiveNetworkDB:GetEntry(kind, id)
 	local ext = self:LookupOptionalExternal(kind, id)
 	if ext then
 		bucket[id] = ext
+		if self._countsInitialized then
+			local k = (kind == "quest" and "quests") or (kind == "npc" and "npcs") or "items"
+			self._counts[k] = (self._counts[k] or 0) + 1
+			self:SyncCachedStats()
+		end
+		self.dataRevision = (self.dataRevision or 1) + 1
 		return ext
 	end
 	return nil
@@ -165,6 +228,10 @@ function PluribusHiveNetworkDB:RequestEntry(kind, id)
 		return false
 	end
 	self.pendingRequests[key] = now
+	if not self.missingQueue[key] and self._countsInitialized then
+		self._counts.missing = (self._counts.missing or 0) + 1
+		self:SyncCachedStats()
+	end
 	self.missingQueue[key] = { kind = kind, id = id, seenAt = time() }
 
 	PluribusHive:Send("DBREQ", string.format("%s|%d", kind, id), "GUILD")
@@ -182,11 +249,9 @@ end
 -- Broadcast a version beacon so guildmates with newer Wowhead cache revisions can share updates
 function PluribusHiveNetworkDB:CheckForNetworkUpdates()
 	if not PluribusHive:GetConfig().shareGameDB then return end
-	local store = self:GetStore()
-	local itemCount = 0
-	for _ in pairs(store.items) do itemCount = itemCount + 1 end
+	local stats = self:GetStats()
 	self.lastVersionCheck = GetTime()
-	PluribusHive:Send("DBVER", string.format("%d|%d", store.revision or 1, itemCount), "GUILD")
+	PluribusHive:Send("DBVER", string.format("%d|%d", stats.revision or 1, stats.items or 0), "GUILD")
 end
 
 -- Share a compact batch of newer entries to a guildmate requesting updates
@@ -204,24 +269,9 @@ function PluribusHiveNetworkDB:SendRecentDelta(target, peerRev)
 	end
 end
 
-function PluribusHiveNetworkDB:GetStats()
-	local store = self:GetStore()
-	local items, quests, npcs, missing = 0, 0, 0, 0
-	for _ in pairs(store.items) do items = items + 1 end
-	for _ in pairs(store.quests) do quests = quests + 1 end
-	for _ in pairs(store.npcs) do npcs = npcs + 1 end
-	for _ in pairs(self.missingQueue) do missing = missing + 1 end
-
-	return {
-		revision = store.revision or 1,
-		items = items,
-		quests = quests,
-		npcs = npcs,
-		missing = missing,
-		hasQuestieDB = _G.QuestieDB ~= nil,
-		hasWowheadDB = (_G.WoWHeadDB ~= nil or _G.WowHeadDB ~= nil),
-		hasGathererDB = (_G.GathererDB ~= nil or _G.GatherMate2 ~= nil),
-	}
+function PluribusHiveNetworkDB:GetStats(forceRefresh)
+	self:EnsureCounts(forceRefresh == true)
+	return self:SyncCachedStats()
 end
 
 function PluribusHiveNetworkDB:GetMissingIDsString(kind)
@@ -282,14 +332,34 @@ function PluribusHiveNetworkDB:Initialize()
 		end
 
 		if kind == "item" then
+			local isNew = store.items[id] == nil
 			store.items[id] = { id = id, name = name, quality = tonumber(n1) or 1, ilvl = tonumber(n2) or 0, source = desc or "", rev = rev, via = "Hive:" .. sender }
+			if isNew and PluribusHiveNetworkDB._countsInitialized then
+				PluribusHiveNetworkDB._counts.items = (PluribusHiveNetworkDB._counts.items or 0) + 1
+			end
 		elseif kind == "quest" then
+			local isNew = store.quests[id] == nil
 			store.quests[id] = { id = id, name = name, level = tonumber(n1) or 0, zone = desc or "", summary = "", rev = rev, via = "Hive:" .. sender }
+			if isNew and PluribusHiveNetworkDB._countsInitialized then
+				PluribusHiveNetworkDB._counts.quests = (PluribusHiveNetworkDB._counts.quests or 0) + 1
+			end
 		elseif kind == "npc" then
+			local isNew = store.npcs[id] == nil
 			store.npcs[id] = { id = id, name = name, zone = desc or "", note = "", rev = rev, via = "Hive:" .. sender }
+			if isNew and PluribusHiveNetworkDB._countsInitialized then
+				PluribusHiveNetworkDB._counts.npcs = (PluribusHiveNetworkDB._counts.npcs or 0) + 1
+			end
 		end
 
-		PluribusHiveNetworkDB.missingQueue[kind .. ":" .. id] = nil
+		local mKey = kind .. ":" .. id
+		if PluribusHiveNetworkDB.missingQueue[mKey] ~= nil and PluribusHiveNetworkDB._countsInitialized then
+			PluribusHiveNetworkDB._counts.missing = math.max(0, (PluribusHiveNetworkDB._counts.missing or 0) - 1)
+		end
+		PluribusHiveNetworkDB.missingQueue[mKey] = nil
+		PluribusHiveNetworkDB.dataRevision = (PluribusHiveNetworkDB.dataRevision or 1) + 1
+		if PluribusHiveNetworkDB._countsInitialized then
+			PluribusHiveNetworkDB:SyncCachedStats()
+		end
 	end)
 
 	-- Periodic revision beacon: if we have a newer Wowhead revision than a guildmate, push delta updates!

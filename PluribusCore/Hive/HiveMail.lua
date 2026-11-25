@@ -5,6 +5,8 @@
 PluribusHiveMail = {
 	initialized = false,
 	composerFrame = nil,
+	openAllActive = false,
+	openAllTicker = nil,
 }
 _G.PluribusHiveMail = PluribusHiveMail
 
@@ -284,7 +286,114 @@ function PluribusHiveMail:OpenComposer(recipient, subject, body, opts)
 	UI:BringToFront(f)
 end
 
--- Attach a Guild Mail side tab onto WoW's native Mailbox frame so drafts & guild messages appear right at the mailbox
+-- Safe, throttled 1-click "Open All Mail" (skips COD mails, stops gracefully on full bags or mailbox close)
+function PluribusHiveMail:StopOpenAllMail(reason)
+	if not self.openAllActive then return end
+	self.openAllActive = false
+	if self.openAllTicker then
+		self.openAllTicker:SetScript("OnUpdate", nil)
+	end
+	if self.openAllBtn and self.openAllBtn.SetText then
+		self.openAllBtn:SetText("Alle öffnen")
+	end
+	if reason and _G.PluribusUIFramework then
+		_G.PluribusUIFramework:ShowNotification(reason, 3.2)
+	end
+end
+
+function PluribusHiveMail:StartOpenAllMail()
+	if self.openAllActive then
+		self:StopOpenAllMail("|cfffbbf24Post-Abholung pausiert.|r")
+		return
+	end
+	if not (_G.MailFrame and _G.MailFrame:IsShown()) or not GetInboxNumItems or not GetInboxHeaderInfo then
+		return
+	end
+	local numItems = GetInboxNumItems() or 0
+	if numItems <= 0 then
+		if _G.PluribusUIFramework then
+			_G.PluribusUIFramework:ShowNotification("|cff94a3b8Dein Briefkasten ist leer.|r", 2.4)
+		end
+		return
+	end
+
+	self.openAllActive = true
+	if self.openAllBtn and self.openAllBtn.SetText then
+		self.openAllBtn:SetText("Stop")
+	end
+
+	local ticker = self.openAllTicker or CreateFrame("Frame")
+	self.openAllTicker = ticker
+	local elapsedAcc = 0.25
+	local scanIdx = numItems
+	local lootedMails = 0
+	local lootedCopper = 0
+	local skippedCOD = 0
+
+	ticker:SetScript("OnUpdate", function(_, elapsed)
+		if not PluribusHiveMail.openAllActive then
+			ticker:SetScript("OnUpdate", nil)
+			return
+		end
+		if not (_G.MailFrame and _G.MailFrame:IsShown()) then
+			PluribusHiveMail:StopOpenAllMail()
+			return
+		end
+		elapsedAcc = elapsedAcc + (elapsed or 0)
+		if elapsedAcc < 0.28 then return end
+		elapsedAcc = 0
+
+		local curTotal = GetInboxNumItems() or 0
+		if scanIdx > curTotal then scanIdx = curTotal end
+		while scanIdx >= 1 do
+			local _, _, _, _, money, CODAmount, _, hasItem = GetInboxHeaderInfo(scanIdx)
+			local isCOD = (tonumber(CODAmount) or 0) > 0
+			local hasMoney = (tonumber(money) or 0) > 0
+			local hasAttach = (tonumber(hasItem) or 0) > 0
+			if isCOD then
+				skippedCOD = skippedCOD + 1
+				scanIdx = scanIdx - 1
+			elseif hasMoney or hasAttach then
+				-- Check free bag space before attempting item attachment pickup
+				if hasAttach then
+					local freeSlots = 0
+					for bag = 0, (NUM_BAG_SLOTS or 4) do
+						local free = (C_Container and C_Container.GetContainerNumFreeSlots and C_Container.GetContainerNumFreeSlots(bag))
+							or (GetContainerNumFreeSlots and GetContainerNumFreeSlots(bag)) or 0
+						freeSlots = freeSlots + (tonumber(free) or 0)
+					end
+					if freeSlots <= 0 then
+						PluribusHiveMail:StopOpenAllMail(string.format("|cfffbbf24Taschen voll — %d Briefe abgeholt (%s).|r",
+							lootedMails, PluribusUtils:FormatGold(lootedCopper)))
+						return
+					end
+				end
+				if AutoLootMailItem then
+					pcall(AutoLootMailItem, scanIdx)
+				else
+					if hasMoney and TakeInboxMoney then pcall(TakeInboxMoney, scanIdx) end
+					if hasAttach and TakeInboxItem then pcall(TakeInboxItem, scanIdx, 1) end
+				end
+				lootedMails = lootedMails + 1
+				lootedCopper = lootedCopper + (tonumber(money) or 0)
+				scanIdx = scanIdx - 1
+				return
+			else
+				scanIdx = scanIdx - 1
+			end
+		end
+
+		local codNote = skippedCOD > 0 and string.format(" (%d Nachnahme übersprungen)", skippedCOD) or ""
+		if lootedMails > 0 then
+			PluribusHiveMail:StopOpenAllMail(string.format("|cff4ade80%d Briefe abgeholt (%s)%s|r",
+				lootedMails, PluribusUtils:FormatGold(lootedCopper), codNote))
+		else
+			PluribusHiveMail:StopOpenAllMail("|cff94a3b8Keine abholbaren Anhänge oder Gold gefunden" .. codNote .. ".|r")
+		end
+	end)
+end
+
+-- Attach a Guild Mail side tab + 1-click "Alle öffnen" button onto WoW's native Mailbox frame
 function PluribusHiveMail:AttachToMailFrame()
 	local host = _G.MailFrame
 	if not host or host._plbMailAttached or not _G.PluribusUIFramework then return end
@@ -310,7 +419,20 @@ function PluribusHiveMail:AttachToMailFrame()
 	})
 	host._plbMailTab = tab
 
+	-- 1-click "Alle öffnen" button docked cleanly on InboxFrame
+	local inboxHost = _G.InboxFrame or host
+	if inboxHost and not self.openAllBtn then
+		local openAllBtn = UI:CreateButton(inboxHost, "Alle öffnen", 88, 22, function()
+			PluribusHiveMail:StartOpenAllMail()
+		end, true)
+		openAllBtn:SetPoint("TOP", inboxHost, "TOP", -10, -34)
+		self.openAllBtn = openAllBtn
+	end
+
 	if host.HookScript then
+		pcall(host.HookScript, host, "OnHide", function()
+			PluribusHiveMail:StopOpenAllMail()
+		end)
 		pcall(host.HookScript, host, "OnShow", function()
 			local m = EnsureMailDB()
 			if tab then

@@ -1,11 +1,12 @@
 -- PluribusCore Unified Settings Menu
 -- Houses ALL suite, UI, HiveMind sharing/privacy, alerts, tooltips, market, and module settings
--- Registers natively inside WoW's Settings Menu (ESC -> Options -> AddOns -> Pluribus Suite)
--- AND opens cleanly on demand via the Settings button, Minimap Right-Click, or /pluribus settings
+-- Registers natively inside WoW's Settings Menu tree (ESC -> Options -> AddOns -> Pluribus Suite + native subcategories!)
+-- AND shows live Online/Offline status for all optional database addons (QuestieDB, WoWHeadDB, GatherMate2, GathererDB, etc.)
 
 PluribusSettingsPanel = {
 	categoryOrder = {
 		"General & UI",
+		"HealBot & Decursive",
 		"HiveMind Sharing",
 		"Alerts, SOS & LFG",
 		"Tooltips & Market",
@@ -15,9 +16,135 @@ PluribusSettingsPanel = {
 	currentCategory = "General & UI",
 	blizzardCategory = nil,
 	blizzardCanvas = nil,
+	blizzardSubCategories = {},
+	blizzardSubCanvases = {},
 	standaloneFrame = nil,
 }
 _G.PluribusSettingsPanel = PluribusSettingsPanel
+
+-- Optional external database & companion addons supported by Pluribus
+PluribusSettingsPanel.OPTIONAL_DATABASE_ADDONS = {
+	{
+		key = "QuestieDB",
+		name = "Questie / QuestieDB",
+		desc = "Quest-, NPC-, Ziel- & Mob-Tooltip-Datenbank",
+		addonNames = { "Questie", "QuestieDB" },
+		globals = { "QuestieDB", "Questie" },
+	},
+	{
+		key = "WoWHeadDB",
+		name = "WoWHeadDB",
+		desc = "Item-Quellen, Drop-Tabellen, Quests & NPCs",
+		addonNames = { "WoWHeadDB", "WowHeadDB" },
+		globals = { "WoWHeadDB", "WowHeadDB" },
+	},
+	{
+		key = "GatherMate2",
+		name = "GatherMate2",
+		desc = "Kräuter-, Erz-, Schatz- & Angel-Knotenpunkte",
+		addonNames = { "GatherMate2", "GatherMate2_Data" },
+		globals = { "GatherMate2", "GatherMate2HerbDB", "GatherMate2MineDB" },
+	},
+	{
+		key = "GathererDB",
+		name = "GathererDB / Gatherer",
+		desc = "Klassische Sammel-Knotendatenbank",
+		addonNames = { "GathererDB", "GathererDB_Wowhead", "Gatherer" },
+		globals = { "GathererDB", "Gatherer" },
+	},
+	{
+		key = "Auctionator",
+		name = "Auctionator",
+		desc = "Optionaler sekundärer AH-Preis-Feed",
+		addonNames = { "Auctionator" },
+		globals = { "Auctionator" },
+	},
+	{
+		key = "TradeSkillMaster",
+		name = "TradeSkillMaster (TSM)",
+		desc = "Optionale Marktpreis-Bewertung",
+		addonNames = { "TradeSkillMaster" },
+		globals = { "TSM_API", "TradeSkillMaster" },
+	},
+	{
+		key = "ShortestPathForever",
+		name = "ShortestPathForever / TomTom",
+		desc = "Optionale Wegpunkt- & Pfad-Integration",
+		addonNames = { "ShortestPathForever", "TomTom" },
+		globals = { "ShortestPathForever", "TomTom" },
+	},
+}
+
+local function CheckAddOnLoadedSafe(addonName)
+	if C_AddOns and C_AddOns.IsAddOnLoaded then
+		local ok, loaded = pcall(C_AddOns.IsAddOnLoaded, addonName)
+		if ok and loaded then return true end
+	end
+	if IsAddOnLoaded then
+		local ok, loaded = pcall(IsAddOnLoaded, addonName)
+		if ok and loaded then return true end
+	end
+	return false
+end
+
+local function CheckAddOnInstalledSafe(addonName)
+	if C_AddOns and C_AddOns.GetAddOnInfo then
+		local ok, name = pcall(C_AddOns.GetAddOnInfo, addonName)
+		if ok and name then return true end
+	end
+	if GetAddOnInfo then
+		local ok, name = pcall(GetAddOnInfo, addonName)
+		if ok and name then return true end
+	end
+	return false
+end
+
+function PluribusSettingsPanel:GetOptionalDatabaseStatus()
+	local results = {}
+	local onlineCount = 0
+
+	for _, entry in ipairs(self.OPTIONAL_DATABASE_ADDONS) do
+		local isOnline = false
+		local isInstalled = false
+		local matchedName = nil
+
+		for _, gName in ipairs(entry.globals or {}) do
+			if _G[gName] ~= nil then
+				isOnline = true
+				isInstalled = true
+				matchedName = gName
+				break
+			end
+		end
+
+		for _, aName in ipairs(entry.addonNames or {}) do
+			if CheckAddOnLoadedSafe(aName) then
+				isOnline = true
+				isInstalled = true
+				matchedName = matchedName or aName
+			elseif CheckAddOnInstalledSafe(aName) then
+				isInstalled = true
+				matchedName = matchedName or aName
+			end
+		end
+
+		if isOnline then
+			onlineCount = onlineCount + 1
+		end
+
+		results[#results + 1] = {
+			key = entry.key,
+			name = entry.name,
+			desc = entry.desc,
+			online = isOnline,
+			installed = isInstalled,
+			matchedName = matchedName,
+			statusText = isOnline and "Online" or (isInstalled and "Offline (Deaktiviert)" or "Offline"),
+		}
+	end
+
+	return results, onlineCount, #results
+end
 
 local function GetCfg()
 	if _G.PluribusHive and _G.PluribusHive.GetConfig then
@@ -36,6 +163,12 @@ local function SetCfg(key, val)
 		_G.PluribusUIFramework:SetUIScale(val)
 	elseif key == "showCooldownOverlay" and _G.PluribusHiveUI and _G.PluribusHiveUI.RefreshCooldownOverlay then
 		_G.PluribusHiveUI:RefreshCooldownOverlay()
+	elseif key == "showRaidMarkerBar" and _G.PluribusHiveRaidTools and _G.PluribusHiveRaidTools.UpdateMarkerBarVisibility then
+		_G.PluribusHiveRaidTools:UpdateMarkerBarVisibility()
+	elseif key == "replaceNativeBags" and _G.PluribusHiveInventory and _G.PluribusHiveInventory.SyncNativeBagHooks then
+		_G.PluribusHiveInventory:SyncNativeBagHooks()
+	elseif key == "language" and _G.PluribusL and _G.PluribusL.SetLanguage then
+		_G.PluribusL:SetLanguage(val)
 	end
 	if _G.PluribusMessaging and _G.PluribusMessaging.Publish then
 		pcall(function() _G.PluribusMessaging:Publish("PLURIBUS_SETTING_CHANGED", "Pluribus", key, val) end)
@@ -64,7 +197,46 @@ function PluribusSettingsPanel:ResetToDefaults()
 	end
 end
 
--- Shared renderer used by BOTH Blizzard's native AddOns Settings panel AND the standalone Settings window
+-- Full-width single-category shell for Blizzard's native Settings category tree (NO redundant nested sidebar!)
+function PluribusSettingsPanel:BuildNativeCategoryShell(parent, categoryName, width, height)
+	local UI = _G.PluribusUIFramework
+	local w = math.max(560, math.floor(width or 620))
+	local h = math.max(440, math.floor(height or 500))
+
+	local hdr = UI:CreateLabel(parent, "|cff38bdf8Pluribus Suite — " .. tostring(categoryName) .. "|r", 1, 1, 1, "GameFontNormalLarge")
+	hdr:SetPoint("TOPLEFT", parent, "TOPLEFT", 14, -12)
+
+	local subText = (categoryName == "General & UI")
+		and "Haupt-Einstellungen · Weitere Bereiche direkt links im nativen AddOns-Baum unter Pluribus Suite."
+		or "Einstellungen für " .. tostring(categoryName) .. " (Teil von Pluribus Suite)."
+	local sub = UI:CreateLabel(parent, subText, 0.68, 0.78, 0.88, "GameFontHighlightSmall")
+	sub:SetPoint("TOPLEFT", hdr, "BOTTOMLEFT", 0, -2)
+
+	local resetBtn = UI:CreateButton(parent, "Reset Defaults", 112, 22, function()
+		PluribusSettingsPanel:ResetToDefaults()
+		PluribusSettingsPanel:ShowCategory(parent, categoryName)
+	end)
+	resetBtn:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -14, -12)
+
+	local bodyW = w - 28
+	local bodyH = h - 58
+	local contentCard = UI:CreateCard(parent, bodyW, bodyH)
+	contentCard:SetPoint("TOPLEFT", parent, "TOPLEFT", 14, -46)
+
+	local safeKey = tostring(categoryName):gsub("[^%w]", "")
+	local scroll = UI:CreateScrollFrame(contentCard, "PluribusNativeSettingsScroll_" .. safeKey, bodyW - 16, bodyH - 16)
+	scroll:SetPoint("TOPLEFT", contentCard, "TOPLEFT", 8, -8)
+
+	parent.contentFrame = scroll.content
+	parent.contentWidth = bodyW - 44
+	parent.categoryButtons = nil
+	parent._isNativeCategory = true
+	parent._fixedCategory = categoryName
+
+	self:ShowCategory(parent, categoryName)
+end
+
+-- Standalone fallback window shell (used only when opened out-of-tree, e.g. in combat via /pluribus settings)
 function PluribusSettingsPanel:BuildSettingsShell(parent, width, height, isEmbedded)
 	local UI = _G.PluribusUIFramework
 	local w = width or 640
@@ -159,6 +331,72 @@ local function AddChoiceRow(container, rowW, y, label, desc, options, activeVal,
 	return y - 62
 end
 
+-- Renders the Optional Database Addons Online/Offline status panel
+local function AddOptionalDatabasesCard(container, rowW, y, shell, category)
+	local UI = _G.PluribusUIFramework
+	local statuses, onlineCount, totalCount = PluribusSettingsPanel:GetOptionalDatabaseStatus()
+	local netStats = (_G.PluribusHiveNetworkDB and _G.PluribusHiveNetworkDB.GetStats)
+		and _G.PluribusHiveNetworkDB:GetStats() or { items = 0, quests = 0, npcs = 0 }
+
+	local rowH = 26
+	local cardH = 56 + (#statuses * rowH) + 28
+	local card = UI:CreateCard(container, rowW, cardH)
+	card:SetPoint("TOPLEFT", container, "TOPLEFT", 2, y)
+
+	local title = UI:CreateLabel(
+		card,
+		string.format("|cff38bdf8Optionale Datenbank-Addons|r  |cff94a3b8(%d/%d online)|r", onlineCount, totalCount),
+		1, 1, 1, "GameFontNormal"
+	)
+	title:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -8)
+
+	local sub = UI:CreateLabel(
+		card,
+		string.format("|cff94a3b8Pluribus P2P-Cache aktiv (%d Items, %d Quests, %d NPCs) · Externe DB-Addons werden automatisch eingebunden.|r",
+			netStats.items or 0, netStats.quests or 0, netStats.npcs or 0),
+		nil, nil, nil, "GameFontHighlightSmall"
+	)
+	sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -2)
+	sub:SetWidth(rowW - 110)
+
+	local refreshBtn = UI:CreateButton(card, "Aktualisieren", 92, 20, function()
+		PluribusSettingsPanel:ShowCategory(shell, category)
+	end)
+	refreshBtn:SetPoint("TOPRIGHT", card, "TOPRIGHT", -8, -8)
+
+	local iy = -46
+	for _, st in ipairs(statuses) do
+		local line = CreateFrame("Frame", nil, card)
+		line:SetSize(rowW - 16, rowH - 2)
+		line:SetPoint("TOPLEFT", card, "TOPLEFT", 8, iy)
+
+		local dot = line:CreateTexture(nil, "ARTWORK")
+		dot:SetSize(8, 8)
+		dot:SetPoint("LEFT", line, "LEFT", 4, 0)
+		if st.online then
+			dot:SetColorTexture(0.29, 0.87, 0.50, 1)
+		elseif st.installed then
+			dot:SetColorTexture(0.98, 0.75, 0.15, 1)
+		else
+			dot:SetColorTexture(0.45, 0.52, 0.62, 0.85)
+		end
+
+		local nameL = UI:CreateLabel(line, st.name, 0.94, 0.96, 1.0, "GameFontHighlightSmall")
+		nameL:SetPoint("LEFT", dot, "RIGHT", 8, 0)
+
+		local descL = UI:CreateLabel(line, "|cff94a3b8— " .. st.desc .. "|r", nil, nil, nil, "GameFontHighlightSmall")
+		descL:SetPoint("LEFT", nameL, "RIGHT", 6, 0)
+
+		local statusCol = st.online and "|cff4ade80" or (st.installed and "|cfffbbf24" or "|cff94a3b8")
+		local statusL = UI:CreateLabel(line, statusCol .. st.statusText .. "|r", nil, nil, nil, "GameFontHighlightSmall")
+		statusL:SetPoint("RIGHT", line, "RIGHT", -4, 0)
+
+		iy = iy - rowH
+	end
+
+	return y - (cardH + 8)
+end
+
 function PluribusSettingsPanel:ShowCategory(shell, category)
 	if not shell or not shell.contentFrame then return end
 	local UI = _G.PluribusUIFramework
@@ -173,11 +411,26 @@ function PluribusSettingsPanel:ShowCategory(shell, category)
 	UI:ClearContainer(c)
 	local cfg = GetCfg()
 
-	local heading = UI:CreateLabel(c, "|cff38bdf8" .. category .. "|r", nil, nil, nil, "GameFontNormalLarge")
-	heading:SetPoint("TOPLEFT", c, "TOPLEFT", 4, -4)
-	local y = -34
+	local y = -6
+	if not shell._isNativeCategory then
+		local heading = UI:CreateLabel(c, "|cff38bdf8" .. category .. "|r", nil, nil, nil, "GameFontNormalLarge")
+		heading:SetPoint("TOPLEFT", c, "TOPLEFT", 4, -4)
+		y = -34
+	end
 
 	if category == "General & UI" then
+		-- Show optional database addons online/offline status right on the main Settings page too
+		y = AddOptionalDatabasesCard(c, rowW, y, shell, category)
+
+		y = AddChoiceRow(c, rowW, y, "Language / Sprache", "Switch interface language (Auto detects WoW client locale)", {
+			{ label = "Auto", value = "auto" },
+			{ label = "Deutsch", value = "de" },
+			{ label = "English", value = "en" },
+		}, cfg.language or "auto", function(val)
+			SetCfg("language", val)
+			PluribusSettingsPanel:ShowCategory(shell, category)
+		end)
+
 		y = AddChoiceRow(c, rowW, y, "Suite Theme", "Switch color palette across Pluribus windows", {
 			{ label = "Obsidian", value = "obsidian" },
 			{ label = "Light Slate", value = "light" },
@@ -231,15 +484,163 @@ function PluribusSettingsPanel:ShowCategory(shell, category)
 		y = AddCheckboxRow(c, rowW, y, "Class Colored Names", "Color guild and alt character names by WoW class", cfg.classColoredNames ~= false, function(v)
 			SetCfg("classColoredNames", v)
 		end)
+		y = AddCheckboxRow(c, rowW, y, "Unified Pluribus UI (Taschen, Bank & Gildenbank)", "Verwendet die einheitliche Pluribus-UI für Taschen, Bank und Gildenbank (jederzeit via 'Std' umschaltbar)", cfg.replaceNativeBags == true, function(v)
+			SetCfg("replaceNativeBags", v)
+		end)
+		y = AddCheckboxRow(c, rowW, y, "Pathfinder: Avoid High-Level Zones & Mobs", "Prefer roads, safe passes, flight paths & boats over dangerous high-level shortcuts", cfg.navAvoidHighLevel ~= false, function(v)
+			SetCfg("navAvoidHighLevel", v)
+		end)
+		y = AddCheckboxRow(c, rowW, y, "Pathfinder: Guild Mage Portals & Warlock Summons", "Include open-world online guild Mages (portals) & Warlocks (summons with 2-helper buffer) outside dungeons/raids", cfg.navUseGuildTransit ~= false, function(v)
+			SetCfg("navUseGuildTransit", v)
+		end)
 		y = AddCheckboxRow(c, rowW, y, "Auto-Sell Gray Trash at Vendors", "Automatically sell Poor (gray) junk items when opening any merchant (hold Shift to skip)", cfg.autoSellJunk ~= false, function(v)
 			SetCfg("autoSellJunk", v)
+		end)
+		y = AddCheckboxRow(c, rowW, y, "Auto-Repair Gear at Vendors", "Automatically repair damaged gear when talking to a repair merchant (hold Shift to skip)", cfg.autoRepair ~= false, function(v)
+			SetCfg("autoRepair", v)
+		end)
+
+		-- 4-mode Auto-Repair Payment Source selector
+		local repRow = UI:CreateCard(c, rowW, 70)
+		repRow:SetPoint("TOPLEFT", c, "TOPLEFT", 2, y)
+		local repLbl = UI:CreateLabel(repRow, "Auto-Reparatur: Zahlungsquelle", 0.94, 0.96, 1.0, "GameFontNormal")
+		repLbl:SetPoint("TOPLEFT", repRow, "TOPLEFT", 10, -7)
+		local repDesc = UI:CreateLabel(repRow, "|cff94a3b8Standard: nur eigenes Gold. Optional mit Gildenbank-Priorität oder nur Gildenbank.|r", nil, nil, nil, "GameFontHighlightSmall")
+		repDesc:SetPoint("TOPLEFT", repLbl, "BOTTOMLEFT", 0, -2)
+		repDesc:SetWidth(rowW - 20)
+		local activeRepMode = cfg.autoRepairMode or "PERSONAL_ONLY"
+		local repModes = {
+			{ label = "Nur Eigenes", value = "PERSONAL_ONLY", w = 88 },
+			{ label = "Eigenes > Gilde", value = "PERSONAL_FIRST", w = 104 },
+			{ label = "Gilde > Eigenes", value = "GUILD_FIRST", w = 104 },
+			{ label = "Nur Gilde", value = "GUILD_ONLY", w = 78 },
+		}
+		local prevRepBtn = nil
+		for _, rm in ipairs(repModes) do
+			local b = UI:CreateButton(repRow, rm.label, rm.w, 22, function()
+				SetCfg("autoRepairMode", rm.value)
+				PluribusSettingsPanel:ShowCategory(shell, category)
+			end, activeRepMode == rm.value)
+			if prevRepBtn then
+				b:SetPoint("LEFT", prevRepBtn, "RIGHT", 6, 0)
+			else
+				b:SetPoint("BOTTOMLEFT", repRow, "BOTTOMLEFT", 10, 8)
+			end
+			prevRepBtn = b
+		end
+		y = y - 76
+
+		y = AddCheckboxRow(c, rowW, y, "Fast Auto-Loot", "Instantly loot all items when opening corpses/chests with auto-loot enabled", cfg.fastAutoLoot ~= false, function(v)
+			SetCfg("fastAutoLoot", v)
 		end)
 		y = AddCheckboxRow(c, rowW, y, "Compact Mode", "Use denser row spacing in raid tables and lists", cfg.compactMode == true, function(v)
 			SetCfg("compactMode", v)
 		end)
 
+	elseif category == "HealBot & Decursive" then
+		local hd = _G.PluribusHealDecursive
+		if not hd then
+			local errL = UI:CreateLabel(c, "|cfff87171HealBot-Engine nicht geladen. Bitte /reload ausführen.|r", 1, 1, 1, "GameFontNormal")
+			errL:SetPoint("TOPLEFT", c, "TOPLEFT", 6, y)
+			y = y - 32
+		else
+			local hcfg = hd.config
+			-- Quick action buttons bar
+			local openFullBtn = UI:CreateButton(c, "Klick-Zauber & Vorschau öffnen (/healbot)", 254, 24, function()
+				if _G.PluribusMainFrame and _G.PluribusMainFrame.OpenToTab then
+					_G.PluribusMainFrame:OpenToTab("HealBot")
+				end
+			end, true)
+			openFullBtn:SetPoint("TOPLEFT", c, "TOPLEFT", 2, y)
+
+			local resetClsBtn = UI:CreateButton(c, "Klassen-Standard", 132, 24, function()
+				hd:ResetClassDefaults()
+				PluribusSettingsPanel:ShowCategory(shell, category)
+			end)
+			resetClsBtn:SetPoint("LEFT", openFullBtn, "RIGHT", 8, 0)
+			y = y - 34
+
+			y = AddCheckboxRow(c, rowW, y, "HealBot + Decursive aktivieren", "Schaltet das Klick-Heilungs- & Decursive-Grid ein oder aus", hcfg.enabled ~= false, function(v)
+				hcfg.enabled = v
+				hd:SaveConfig()
+				hd:RequestRebuild()
+			end)
+
+			y = AddCheckboxRow(c, rowW, y, "Immer anzeigen (auch Solo / Selbstheilung)", "Zeigt dein eigenes HealBot-Feld auch ohne Gruppe/Raid an — ideal zum Selbstheilen & Bannen", hcfg.showSolo == true, function(v)
+				if hd.SetAlwaysShow then
+					hd:SetAlwaysShow(v)
+				else
+					hcfg.showSolo = v
+					if v then hcfg.enabled = true end
+					hd:SaveConfig()
+					hd:RequestRebuild()
+				end
+			end)
+
+			y = AddCheckboxRow(c, rowW, y, "Kompakter Decursive MUF-Modus", "Kleine farbige Debuff-Quadrate (Linksklick = Primär-Cleanse, Rechtsklick = Sekundär)", hcfg.compactMUF == true, function(v)
+				hcfg.compactMUF = v
+				hd:SaveConfig()
+				hd:RequestRebuild()
+			end)
+
+			y = AddCheckboxRow(c, rowW, y, "Grid-Position sperren", "Verhindert versehentliches Verschieben mit der Maus", hcfg.locked == true, function(v)
+				hcfg.locked = v
+				hd:SaveConfig()
+			end)
+
+			y = AddCheckboxRow(c, rowW, y, "Eingehende Heilungen anzeigen", "Zeigt laufende Heilzauber anderer Heiler als grüne Vorschau", hcfg.showIncomingHeals ~= false, function(v)
+				hcfg.showIncomingHeals = v
+				hd:SaveConfig()
+			end)
+
+			y = AddCheckboxRow(c, rowW, y, "HoT-Timer anzeigen (Erneuerung, Verjüngung, Schild)", "Zeigt aktive HoTs & Restsekunden rechts unten auf jedem Feld", hcfg.showHoTTimers ~= false, function(v)
+				hcfg.showHoTTimers = v
+				hd:SaveConfig()
+			end)
+
+			y = AddCheckboxRow(c, rowW, y, "Nur selbst bannbare Debuffs hervorheben", "Blendet Debuffs aus, die deine Klasse nicht entfernen kann", hcfg.onlyDispellable ~= false, function(v)
+				hcfg.onlyDispellable = v
+				hd:SaveConfig()
+			end)
+
+			y = AddCheckboxRow(c, rowW, y, "Decursive Warnton bei neuem Debuff", "Spielt einen dezenten Klang ab, sobald ein bannbarer Debuff auftritt", hcfg.alertSound ~= false, function(v)
+				hcfg.alertSound = v
+				hd:SaveConfig()
+			end)
+
+			y = AddCheckboxRow(c, rowW, y, "Außer Reichweite ausblenden & Aggro-Rahmen", "Dimmt Einheiten über 40m und markiert Bedrohung mit rotem Rahmen", hcfg.fadeOutOfRange ~= false, function(v)
+				hcfg.fadeOutOfRange = v
+				hcfg.showAggro = v
+				hd:SaveConfig()
+			end)
+
+			-- Quick Click-Cast & Cleanse summary card
+			local bindCard = UI:CreateCard(c, rowW, 92)
+			bindCard:SetPoint("TOPLEFT", c, "TOPLEFT", 2, y)
+			local b = hcfg.bindings or {}
+			local bTitle = UI:CreateLabel(bindCard, "|cff38bdf8Aktive Klick-Zauber & Cleanse-Belegung|r", 1, 1, 1, "GameFontNormal")
+			bTitle:SetPoint("TOPLEFT", bindCard, "TOPLEFT", 10, -8)
+			local bLine1 = UI:CreateLabel(bindCard, string.format(
+				"Links: |cff4ade80%s|r  ·  Rechts: |cff38bdf8%s|r  ·  Mitte: |cfffbbf24%s|r",
+				(b["Left-Click"] and b["Left-Click"] ~= "") and b["Left-Click"] or "Ziel",
+				(b["Right-Click"] and b["Right-Click"] ~= "") and b["Right-Click"] or "-",
+				(b["Middle-Click"] and b["Middle-Click"] ~= "") and b["Middle-Click"] or "-"
+			), 0.85, 0.90, 0.96, "GameFontHighlightSmall")
+			bLine1:SetPoint("TOPLEFT", bTitle, "BOTTOMLEFT", 0, -6)
+			local bLine2 = UI:CreateLabel(bindCard, string.format(
+				"Shift+L: |cffcbd5e1%s|r  ·  Strg+L: |cffcbd5e1%s|r  ·  Cleanse: |cffa855f7%s|r / |cffa855f7%s|r",
+				(b["Shift+Left"] and b["Shift+Left"] ~= "") and b["Shift+Left"] or "-",
+				(b["Ctrl+Left"] and b["Ctrl+Left"] ~= "") and b["Ctrl+Left"] or "-",
+				(hcfg.cleansePrimary and hcfg.cleansePrimary ~= "") and hcfg.cleansePrimary or "-",
+				(hcfg.cleanseSecondary and hcfg.cleanseSecondary ~= "") and hcfg.cleanseSecondary or "-"
+			), 0.78, 0.86, 0.94, "GameFontHighlightSmall")
+			bLine2:SetPoint("TOPLEFT", bLine1, "BOTTOMLEFT", 0, -4)
+			local bHint = UI:CreateLabel(bindCard, "|cff94a3b8Zum Bearbeiten einzelner Zauber oben auf 'Klick-Zauber & Vorschau öffnen' klicken (oder /healbot).|r", nil, nil, nil, "GameFontHighlightSmall")
+			bHint:SetPoint("TOPLEFT", bLine2, "BOTTOMLEFT", 0, -6)
+			y = y - 98
+		end
+
 	elseif category == "HiveMind Sharing" then
-		-- Quick master actions
 		local allOnBtn = UI:CreateButton(c, "Share All (Hive Default)", 160, 24, function()
 			for _, k in ipairs({ "shareBags", "shareBank", "shareProfessions", "shareCooldowns", "shareDistress", "shareLFG", "shareAuctionPrices", "shareWorldEvents", "shareGameDB" }) do
 				SetCfg(k, true)
@@ -319,8 +720,16 @@ function PluribusSettingsPanel:ShowCategory(shell, category)
 			SetCfg("mentionSoundEnabled", v)
 		end)
 
-		y = AddCheckboxRow(c, rowW, y, "Show Draggable Guild Cooldown Strip", "Display a compact live bar overlay when guild cooldowns are active", cfg.showCooldownOverlay ~= false, function(v)
+		y = AddCheckboxRow(c, rowW, y, "Show Draggable Guild Cooldown Strip", "Display a compact live bar overlay for your selected Raid & Guild cooldowns (/cdconfig)", cfg.showCooldownOverlay ~= false, function(v)
 			SetCfg("showCooldownOverlay", v)
+		end)
+
+		y = AddCheckboxRow(c, rowW, y, "Auto-Show Group & Raid Marker Bar", "Display floating Raid Target Icons, World Pins, Pull Timer & Ready Check bar in Party/Raid (/markerbar)", cfg.showRaidMarkerBar ~= false, function(v)
+			SetCfg("showRaidMarkerBar", v)
+		end)
+
+		y = AddCheckboxRow(c, rowW, y, "Auto-Open Ready Check Buff & Durability Inspector", "Show active/missing buffs, consumables & armor durability % on Ready Check (/readycheck)", cfg.autoShowReadyCheck ~= false, function(v)
+			SetCfg("autoShowReadyCheck", v)
 		end)
 
 		y = AddCheckboxRow(c, rowW, y, "Enable Suite Toast Notifications", "Show clean auto-fading notices for auctions, syncs, and reminders", cfg.enableNotifications ~= false, function(v)
@@ -331,7 +740,7 @@ function PluribusSettingsPanel:ShowCategory(shell, category)
 		y = AddCheckboxRow(c, rowW, y, "Enable Enhanced Item Tooltips", "Master switch for all Pluribus tooltip information", cfg.showTooltips ~= false, function(v)
 			SetCfg("showTooltips", v)
 		end)
-		y = AddCheckboxRow(c, rowW, y, "Show Sharpie's Gear Judge & Cap Guardian", "Display % Upgrade/Downgrade, Hit/Defense cap drop warnings, and Alt BoE upgrades", cfg.showGearJudgeTooltips ~= false, function(v)
+		y = AddCheckboxRow(c, rowW, y, "Show Pluribus GearAdvisor & Cap Guardian", "Display real stat-parsed % Upgrade/Downgrade, Hit/Defense cap warnings, and Alt BoE upgrades", cfg.showGearJudgeTooltips ~= false, function(v)
 			SetCfg("showGearJudgeTooltips", v)
 		end)
 		y = AddCheckboxRow(c, rowW, y, "Show You / Alt / Guild Bag Counts", "Display how many of an item you, your alts, and guildmates hold", cfg.showTooltipCounts ~= false, function(v)
@@ -340,7 +749,7 @@ function PluribusSettingsPanel:ShowCategory(shell, category)
 		y = AddCheckboxRow(c, rowW, y, "Show Guild Profession Needs (Surplus)", "Highlight in emerald green when YOU don't need an item a guildmate needs", cfg.showTooltipProfNeeds ~= false, function(v)
 			SetCfg("showTooltipProfNeeds", v)
 		end)
-		y = AddCheckboxRow(c, rowW, y, "Show Guild AH Market Prices & Vendor Value", "Display recent guild-synced AH buyout prices (unit & stack) + vendor sell price", cfg.showTooltipPrices ~= false, function(v)
+		y = AddCheckboxRow(c, rowW, y, "Show Guild AH Market Prices, Vendor & Mean DE Value", "Display guild-synced AH buyout prices, vendor sell price & expected Disenchant value", cfg.showTooltipPrices ~= false, function(v)
 			SetCfg("showTooltipPrices", v)
 		end)
 		y = AddCheckboxRow(c, rowW, y, "Show Hive / Wowhead Game DB Source", "Display cached drop/craft source and trigger silent P2P lookup on miss", cfg.showTooltipGameDB ~= false, function(v)
@@ -351,6 +760,8 @@ function PluribusSettingsPanel:ShowCategory(shell, category)
 		end)
 
 	elseif category == "Modules & Data" then
+		y = AddOptionalDatabasesCard(c, rowW, y, shell, category)
+
 		y = AddCheckboxRow(c, rowW, y, "Enable Distributed Hive Compute Mesh", "Split leveling & farming guide math across idle guildmates with strict zero-lag caps", cfg.computeEnabled ~= false, function(v)
 			SetCfg("computeEnabled", v)
 		end)
@@ -397,15 +808,21 @@ function PluribusSettingsPanel:ShowCategory(shell, category)
 			{ "Circular Infinity Minimap Orb", "Left-Click: Guild Hub (/pluribus) · Right-Click: Settings · Shift+Right-Click: Officer Console." },
 			{ "Guild Chat @Mentions", "Type @Player, @Mage, @Dwarf, @Alchemy, @Healer, or @guild in /g! Sound queues during combat/instances & skips if they already replied." },
 			{ "Dungeon Finder Smart LFG Tab", "Open WoW's Dungeon Finder (I) -> click the Smart Guild LFG side tab to post & join guild groups." },
-			{ "Unified Bags & Bank (/bags)", "One unified Bags & Bank viewer for You, Alts & Guildmates with Sell Gray Junk & AH Valuation." },
-			{ "Sharpie's Gear Judge (/gearjudge, /xpbar)", "Tooltip % upgrades, Cap Guardian warnings, Alt BoE checks, The Laboratory, Roadmap, Talents & XP/Loot Bar." },
-			{ "Hive Compute Guides (/guides)", "Distributed zero-lag guild compute calculates optimal Azeroth leveling & material farming guides." },
-			{ "Navigation Compass (/nav, /way x y)", "Rotating floating Compass Arrow HUD + World Map side tab + live Guildmate GPS." },
-			{ "Guild Mail & Guild Tax (/mail, /tax)", "Offline-capable Guild Mail inbox/composer + automatic loot/quest Guild Tax vault & banker payments." },
-			{ "Officer Dashboard & Audit Log (/officer, /audit)", "Manage DKP/EPGP awards, view unified DKP/Loot/Tax transaction history & audit trails, filter by member, or export CSV." },
-			{ "Auction House & Professions", "Open AH for 20m-CD full auto-scan; open any Profession for Craft Profits, Guild Recipes & Shopping List." },
+			{ "Unified Bags, Bank & Guild Bank (/bags)", "One taint-free Unified UI for Bags, Bank & Guild Bank with sorting, category filters, Auto-Sell Trash, Auto-Repair & Fast Auto-Loot." },
+			{ "Auctionator Selling, Shopping Lists & Disenchant Sniper", "Open the AH for 1-click Selling/Undercut, Shopping Lists with Advanced Filters, Live To-Do Sync & Disenchant Deals below mean DE value." },
+			{ "To-Do & Einkaufsliste (/todo, /einkaufsliste)", "Per-item Buy (1-click AH Shopping tab) or Farm mode (inline calculated Farm Route + 1-click Navigate)." },
+			{ "Pluribus GearAdvisor (/gearadvisor, /xpbar)", "Real EN+DE tooltip stat parser, customizable stat weights, Bag Upgrade Scanner, Cap Guardian, Roadmap & XP Bar." },
+			{ "Auto-Calculated Guides (/guides)", "Automatically computes optimal Leveling & Farming guides in the background under strict zero-lag FPS guards." },
+			{ "Smart Terrain/NavMesh Pathfinder (/nav, /way x y)", "Terrain-, road-, pass- & obstacle-aware routing using game-internal waypoints and learned walkable mesh. Alt+Click World Map to set pins." },
+			{ "SOS Rescue Popup (/sos)", "Sends open-world SOS alerts with a 1-click [Einladen + Navi] popup for nearby guildmates." },
+			{ "Guild Mail, Open-All & Guild Tax (/mail, /tax)", "1-click 'Alle öffnen' at the WoW Mailbox (skips COD), offline Guild Mail & automatic Guild Tax vault/banker payments." },
+			{ "Officer Dashboard & Audit Log (/plbofficer, /audit)", "Manage DKP/EPGP awards, view unified DKP/Loot/Tax transaction history & audit trails, filter by member, or export CSV." },
+			{ "Raid Marker Bar & Pull Timer (/markerbar, /pull 10)", "Auto-appears in Party/Raid with 8 target icons, 8 world pins, Pull countdown & Ready Check." },
+			{ "Ready Check Inspector (/readycheck, /rc)", "Shows every member's active/missing buffs, flasks, food & armor durability % with 1-click chat report." },
+			{ "On-Screen Cooldown Selection (/cdconfig)", "Choose exact Raid & Guild ability cooldowns to display on-screen with Scope filters & presets." },
+			{ "Unified HealBot + Decursive (/healbot, /decursive)", "Combat-safe click-cast party/raid grid + 1-click Decursive cleanse squares & compact MUF mode." },
 		}
-		for idx, t in ipairs(tips) do
+		for _, t in ipairs(tips) do
 			local row = UI:CreateCard(c, rowW, 44)
 			row:SetPoint("TOPLEFT", c, "TOPLEFT", 2, y)
 			local l1 = UI:CreateLabel(row, "|cff38bdf8" .. t[1] .. "|r", nil, nil, nil, "GameFontNormal")
@@ -420,12 +837,14 @@ function PluribusSettingsPanel:ShowCategory(shell, category)
 	c:SetHeight(math.max(360, math.abs(y) + 14))
 end
 
--- Register Pluribus Suite natively inside WoW's ESC -> Options -> AddOns menu
-function PluribusSettingsPanel:RegisterBlizzardSettings()
-	if self.blizzardCanvas then return end
-	local canvas = CreateFrame("Frame", "PluribusBlizzardSettingsCanvas", UIParent)
-	canvas.name = "Pluribus Suite"
+local function CreateBlizzardCategoryCanvas(canvasName, displayName, categoryKey, parentName)
+	local canvas = CreateFrame("Frame", canvasName, UIParent)
+	canvas.name = displayName
+	if parentName then
+		canvas.parent = parentName
+	end
 	canvas:SetSize(640, 520)
+	canvas:Hide()
 
 	local built = false
 	canvas:SetScript("OnShow", function(selfCanvas)
@@ -433,22 +852,54 @@ function PluribusSettingsPanel:RegisterBlizzardSettings()
 			built = true
 			local w = math.max(580, math.floor(selfCanvas:GetWidth() or 640))
 			local h = math.max(460, math.floor(selfCanvas:GetHeight() or 520))
-			PluribusSettingsPanel:BuildSettingsShell(selfCanvas, w, h, true)
+			PluribusSettingsPanel:BuildNativeCategoryShell(selfCanvas, categoryKey, w, h)
 		elseif built then
-			PluribusSettingsPanel:ShowCategory(selfCanvas, PluribusSettingsPanel.currentCategory or "General & UI")
+			PluribusSettingsPanel:ShowCategory(selfCanvas, categoryKey)
 		end
 	end)
+	return canvas
+end
 
-	self.blizzardCanvas = canvas
+-- Register Pluribus Suite AND all its subcategories directly into WoW's native Settings / Interface Options tree!
+function PluribusSettingsPanel:RegisterBlizzardSettings()
+	if self.blizzardCanvas then return end
+
+	local rootCanvas = CreateBlizzardCategoryCanvas("PluribusBlizzardSettingsCanvas", "Pluribus Suite", "General & UI", nil)
+	self.blizzardCanvas = rootCanvas
+	self.blizzardSubCanvases = { ["General & UI"] = rootCanvas }
+	self.blizzardSubCategories = {}
 
 	if _G.Settings and _G.Settings.RegisterCanvasLayoutCategory and _G.Settings.RegisterAddOnCategory then
-		local ok, category = pcall(_G.Settings.RegisterCanvasLayoutCategory, canvas, "Pluribus Suite")
-		if ok and category then
-			pcall(_G.Settings.RegisterAddOnCategory, category)
-			self.blizzardCategory = category
+		local ok, rootCat = pcall(_G.Settings.RegisterCanvasLayoutCategory, rootCanvas, "Pluribus Suite")
+		if ok and rootCat then
+			pcall(_G.Settings.RegisterAddOnCategory, rootCat)
+			self.blizzardCategory = rootCat
+			self.blizzardSubCategories["General & UI"] = rootCat
+
+			if _G.Settings.RegisterCanvasLayoutSubcategory then
+				for _, catName in ipairs(self.categoryOrder) do
+					if catName ~= "General & UI" then
+						local safe = catName:gsub("[^%w]", "")
+						local subCanvas = CreateBlizzardCategoryCanvas("PluribusBlizzSubCanvas_" .. safe, catName, catName, "Pluribus Suite")
+						self.blizzardSubCanvases[catName] = subCanvas
+						local okSub, subCat = pcall(_G.Settings.RegisterCanvasLayoutSubcategory, rootCat, subCanvas, catName)
+						if okSub and subCat then
+							self.blizzardSubCategories[catName] = subCat
+						end
+					end
+				end
+			end
 		end
 	elseif _G.InterfaceOptions_AddCategory then
-		pcall(_G.InterfaceOptions_AddCategory, canvas)
+		pcall(_G.InterfaceOptions_AddCategory, rootCanvas)
+		for _, catName in ipairs(self.categoryOrder) do
+			if catName ~= "General & UI" then
+				local safe = catName:gsub("[^%w]", "")
+				local subCanvas = CreateBlizzardCategoryCanvas("PluribusBlizzSubCanvas_" .. safe, catName, catName, "Pluribus Suite")
+				self.blizzardSubCanvases[catName] = subCanvas
+				pcall(_G.InterfaceOptions_AddCategory, subCanvas)
+			end
+		end
 	end
 end
 
@@ -469,27 +920,34 @@ function PluribusSettingsPanel:CreateSettingsFrame(parent)
 	return frame
 end
 
--- Open Settings directly (opens Blizzard's native Settings menu when out of combat, or standalone frame)
+-- Open Settings directly to the requested native subcategory (or standalone frame during combat)
 function PluribusSettingsPanel:Open(categoryName)
-	if categoryName then
-		self.currentCategory = categoryName
-	end
+	local targetCat = categoryName or "General & UI"
+	self.currentCategory = targetCat
+
 	if not (InCombatLockdown and InCombatLockdown()) then
-		if self.blizzardCategory and _G.Settings and _G.Settings.OpenToCategory then
-			local id = self.blizzardCategory.GetID and self.blizzardCategory:GetID() or self.blizzardCategory.ID
-			if id then
-				local ok = pcall(_G.Settings.OpenToCategory, id)
-				if ok then return end
+		if _G.Settings and _G.Settings.OpenToCategory then
+			local catObj = (self.blizzardSubCategories and self.blizzardSubCategories[targetCat]) or self.blizzardCategory
+			if catObj then
+				local id = catObj.GetID and catObj:GetID() or catObj.ID
+				if id then
+					local ok = pcall(_G.Settings.OpenToCategory, id)
+					if ok then return end
+				end
 			end
-		elseif self.blizzardCanvas and _G.InterfaceOptionsFrame_OpenToCategory then
-			pcall(_G.InterfaceOptionsFrame_OpenToCategory, self.blizzardCanvas)
-			pcall(_G.InterfaceOptionsFrame_OpenToCategory, self.blizzardCanvas)
-			return
+		elseif _G.InterfaceOptionsFrame_OpenToCategory then
+			local targetCanvas = (self.blizzardSubCanvases and self.blizzardSubCanvases[targetCat]) or self.blizzardCanvas
+			if targetCanvas then
+				pcall(_G.InterfaceOptionsFrame_OpenToCategory, targetCanvas)
+				pcall(_G.InterfaceOptionsFrame_OpenToCategory, targetCanvas)
+				return
+			end
 		end
 	end
+
 	local f = self:CreateSettingsFrame(UIParent)
 	f:Show()
-	self:ShowCategory(f, self.currentCategory or "General & UI")
+	self:ShowCategory(f, targetCat)
 end
 
 function PluribusSettingsPanel:Toggle()
@@ -505,7 +963,7 @@ end
 function PluribusSettingsPanel:Initialize()
 	self:RegisterBlizzardSettings()
 	if PluribusUtils and PluribusUtils.Info then
-		PluribusUtils:Info("Unified Settings Panel registered in Options > AddOns > Pluribus Suite", "SettingsPanel")
+		PluribusUtils:Info("Unified Settings Panel registered in Options > AddOns > Pluribus Suite (with native subcategories)", "SettingsPanel")
 	end
 end
 

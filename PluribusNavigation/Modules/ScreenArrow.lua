@@ -58,6 +58,7 @@ function ScreenArrow:Initialize()
 	direction:SetJustifyH("CENTER")
 	frame.direction = direction
 	
+	frame:Hide()
 	self.frame = frame
 	self:RegisterUpdateLoop()
 	
@@ -87,41 +88,49 @@ function ScreenArrow:OnUpdate(elapsed)
 	
 	self.lastUpdate = 0
 	
-	-- Get player position
-	local playerX, playerY = PluribusUtils:GetUnitMapPosition("player")
-	
-	if not playerX or not playerY or (playerX == 0 and playerY == 0) then
+	-- Get player position (0..1 -> 0..100%)
+	local rawX, rawY = PluribusUtils:GetUnitMapPosition("player")
+	if not rawX or not rawY or (rawX == 0 and rawY == 0) then
 		self.frame:Hide()
 		return
 	end
-	
-	-- Calculate direction to target
-	local dx = self.targetX - playerX
-	local dy = self.targetY - playerY
-	
-	-- Calculate angle (0 = up, 90 = right, 180 = down, 270 = left)
-	local angle = math.atan2(dy, dx)
-	angle = angle - math.pi / 2 -- Rotate so 0 is up
-	
-	-- Apply rotation to arrow
-	self.frame.arrow:SetRotation(angle)
-	
-	-- Calculate distance
-	local distance = math.sqrt(dx * dx + dy * dy) * 100
-	
-	-- Update distance text
-	if distance < 100 then
+	local px, py = rawX * 100, rawY * 100
+	local tx = (self.targetX <= 1.0) and (self.targetX * 100) or self.targetX
+	local ty = (self.targetY <= 1.0) and (self.targetY * 100) or self.targetY
+
+	-- Follow active road/terrain-mesh leg waypoint instead of straight line through obstacles!
+	local curZone = (GetRealZoneText and GetRealZoneText()) or ""
+	if _G.PluribusHivePathfinder and _G.PluribusHivePathfinder.GetActiveLeg then
+		local leg = _G.PluribusHivePathfinder:GetActiveLeg(curZone, px, py)
+		if leg and leg.x and leg.y then
+			tx, ty = leg.x, leg.y
+		end
+	end
+
+	local dx = tx - px
+	local dy = ty - py
+	local facing = (GetPlayerFacing and GetPlayerFacing()) or 0
+	local targetAngle = math.atan2(-dx, -dy)
+	local relAngle = targetAngle - facing
+
+	if self.frame.arrow.SetRotation then
+		pcall(self.frame.arrow.SetRotation, self.frame.arrow, relAngle)
+	end
+
+	local distance = (_G.PluribusHivePathfinder and _G.PluribusHivePathfinder.DistanceYards)
+		and _G.PluribusHivePathfinder:DistanceYards(curZone, px, py, tx, ty)
+		or (math.sqrt(dx * dx + dy * dy) * 28)
+
+	if distance < 1760 then
 		self.frame.distance:SetText(string.format("%.0f yards", distance))
 	else
 		self.frame.distance:SetText(string.format("%.1f miles", distance / 1760))
 	end
-	
-	-- Update direction text (N, NE, E, SE, S, SW, W, NW)
-	local directionName = self:GetDirectionName(angle)
+
+	local directionName = self:GetDirectionName(targetAngle)
 	self.frame.direction:SetText(directionName)
-	
-	-- Show/hide based on distance
-	if distance > self.maxDistance then
+
+	if self.maxDistance and self.maxDistance > 0 and distance > self.maxDistance and not (_G.PluribusHivePathfinder and _G.PluribusHivePathfinder.activeRoute) then
 		self.frame:Hide()
 	else
 		self.frame:Show()

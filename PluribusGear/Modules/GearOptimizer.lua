@@ -136,29 +136,62 @@ function GearOptimizer:OnEquipmentChanged(slot)
 	end
 end
 
--- Find real upgrade recommendations based on lowest item-level equipped slots
+-- Find real level-aware upgrade recommendations based on lowest item-level equipped slots
 function GearOptimizer:GetUpgradeRecommendations()
+	local myLvl = (UnitLevel and UnitLevel("player")) or 60
+	local expectedIlvl = math.max(10, myLvl + 3)
 	local recommendations = {}
 	for slot, currentItem in pairs(self.gearData.currentGear) do
 		if currentItem then
 			local ilvl = currentItem.ilvl or 0
 			local targetSource = nil
-			if ilvl < 55 then
-				targetSource = "Level 60 Pre-BiS Dungeons (Stratholme / Scholomance / UBRS)"
-			elseif ilvl < 66 then
-				targetSource = "Molten Core / Onyxia / Zul'Gurub"
-			elseif ilvl < 76 then
-				targetSource = "Blackwing Lair / Temple of Ahn'Qiraj (AQ40)"
-			elseif ilvl < 85 then
-				targetSource = "Naxxramas Tier 3"
+			local recIlvl = expectedIlvl
+			if myLvl < 58 then
+				if ilvl < expectedIlvl then
+					if myLvl < 24 then
+						targetSource = "Deadmines / Wailing Caverns / Quests"
+						recIlvl = 22
+					elseif myLvl < 32 then
+						targetSource = "Shadowfang Keep / Blackfathom Deeps / Stockade"
+						recIlvl = 29
+					elseif myLvl < 40 then
+						targetSource = "Gnomeregan / Razorfen Kraul / Scarlet Monastery"
+						recIlvl = 38
+					elseif myLvl < 48 then
+						targetSource = "Razorfen Downs / Uldaman / Zul'Farrak"
+						recIlvl = 47
+					elseif myLvl < 54 then
+						targetSource = "Zul'Farrak / Maraudon / Sunken Temple"
+						recIlvl = 52
+					else
+						targetSource = "Sunken Temple / Blackrock Depths"
+						recIlvl = 57
+					end
+				end
+			else
+				if ilvl < 56 then
+					targetSource = "Level 60 Pre-BiS Dungeons (Stratholme / Scholomance / Dire Maul / UBRS)"
+					recIlvl = 61
+				elseif ilvl < 66 then
+					targetSource = "Zul'Gurub / AQ20 / Molten Core / Onyxia"
+					recIlvl = 69
+				elseif ilvl < 75 then
+					targetSource = "Blackwing Lair / Temple of Ahn'Qiraj (AQ40)"
+					recIlvl = 78
+				elseif ilvl < 85 then
+					targetSource = "Naxxramas Tier 3"
+					recIlvl = 88
+				end
 			end
 			if targetSource then
 				table.insert(recommendations, {
 					slot = slot,
+					name = currentItem.name or slot,
 					currentName = currentItem.name or "Equipped Item",
 					currentIlvl = ilvl,
+					recommendedIlvl = recIlvl,
 					recommendedSource = targetSource,
-					priority = math.max(1, 86 - ilvl),
+					priority = math.max(1, recIlvl - ilvl),
 				})
 			end
 		end

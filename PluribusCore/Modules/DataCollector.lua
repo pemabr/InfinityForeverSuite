@@ -66,7 +66,7 @@ function DataCollector:Initialize()
 				local name = UnitName("target")
 				local level = UnitLevel("target")
 				if guid and name and not PluribusUtils:IsSecret(guid) and not PluribusUtils:IsSecret(name) then
-					local npcId = tonumber(select(6, strsplit("-", guid)))
+					local npcId = tonumber((select(6, strsplit("-", guid))))
 					if npcId and not DataCollector.database.seenMobs[npcId] then
 						DataCollector.database.seenMobs[npcId] = {
 							name = name,
